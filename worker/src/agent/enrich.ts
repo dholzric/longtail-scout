@@ -55,13 +55,14 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
   const about = extractAbout(homepageHtml);
   const size_estimate = estimateSize(homepageHtml);
 
-  // Hiring — first try on-page heuristic (free), then do a targeted SERP for "<name> careers" to find the careers page
+  // Hiring — on-page heuristic only (no extra google.com hits which trigger BD per-domain cooldown).
+  // We look for "hiring" keywords + a careers/jobs link on the homepage HTML.
   const hiring: Operator["hiring"] = { count: null, roles: [], source: null };
   const homeText = homepageHtml.toLowerCase();
-  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings/i.test(homeText)) {
+  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings|join us|we are growing/i.test(homeText)) {
     hiring.roles = extractRoles(homeText);
     hiring.count = hiring.roles.length || null;
-    const careersMatch = /href=["']([^"']*(?:careers?|jobs)[^"']*)["']/i.exec(homepageHtml);
+    const careersMatch = /href=["']([^"']*(?:careers?|jobs|join-us|we-are-hiring)[^"']*)["']/i.exec(homepageHtml);
     if (careersMatch) {
       try {
         const careersUrl = new URL(careersMatch[1] ?? "", c.url).toString();
@@ -70,38 +71,26 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
       } catch { /* skip bad URL */ }
     }
   }
-  // Augment with a SERP for "<name> careers" to catch external ATS pages
-  try {
-    const careersSerp = await serpSearchCached(`"${c.name}" careers OR hiring`, bridge, env.CACHE, { num: 5 });
-    const hit = careersSerp.results.find(r => /career|jobs|hiring|greenhouse|lever|workday|ashby/i.test(r.link + r.title));
-    if (hit) {
-      hiring.source = hiring.source ?? hit.link;
-      sources.push({ field: "hiring", tool: "bridge_serp", url: hit.link });
-      // titles in SERP often contain role names — augment roles list
-      const roles = new Set(hiring.roles);
-      for (const r of careersSerp.results.slice(0, 3)) {
-        for (const role of extractRoles(r.title)) roles.add(role);
-      }
-      hiring.roles = [...roles];
-      hiring.count = hiring.roles.length || hiring.count;
-    }
-    await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
-  } catch (err) {
-    await emit.emit("enrich", { name: c.name, field: "hiring", status: "fail", error: (err as Error).message.slice(0, 100) });
-  }
+  await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
 
-  // Recent activity SERP — "<name> news" → top 3 headlines
+  // Recent activity — derived from on-page press/blog links. No google.com hit.
   const recent_activity: Operator["recent_activity"] = [];
-  try {
-    const newsSerp = await serpSearchCached(`"${c.name}" news 2026`, bridge, env.CACHE, { num: 5 });
-    for (const r of newsSerp.results.slice(0, 3)) {
-      recent_activity.push({ headline: r.title, date: "", source: r.link });
-      sources.push({ field: "recent_activity", tool: "bridge_serp", url: r.link });
-    }
-    await emit.emit("enrich", { name: c.name, field: "news", status: "ok", count: recent_activity.length });
-  } catch (err) {
-    await emit.emit("enrich", { name: c.name, field: "news", status: "fail", error: (err as Error).message.slice(0, 100) });
+  const pressLinkMatches = homepageHtml.matchAll(/<a[^>]+href=["']([^"']*(?:news|press|blog|media)[^"']*)["'][^>]*>([^<]{8,120})<\/a>/gi);
+  const seenPress = new Set<string>();
+  for (const m of pressLinkMatches) {
+    if (recent_activity.length >= 3) break;
+    const href = m[1] ?? "";
+    const text = (m[2] ?? "").trim().replace(/\s+/g, " ");
+    if (!text || /^read more$|^learn more$|^view all$|^news$|^press$/i.test(text)) continue;
+    try {
+      const url = new URL(href, c.url).toString();
+      if (seenPress.has(url)) continue;
+      seenPress.add(url);
+      recent_activity.push({ headline: text, date: "", source: url });
+      sources.push({ field: "recent_activity", tool: "homepage_link", url });
+    } catch { /* skip */ }
   }
+  await emit.emit("enrich", { name: c.name, field: "press", status: "ok", count: recent_activity.length });
 
   // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
   return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null };
