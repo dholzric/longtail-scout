@@ -11,6 +11,7 @@ interface Watch {
   previous_demand_count?: number | null;
   last_demand_check_at?: number | null;
   subscribers?: string[];
+  webhook_url?: string;
 }
 
 interface Props {
@@ -59,6 +60,23 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
       headers: { authorization: `Bearer ${demoKey}` }
     });
     await refresh();
+  }
+
+  async function setWebhook(watchId: string, url: string) {
+    if (!demoKey) return;
+    const res = await fetch(`/api/watchlist/${encodeURIComponent(watchId)}/webhook`, {
+      method: url ? "POST" : "DELETE",
+      headers: { "content-type": "application/json", authorization: `Bearer ${demoKey}` },
+      body: url ? JSON.stringify({ url }) : undefined
+    });
+    if (res.ok) {
+      setSubFeedback({ watchId, msg: url ? "webhook saved" : "webhook cleared", kind: "ok" });
+      await refresh();
+    } else {
+      const txt = await res.text().catch(() => "");
+      setSubFeedback({ watchId, msg: `error: ${txt.slice(0, 80)}`, kind: "err" });
+    }
+    setTimeout(() => setSubFeedback(null), 3000);
   }
 
   async function refresh() {
@@ -191,6 +209,7 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
                   {subFeedback?.watchId === w.id && (
                     <div class={subFeedback.kind === "ok" ? "text-emerald-700" : "text-rose-700"}>{subFeedback.msg}</div>
                   )}
+                  <WebhookInput watchId={w.id} current={w.webhook_url} onSave={(url) => setWebhook(w.id, url)} />
                   <div class="text-[10px] text-sky-900/60">Sent from <code>longtailscout@quiltmap.com</code> (display name "LongTail Scout"). Replace your existing watch's email here anytime — we don't double-send.</div>
                 </div>
               )}
@@ -199,5 +218,28 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
         })}
       </div>
     </details>
+  );
+}
+
+/** Optional Slack / Discord webhook URL field for the per-watch cron payload. */
+function WebhookInput({ watchId, current, onSave }: { watchId: string; current?: string; onSave: (url: string) => void }) {
+  const [val, setVal] = useState(current ?? "");
+  useEffect(() => { setVal(current ?? ""); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [current, watchId]);
+  return (
+    <div class="border-t border-sky-200 pt-2 mt-2 space-y-1">
+      <div class="font-mono text-[10px] uppercase tracking-[0.12em] text-sky-900/70">Slack / Discord webhook (optional)</div>
+      <div class="flex gap-1.5">
+        <input
+          type="url"
+          class="flex-1 bg-paper border border-sky-300 px-2 py-1 text-xs focus:outline-none focus:border-sky-700"
+          placeholder="https://hooks.slack.com/services/... or https://discord.com/api/webhooks/..."
+          value={val}
+          onInput={(e) => setVal((e.target as HTMLInputElement).value)}
+        />
+        <button class="rounded bg-sky-dk text-paper px-3 py-1 text-xs hover:bg-ink" type="button" onClick={() => onSave(val.trim())}>save</button>
+        {current && <button class="rounded bg-paper text-rust-dk border border-rust/40 px-2 py-1 text-xs hover:bg-rust-tint" type="button" onClick={() => onSave("")} title="Clear webhook">×</button>}
+      </div>
+      <div class="text-[10px] text-sky-900/60">Fired by the daily cron when delta &gt; 0. Slack incoming-webhook or Discord webhook URL only.</div>
+    </div>
   );
 }

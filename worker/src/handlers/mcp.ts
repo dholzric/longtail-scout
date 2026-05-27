@@ -1,0 +1,421 @@
+/**
+ * /api/mcp — Model Context Protocol server (Streamable HTTP transport).
+ *
+ * Exposes LongTail Scout's core API as MCP tools so any MCP-aware client
+ * (Claude Desktop, ChatGPT MCP, Cursor, etc.) can drive scouts directly.
+ *
+ * Five tools:
+ *   - scout                 → run a full scout (sample by default to avoid burning credits)
+ *   - find_businesses       → demand-API geotagged businesses for a niche+city
+ *   - demand_count          → integer count of businesses matching a niche
+ *   - operator_screenshot   → base64 PNG of an operator's homepage
+ *   - draft_email           → AI-personalized cold email for one operator
+ *
+ * Authentication: Bearer <DEMO_PASSWORD> in the Authorization header (same as
+ * the rest of /api/*). The MCP client passes the demo password as the
+ * bearer token in its server config.
+ *
+ * Protocol: JSON-RPC 2.0 over HTTP. POST one request, get one response.
+ * SSE for the full server lifecycle is intentionally NOT implemented —
+ * single-request mode is enough for the hackathon demo and keeps Workers
+ * stateless. Compliant clients (Claude Desktop, etc.) handle it fine.
+ */
+import type { Env } from "../index";
+import { findSample } from "../samples";
+import type { Operator } from "../types";
+
+const PROTOCOL_VERSION = "2025-03-26";
+const SERVER_NAME = "longtailscout";
+const SERVER_VERSION = "1.0.0";
+
+interface JsonRpcRequest {
+  jsonrpc: "2.0";
+  id?: number | string | null;
+  method: string;
+  params?: any;
+}
+
+interface JsonRpcResponse {
+  jsonrpc: "2.0";
+  id: number | string | null;
+  result?: any;
+  error?: { code: number; message: string; data?: any };
+}
+
+interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: {
+    type: "object";
+    properties: Record<string, any>;
+    required?: string[];
+  };
+}
+
+const TOOLS: ToolDefinition[] = [
+  {
+    name: "scout",
+    description: "Run a long-tail prospect scout for a niche × city. Returns a ranked, citation-linked list of small operators whose primary signal is their own website (not LinkedIn). 'sample' mode returns cached results in ~140ms with zero BD/LLM cost; 'live' mode burns real credits and takes 30-90s.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Niche × city query, e.g. 'roofing contractors in Houston'" },
+        mode: { type: "string", enum: ["sample", "live"], description: "Sample (free, cached) or live (real BD+LLM cost). Default sample.", default: "sample" }
+      },
+      required: ["query"]
+    }
+  },
+  {
+    name: "find_businesses",
+    description: "Look up geotagged businesses in the 7M-record demand index for a niche + city. Returns lat/lng + rating + review_count + address per match. Use this to find candidates outside of an operator scout — e.g. 'how many roofing businesses are in Dallas?'",
+    inputSchema: {
+      type: "object",
+      properties: {
+        niche: { type: "string", description: "Niche keyword like 'roofing', 'dental', 'hvac'." },
+        city: { type: "string", description: "City name, optional." },
+        limit: { type: "number", description: "Max records to return (1-200). Default 50.", default: 50 }
+      },
+      required: ["niche"]
+    }
+  },
+  {
+    name: "demand_count",
+    description: "Single-integer demand count for a niche — how many businesses match this keyword in the 7M-record demand index, nationally. Faster than find_businesses when you only need the size.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        niche: { type: "string", description: "Niche keyword." }
+      },
+      required: ["niche"]
+    }
+  },
+  {
+    name: "operator_screenshot",
+    description: "Capture a live homepage screenshot of an operator URL via Bright Data Browser API. Returns the image as a base64 PNG. Cached in KV for 30 days.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Operator homepage URL (must be http/https, public hostname)." },
+        width: { type: "number", description: "Viewport width 320-1920. Default 1024.", default: 1024 },
+        height: { type: "number", description: "Viewport height 240-1080. Default 640.", default: 640 }
+      },
+      required: ["url"]
+    }
+  },
+  {
+    name: "draft_email",
+    description: "Generate a personalized cold email for one operator. References their about + hiring + recent activity. Returns subject + body + provider + estimated cost. ~$0.0002 per call.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        operator: { type: "object", description: "Operator object (from scout) — must include name, url, and ideally about, hiring, recent_activity, icp_fit_reason, sales_angle." },
+        buyer: {
+          type: "object",
+          description: "Optional buyer context for the cold email's framing.",
+          properties: {
+            product: { type: "string", description: "What you're selling, e.g. 'AccuLynx field-service SaaS'." },
+            vertical: { type: "string", description: "Vertical you target, e.g. 'roofing contractors'." }
+          }
+        }
+      },
+      required: ["operator"]
+    }
+  }
+];
+
+function makeResponse(id: number | string | null, result: any): JsonRpcResponse {
+  return { jsonrpc: "2.0", id, result };
+}
+
+function makeError(id: number | string | null, code: number, message: string, data?: any): JsonRpcResponse {
+  return { jsonrpc: "2.0", id, error: { code, message, ...(data !== undefined ? { data } : {}) } };
+}
+
+/** Format an MCP tool result as a content block. */
+function textContent(s: string) {
+  return { content: [{ type: "text", text: s }] };
+}
+
+function jsonContent(o: unknown) {
+  return { content: [{ type: "text", text: JSON.stringify(o, null, 2) }] };
+}
+
+function imageContent(base64: string, mimeType = "image/png") {
+  return { content: [{ type: "image", data: base64, mimeType }] };
+}
+
+/** Auth gate — same Bearer token as the rest of /api/*. */
+function authorized(req: Request, env: Env): boolean {
+  if (!env.DEMO_PASSWORD) return true;
+  const h = req.headers.get("authorization") ?? "";
+  return h === `Bearer ${env.DEMO_PASSWORD}`;
+}
+
+export async function mcpHandler(req: Request, env: Env): Promise<Response> {
+  if (req.method === "GET") {
+    // Public discovery — what is this endpoint, what tools does it expose.
+    return Response.json({
+      protocol: "Model Context Protocol",
+      protocolVersion: PROTOCOL_VERSION,
+      server: { name: SERVER_NAME, version: SERVER_VERSION },
+      transport: "streamable-http (single-request mode)",
+      auth: "Bearer <DEMO_PASSWORD>",
+      tools: TOOLS.map(t => ({ name: t.name, description: t.description })),
+      docs: "https://longtailscout.com/mcp"
+    });
+  }
+  if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+
+  if (!authorized(req, env)) {
+    return Response.json(
+      makeError(null, -32001, "unauthorized — set Authorization: Bearer <DEMO_PASSWORD>"),
+      { status: 401 }
+    );
+  }
+
+  let body: JsonRpcRequest | JsonRpcRequest[];
+  try { body = await req.json(); } catch {
+    return Response.json(makeError(null, -32700, "parse error"), { status: 400 });
+  }
+  const isBatch = Array.isArray(body);
+  const requests: JsonRpcRequest[] = isBatch ? body as JsonRpcRequest[] : [body as JsonRpcRequest];
+
+  const responses: JsonRpcResponse[] = [];
+  for (const r of requests) {
+    if (r.jsonrpc !== "2.0" || typeof r.method !== "string") {
+      responses.push(makeError(r.id ?? null, -32600, "invalid request"));
+      continue;
+    }
+    responses.push(await handleMethod(r, env, req));
+  }
+
+  return Response.json(isBatch ? responses : responses[0]);
+}
+
+async function handleMethod(r: JsonRpcRequest, env: Env, _req: Request): Promise<JsonRpcResponse> {
+  const id = r.id ?? null;
+  try {
+    switch (r.method) {
+      case "initialize":
+        return makeResponse(id, {
+          protocolVersion: PROTOCOL_VERSION,
+          serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
+          capabilities: { tools: {} }
+        });
+      case "tools/list":
+        return makeResponse(id, { tools: TOOLS });
+      case "tools/call":
+        return await callTool(id, r.params, env);
+      case "notifications/initialized":
+      case "notifications/cancelled":
+        // No-op; per spec these don't expect a response.
+        return makeResponse(id, {});
+      case "ping":
+        return makeResponse(id, {});
+      default:
+        return makeError(id, -32601, `method not found: ${r.method}`);
+    }
+  } catch (err) {
+    return makeError(id, -32603, "internal error", (err as Error).message?.slice(0, 200));
+  }
+}
+
+async function callTool(id: number | string | null, params: any, env: Env): Promise<JsonRpcResponse> {
+  const name = params?.name;
+  const args = params?.arguments ?? {};
+  if (!name) return makeError(id, -32602, "missing tool name");
+
+  switch (name) {
+    case "scout":              return makeResponse(id, await toolScout(args, env));
+    case "find_businesses":    return makeResponse(id, await toolFindBusinesses(args, env));
+    case "demand_count":       return makeResponse(id, await toolDemandCount(args, env));
+    case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env));
+    case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env));
+    default:                   return makeError(id, -32602, `unknown tool: ${name}`);
+  }
+}
+
+// ─── Tool implementations ────────────────────────────────────────────────────
+
+async function toolScout(args: any, env: Env) {
+  const query = String(args?.query ?? "").trim();
+  if (!query) return textContent("ERROR: missing query");
+  const mode = args?.mode === "live" ? "live" : "sample";
+
+  // Sample path — quick, deterministic, free.
+  if (mode === "sample") {
+    const sample = findSample(query);
+    if (!sample) {
+      return textContent(`No cached sample for "${query}". Use mode: "live" to run a real scout (costs real BD+LLM credits).`);
+    }
+    return jsonContent({
+      query,
+      mode: "sample",
+      sample_label: sample.label,
+      operators: sample.operators.map(simplifyOperator),
+      note: "Sample data — replayed from cache. For a live scout, set mode: 'live'."
+    });
+  }
+
+  // Live mode — burn credits. We call our own /api/scout SSE endpoint server-side and
+  // collect the final operators. This routes through every part of the agent pipeline.
+  try {
+    const baseUrl = "https://longtailscout.com";
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const resp = await fetch(`${baseUrl}/api/scout`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query })
+    });
+    if (!resp.ok || !resp.body) {
+      return textContent(`live scout failed: HTTP ${resp.status}`);
+    }
+    const operators: Operator[] = await collectFinalOperators(resp.body);
+    return jsonContent({
+      query,
+      mode: "live",
+      operators: operators.map(simplifyOperator),
+      operator_count: operators.length
+    });
+  } catch (err) {
+    return textContent(`live scout error: ${(err as Error).message}`);
+  }
+}
+
+/** Strip down an Operator to what an MCP client probably wants. */
+function simplifyOperator(o: Operator) {
+  return {
+    rank: o.rank,
+    confidence: o.confidence,
+    name: o.name,
+    url: o.url,
+    about: o.about,
+    size_estimate: o.size_estimate,
+    icp_fit_reason: o.icp_fit_reason,
+    sales_angle: o.sales_angle,
+    hiring: o.hiring,
+    geo: o.geo,
+    recent_activity: o.recent_activity,
+    memory_state: o.memory?.memory_state,
+    cross_niche: o.memory?.cross_niche,
+    sources: o.sources,
+    city: o.city
+  };
+}
+
+/** Read the SSE stream from /api/scout, return the final operators array. */
+async function collectFinalOperators(body: ReadableStream): Promise<Operator[]> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let lastEvent = "";
+  let final: Operator[] = [];
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nlIdx: number;
+    while ((nlIdx = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, nlIdx);
+      buf = buf.slice(nlIdx + 1);
+      if (line.startsWith("event: ")) {
+        lastEvent = line.slice("event: ".length).trim();
+      } else if (line.startsWith("data: ")) {
+        const dataStr = line.slice("data: ".length);
+        try {
+          const data = JSON.parse(dataStr);
+          if (lastEvent === "result" && Array.isArray(data.operators)) {
+            final = data.operators;
+          } else if (lastEvent === "operator" && final.length === 0) {
+            // Accumulate incrementally so we still have something if `result` never arrives.
+            final.push(data);
+          }
+        } catch { /* ignore non-JSON data lines */ }
+      }
+    }
+  }
+  return final;
+}
+
+async function toolFindBusinesses(args: any, env: Env) {
+  const niche = String(args?.niche ?? "").trim();
+  if (!niche) return textContent("ERROR: missing niche");
+  const limit = Math.min(Math.max(Number(args?.limit ?? 50), 1), 200);
+  const city = args?.city ? String(args.city).trim() : null;
+  const upstream = new URL("/api/businesses", env.DEMAND_API_BASE);
+  upstream.searchParams.set("q", niche.toLowerCase());
+  if (city) upstream.searchParams.set("city", city);
+  upstream.searchParams.set("limit", String(limit));
+  try {
+    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-mcp/1.0" } });
+    if (!r.ok) return textContent(`demand API error: HTTP ${r.status}`);
+    const j = await r.json();
+    return jsonContent(j);
+  } catch (err) {
+    return textContent(`demand API unreachable: ${(err as Error).message}`);
+  }
+}
+
+async function toolDemandCount(args: any, env: Env) {
+  const niche = String(args?.niche ?? "").trim();
+  if (!niche) return textContent("ERROR: missing niche");
+  const upstream = new URL("/api/research", env.DEMAND_API_BASE);
+  upstream.searchParams.set("q", niche.toLowerCase());
+  upstream.searchParams.set("tlds", "com");
+  upstream.searchParams.set("limit", "1");
+  try {
+    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-mcp/1.0" } });
+    if (!r.ok) return textContent(`demand API error: HTTP ${r.status}`);
+    const j = await r.json() as { demand?: number };
+    return jsonContent({ niche, demand: j.demand ?? 0 });
+  } catch (err) {
+    return textContent(`demand API unreachable: ${(err as Error).message}`);
+  }
+}
+
+async function toolScreenshot(args: any, env: Env) {
+  const url = String(args?.url ?? "").trim();
+  if (!url) return textContent("ERROR: missing url");
+  const width = Math.min(Math.max(Number(args?.width ?? 1024), 320), 1920);
+  const height = Math.min(Math.max(Number(args?.height ?? 640), 240), 1080);
+  try {
+    const headers: Record<string, string> = {};
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`https://longtailscout.com/api/screenshot?url=${encodeURIComponent(url)}&w=${width}&h=${height}`, { headers });
+    if (!r.ok) return textContent(`screenshot failed: HTTP ${r.status}`);
+    const ab = await r.arrayBuffer();
+    const bytes = new Uint8Array(ab);
+    // Base64-encode the PNG. Use btoa via chunked binary string to stay Worker-safe.
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return imageContent(btoa(binary), "image/png");
+  } catch (err) {
+    return textContent(`screenshot error: ${(err as Error).message}`);
+  }
+}
+
+async function toolDraftEmail(args: any, env: Env) {
+  const operator = args?.operator;
+  if (!operator?.name || !operator?.url) return textContent("ERROR: operator.name and operator.url required");
+  try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch("https://longtailscout.com/api/draft-email", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ operator, buyer: args?.buyer })
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`draft-email failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    const j = await r.json();
+    return jsonContent(j);
+  } catch (err) {
+    return textContent(`draft-email error: ${(err as Error).message}`);
+  }
+}

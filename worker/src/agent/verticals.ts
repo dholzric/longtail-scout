@@ -625,6 +625,146 @@ const JEWELRY: VerticalPack = {
   ]
 };
 
+const PET_GROOMER: VerticalPack = {
+  id: "pet_groomer",
+  label: "pet groomers / mobile pet care",
+  matches: /\b(pet groom|dog groom|mobile groom|pet salon|grooming salon|pet spa)\b/i,
+  buyer_examples: ["Gingr", "Time To Pet", "PawLoyalty", "Easy Busy Pets", "Groomeezy"],
+  signal_hints: [
+    "mobile vs storefront", "breed-specific specialty mentions", "online booking present",
+    "groomer / bather / pet stylist hiring", "Instagram-led marketing"
+  ],
+  icp_examples: ["Solo mobile groomer expanding to a van fleet", "Single-storefront salon hiring stylists", "Multi-location regional chain"],
+  serp_angles: ["mobile dog groomer", "pet grooming salon", "luxury pet spa"],
+  sales_angle_examples: ["Mobile-van model + Instagram bookings = Gingr's exact ICP for route-based scheduling + waiver intake."]
+};
+
+const YOGA_PILATES: VerticalPack = {
+  id: "yoga_pilates",
+  label: "yoga / pilates / boutique fitness studios",
+  matches: /\b(yoga|pilates|reformer|barre studio|boutique fitness|hot yoga)\b/i,
+  buyer_examples: ["Mindbody", "Mariana Tek", "WellnessLiving", "Zen Planner", "Momence"],
+  signal_hints: [
+    "class schedule / waitlist", "instructor headcount", "membership tiers",
+    "teacher training programs", "retreat or workshop offerings"
+  ],
+  icp_examples: ["Single-studio owner running 30+ classes/week", "Multi-studio mini-chain", "Teacher-training mill"],
+  serp_angles: ["independent yoga studio", "reformer pilates", "boutique fitness"],
+  sales_angle_examples: ["Reformer pilates + teacher training + retreats = Mariana Tek's revenue-per-square-foot sweet spot."]
+};
+
+const TATTOO: VerticalPack = {
+  id: "tattoo",
+  label: "tattoo / piercing studios",
+  matches: /\b(tattoo|piercing studio|body art|ink studio)\b/i,
+  buyer_examples: ["Tattoogenda", "InkLink", "Booksy", "Squareup for tattoo studios", "InkPad"],
+  signal_hints: [
+    "artist roster", "guest-artist booking blocks", "by-appointment vs walk-in",
+    "deposit / cancellation policy", "Instagram portfolio"
+  ],
+  icp_examples: ["3-artist studio with deposit problems", "Single-owner private studio", "Custom-portrait specialty shop"],
+  serp_angles: ["custom tattoo studio", "fine-line tattoo", "private tattoo studio"],
+  sales_angle_examples: ["6 artists + deposit-heavy model = Tattoogenda's ICP for booking + waiver + chair-time analytics."]
+};
+
+const VAPE_SMOKE: VerticalPack = {
+  id: "vape_smoke",
+  label: "vape / smoke shops",
+  matches: /\b(vape shop|smoke shop|head shop|e[\s-]?cig|cbd shop)\b/i,
+  buyer_examples: ["Cova POS", "Greenline", "Korona POS", "MJ Freeway"],
+  signal_hints: [
+    "compliance language (state licensing)", "delta-8 / hemp inventory", "loyalty program",
+    "store count / hours", "age-gate signage"
+  ],
+  icp_examples: ["Multi-location chain across 2-3 states", "Single-store with strong loyalty", "Specialty CBD-only boutique"],
+  serp_angles: ["vape shop", "CBD store", "smoke shop"],
+  sales_angle_examples: ["3-state footprint = compliance-heavy → Cova POS for jurisdiction-aware inventory + loyalty."]
+};
+
+const PLANT_NURSERY: VerticalPack = {
+  id: "plant_nursery",
+  label: "plant nurseries / garden centers",
+  matches: /\b(nursery|garden center|landscape nursery|wholesale plants|plant store)\b/i,
+  buyer_examples: ["Counter Point POS", "Epicor Eagle for Garden", "AGRIVI", "Cultivate Pro"],
+  signal_hints: [
+    "wholesale vs retail mix", "trade pricing tiers", "delivery fleet",
+    "seasonal / class programming", "designer-on-staff mentions"
+  ],
+  icp_examples: ["Family-owned multi-acre retail nursery", "Wholesale grower with retail front", "Garden center + landscape installation hybrid"],
+  serp_angles: ["independent plant nursery", "wholesale plants", "garden center"],
+  sales_angle_examples: ["Wholesale + retail + delivery = Counter Point's ICP for landed-cost + multi-tier pricing."]
+};
+
+const LOCKSMITH: VerticalPack = {
+  id: "locksmith",
+  label: "locksmiths / security hardware installers",
+  matches: /\b(locksmith|locks & keys|key cutting|safe install|access control install)\b/i,
+  buyer_examples: ["Workiz", "Field Promax", "RazorSync", "ServSuite", "Repair-CRM"],
+  signal_hints: [
+    "24/7 emergency service language", "commercial vs residential split", "fleet vans",
+    "automotive / safe / electronic-access specialties", "ALOA certification"
+  ],
+  icp_examples: ["3-van mobile locksmith", "Storefront + mobile hybrid", "Commercial-only access-control installer"],
+  serp_angles: ["24 hour locksmith", "mobile locksmith", "automotive locksmith"],
+  sales_angle_examples: ["Fleet of 3 vans + 24/7 dispatch = Workiz's exact field-service ICP."]
+};
+
+const GUTTERS_SIDING: VerticalPack = {
+  id: "gutters_siding",
+  label: "gutter / siding / exterior contractors",
+  matches: /\b(gutter|seamless gutter|siding|leafguard|window cleaning|exterior contractor)\b/i,
+  buyer_examples: ["AccuLynx", "JobNimbus", "Improveit 360", "Marketsharp", "MarketSharp"],
+  signal_hints: [
+    "financing options", "lifetime warranty language", "free-estimate flow",
+    "estimator / installer / sales rep hiring", "showroom presence"
+  ],
+  icp_examples: ["Family-owned exterior remodeler doing gutter + siding", "Mid-size installer with financing program", "Storm-damage specialty"],
+  serp_angles: ["seamless gutter installation", "vinyl siding contractor", "exterior remodeler"],
+  sales_angle_examples: ["Financing + lifetime warranty + estimator hiring = Improveit 360's lead-pipeline ICP."]
+};
+
+const POOL_BUILDER: VerticalPack = {
+  id: "pool_builder",
+  label: "pool builders / pool service",
+  matches: /\b(pool builder|pool installer|pool service|swimming pool|spa builder)\b/i,
+  buyer_examples: ["Pool Service Software", "Skimmer", "Paythepoolman", "Pool Pro Office", "Wisetack (financing)"],
+  signal_hints: [
+    "new-build vs service split", "service route count", "design / 3D rendering capability",
+    "winterization season prep", "service-tech / construction crew hiring"
+  ],
+  icp_examples: ["Service-route operator with 200+ accounts", "Design-build firm + service arm", "Single-route family pool service"],
+  serp_angles: ["custom pool builder", "pool service company", "swimming pool maintenance"],
+  sales_angle_examples: ["200-account service routes + tech-tracking = Skimmer's ICP for chemistry logs + invoicing."]
+};
+
+const SEPTIC: VerticalPack = {
+  id: "septic",
+  label: "septic / on-site wastewater contractors",
+  matches: /\b(septic|wastewater install|leach field|drain field|septic pump)\b/i,
+  buyer_examples: ["Workiz", "JobNimbus", "ServiceTitan (septic vertical)", "AllProWebTools"],
+  signal_hints: [
+    "pumping vs install service mix", "state-inspection language", "fleet of vacuum trucks",
+    "real-estate inspection partnerships", "operator licensure"
+  ],
+  icp_examples: ["Multi-truck pumping + install operator", "Single-truck rural service", "Real-estate-inspection-focused regional"],
+  serp_angles: ["septic pumping", "septic system installer", "wastewater contractor"],
+  sales_angle_examples: ["3-truck fleet + state inspections = ServiceTitan's septic-vertical ICP for dispatch + permit tracking."]
+};
+
+const PRESSURE_WASHING: VerticalPack = {
+  id: "pressure_washing",
+  label: "pressure washing / soft wash / exterior cleaning",
+  matches: /\b(pressure wash|power wash|soft wash|exterior cleaning|house wash|roof clean)\b/i,
+  buyer_examples: ["Workiz", "Jobber", "Service Autopilot", "Repair-CRM", "Joist"],
+  signal_hints: [
+    "commercial / residential mix", "fleet count", "subscription / annual contracts",
+    "house-wash + roof-clean bundled", "estimator / tech hiring"
+  ],
+  icp_examples: ["Solo operator scaling to 2-truck", "Multi-state franchise-style operator", "Commercial-only specialty"],
+  serp_angles: ["pressure washing service", "house washing", "commercial exterior cleaning"],
+  sales_angle_examples: ["Subscription/annual contracts + commercial mix = Jobber's recurring-revenue ICP."]
+};
+
 const GENERIC: VerticalPack = {
   id: "generic",
   label: "long-tail local service operators",
@@ -651,7 +791,9 @@ const PACKS: VerticalPack[] = [
   ROOFING, HVAC, CHILDCARE, DENTAL, AUTO_REPAIR, ELECTRICIAN, PLUMBING,
   LEGAL, MSP, ACCOUNTING, FITNESS, RESTAURANT, HOTEL, REAL_ESTATE, LANDSCAPING,
   MARKETING_AGENCY, INSURANCE_BROKER, SALON, VET, TRUCKING,
-  MEDICAL_SPECIALTY, FOOD_TRUCK, BREWERY, PHOTOGRAPHER, JEWELRY
+  MEDICAL_SPECIALTY, FOOD_TRUCK, BREWERY, PHOTOGRAPHER, JEWELRY,
+  PET_GROOMER, YOGA_PILATES, TATTOO, VAPE_SMOKE, PLANT_NURSERY,
+  LOCKSMITH, GUTTERS_SIDING, POOL_BUILDER, SEPTIC, PRESSURE_WASHING
 ];
 
 export function detectVertical(niche: string): VerticalPack {

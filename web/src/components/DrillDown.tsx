@@ -8,6 +8,29 @@ const SHOT_KEY = "lts_demo_key";
  * Lazy homepage screenshot via BD Browser API (worker proxies + caches in KV for 30d).
  * Only rendered when the user expands the drill-down, so we never pay per-operator on scout.
  */
+/** Tiny visual that conveys how many distinct niches an operator has shown up in.
+ *  Eight dots, the first N filled, color stepping from ink-25 to moss-bright across the run.
+ *  Designed to evoke a sparkline / wedge of presence over time. */
+function CrossNicheSparkline({ count, seen }: { count: number; seen: number }) {
+  const dots = 8;
+  const filled = Math.min(count, dots);
+  return (
+    <div class="flex items-center gap-1.5" title={`Appeared in ${count} niches · ${seen} total surfacings across queries`}>
+      <div class="flex gap-[2px] items-center">
+        {Array.from({ length: dots }).map((_, i) => {
+          const on = i < filled;
+          const intensity = (i + 1) / dots;
+          const bg = on
+            ? `color-mix(in oklab, var(--moss-bright) ${Math.round(40 + intensity * 60)}%, var(--paper))`
+            : "var(--ink-15)";
+          return <span key={i} class="inline-block w-[6px] h-[6px] rounded-full" style={{ background: bg }} />;
+        })}
+      </div>
+      <span class="font-mono text-[10px] text-ink-50">×{seen}</span>
+    </div>
+  );
+}
+
 function HomepageShot({ url }: { url: string }) {
   const [loaded, setLoaded] = useState<boolean>(false);
   const [errored, setErrored] = useState<boolean>(false);
@@ -116,18 +139,51 @@ export function DrillDown({ op }: { op: Operator }) {
   const templateEmail = buildOutreachEmail(op);
   const activeEmail = ai ? { subject: ai.subject, body: ai.body } : templateEmail;
 
+  function printDossier() {
+    // Tag this DrillDown's root so the @media print stylesheet shows just it.
+    // We walk up from the print button's ancestor — but easier to use a class on the wrapper.
+    const root = document.querySelector("[data-print-root]");
+    if (root) {
+      // Move the root to be a direct child of body so the "hide all body > *" print rule works.
+      const placeholder = document.createComment("dossier-placeholder");
+      const parent = root.parentNode;
+      if (parent) {
+        parent.insertBefore(placeholder, root);
+        document.body.appendChild(root);
+        root.classList.add("lts-print-root");
+        window.requestAnimationFrame(() => {
+          window.print();
+          // Restore DOM after the print dialog returns
+          root.classList.remove("lts-print-root");
+          parent.insertBefore(root, placeholder);
+          placeholder.remove();
+        });
+        return;
+      }
+    }
+    window.print();
+  }
+
   const hostname = (() => { try { return new URL(op.url).hostname.replace(/^www\./, ""); } catch { return op.url; } })();
   const hiringPattern = op.sources.find(s => s.field === "hiring")?.tool ?? "";
   const hiringVia = hiringPattern.startsWith("careers_page:") ? hiringPattern.slice("careers_page:".length) : hiringPattern === "homepage_keyword_heuristic" ? "homepage heuristic" : hiringPattern;
 
   return (
-    <div>
+    <div data-print-root>
       {/* Specimen header */}
       <div class="flex items-baseline justify-between gap-4 mb-3 flex-wrap">
         <div class="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-60">
           § specimen no. {String(op.rank).padStart(2, "0")} · field card
         </div>
         <div class="flex items-center gap-2">
+          <button
+            class="border border-ink-25 bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1.5"
+            onClick={(e) => { e.stopPropagation(); printDossier(); }}
+            type="button"
+            title="Print or save this specimen card as a PDF"
+          >
+            print dossier <span aria-hidden="true">⎙</span>
+          </button>
           <a
             class="border border-ink-25 bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1.5"
             href={op.url} target="_blank" rel="noreferrer"
@@ -204,7 +260,10 @@ export function DrillDown({ op }: { op: Operator }) {
 
           {op.memory && op.memory.cross_niche && op.memory.cross_niche.length > 0 && (
             <div class="border border-sky-paper/40 bg-sky-tint px-3 py-2.5 text-sm">
-              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-1">cross-niche signal</div>
+              <div class="flex items-center justify-between mb-1.5">
+                <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">cross-niche signal</div>
+                <CrossNicheSparkline count={(op.memory.cross_niche?.length ?? 0) + 1} seen={op.memory.seen_count} />
+              </div>
               <div class="text-ink-80">
                 Also appeared under:{" "}
                 {op.memory.cross_niche.map((q, i) => (

@@ -16,6 +16,8 @@ interface Watch {
   last_demand_check_at?: number | null;
   /** Email subscribers — receive a daily digest from the cron when delta > 0. */
   subscribers?: string[];
+  /** Optional Slack / Discord-compatible incoming webhook URL — cron POSTs delta payload when > 0. */
+  webhook_url?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -111,6 +113,31 @@ export async function watchlistHandler(req: Request, env: Env): Promise<Response
     return Response.json({ deleted: true });
   }
 
+  // WEBHOOK: POST /api/watchlist/:id/webhook { url }  (DELETE clears it)
+  const webhookMatch = path.match(/\/api\/watchlist\/([^/]+)\/webhook\/?$/);
+  if (webhookMatch) {
+    const id = decodeURIComponent(webhookMatch[1] ?? "");
+    const watch = await loadWatch(env.CACHE, id);
+    if (!watch) return new Response("watch not found", { status: 404 });
+    if (req.method === "POST") {
+      let body: { url?: string };
+      try { body = await req.json(); } catch { return new Response("invalid json", { status: 400 }); }
+      const webhookUrl = (body.url ?? "").trim();
+      // Basic validation — must be https, length-capped, accept Slack/Discord patterns
+      if (!/^https:\/\/(hooks\.slack\.com|discord\.com\/api\/webhooks|discordapp\.com\/api\/webhooks)\//i.test(webhookUrl) || webhookUrl.length > 500) {
+        return Response.json({ error: "webhook must be a Slack or Discord incoming-webhook https URL" }, { status: 400 });
+      }
+      watch.webhook_url = webhookUrl;
+      await saveWatch(env.CACHE, watch);
+      return Response.json({ ok: true, webhook_url: webhookUrl });
+    }
+    if (req.method === "DELETE") {
+      watch.webhook_url = undefined;
+      await saveWatch(env.CACHE, watch);
+      return Response.json({ ok: true, cleared: true });
+    }
+  }
+
   // SUBSCRIBE: POST /api/watchlist/:id/subscribe { email }
   // UNSUBSCRIBE: DELETE /api/watchlist/:id/subscribe?email=<addr> OR POST {action:"unsubscribe", email}
   const subscribeMatch = path.match(/\/api\/watchlist\/([^/]+)\/subscribe\/?$/);
@@ -162,13 +189,15 @@ function parseWatchQuery(q: string): { niche: string; city: string | null } {
   return { niche: q.trim(), city: null };
 }
 
-export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: boolean } = {}): Promise<{ refreshed: number; failed: number; emails_sent: number; emails_failed: number; details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number; subscribers: number; emailed: boolean; email_error?: string }> }> {
+export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: boolean } = {}): Promise<{ refreshed: number; failed: number; emails_sent: number; emails_failed: number; webhooks_sent: number; webhooks_failed: number; details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number; subscribers: number; emailed: boolean; webhook_sent?: boolean; email_error?: string; webhook_error?: string }> }> {
   const ids = await readIndex(env.CACHE);
   let refreshed = 0;
   let failed = 0;
   let emails_sent = 0;
   let emails_failed = 0;
-  const details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number; subscribers: number; emailed: boolean; email_error?: string }> = [];
+  let webhooks_sent = 0;
+  let webhooks_failed = 0;
+  const details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number; subscribers: number; emailed: boolean; webhook_sent?: boolean; email_error?: string; webhook_error?: string }> = [];
   for (const id of ids) {
     const w = await loadWatch(env.CACHE, id);
     if (!w) continue;
@@ -228,10 +257,57 @@ export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: bool
         }
       }
     }
-    details.push({ id, query: w.query, prev, current, delta, subscribers: subscribers.length, emailed, email_error });
+    // Webhook fire — same trigger as email: delta>0 OR forceEmail flag set.
+    let webhook_sent: boolean | undefined;
+    let webhook_error: string | undefined;
+    if (w.webhook_url && (delta > 0 || opts.forceEmail)) {
+      try {
+        const isDiscord = /discord(app)?\.com/i.test(w.webhook_url);
+        const payload = buildWebhookPayload(w, current, prev, delta, isDiscord);
+        const r = await fetch(w.webhook_url, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (r.ok) { webhooks_sent++; webhook_sent = true; }
+        else { webhooks_failed++; webhook_error = `HTTP ${r.status}`; }
+      } catch (err) {
+        webhooks_failed++;
+        webhook_error = (err as Error).message.slice(0, 200);
+      }
+    }
+
+    details.push({ id, query: w.query, prev, current, delta, subscribers: subscribers.length, emailed, webhook_sent, email_error, webhook_error });
     refreshed++;
   }
-  return { refreshed, failed, emails_sent, emails_failed, details };
+  return { refreshed, failed, emails_sent, emails_failed, webhooks_sent, webhooks_failed, details };
+}
+
+/** Slack-compatible payload (attachments). Discord accepts the same `text` field and ignores the rest, so this works for both. */
+function buildWebhookPayload(watch: Watch, current: number, prev: number | null, delta: number, _isDiscord: boolean) {
+  const deltaText = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "no change";
+  const runUrl = `https://longtailscout.com/?q=${encodeURIComponent(watch.query)}&run=1`;
+  const headline = delta > 0
+    ? `:chart_with_upwards_trend: LongTail Scout · *+${delta}* new businesses in "${watch.query}"`
+    : `:bar_chart: LongTail Scout · "${watch.query}" daily refresh (${deltaText})`;
+  const summary = prev !== null
+    ? `Today: *${current.toLocaleString()}* · Yesterday: *${prev.toLocaleString()}* (${deltaText})`
+    : `First measurement — ${current.toLocaleString()} businesses match.`;
+  return {
+    text: `${headline}\n${summary}\n<${runUrl}|Run a fresh scout →>`,
+    // Slack: rich attachment for clients that render it; Discord renders the `text` only.
+    attachments: [
+      {
+        color: delta > 0 ? "#10b981" : "#94a3b8",
+        fields: [
+          { title: "Watch", value: watch.query, short: false },
+          { title: "Δ since yesterday", value: deltaText, short: true },
+          { title: "Today's count", value: current.toLocaleString(), short: true }
+        ],
+        actions: [{ type: "button", text: "Run fresh scout", url: runUrl }]
+      }
+    ]
+  };
 }
 
 function buildDigestEmail(watch: Watch, current: number, prev: number | null, delta: number): { subject: string; html: string; text: string } {

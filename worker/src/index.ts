@@ -4,6 +4,8 @@ import { watchlistHandler, refreshWatchlistDemand } from "./handlers/watchlist";
 import { businessesHandler, demandResearchHandler } from "./handlers/businesses";
 import { screenshotHandler } from "./handlers/screenshot";
 import { draftEmailHandler } from "./handlers/draftEmail";
+import { mcpHandler } from "./handlers/mcp";
+import { recentRunsHandler } from "./handlers/recentRuns";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -45,6 +47,8 @@ export default {
     if (url.pathname === "/api/demand-research") return demandResearchHandler(req, env);
     if (url.pathname === "/api/screenshot") return screenshotHandler(req, env);
     if (url.pathname === "/api/draft-email") return draftEmailHandler(req, env);
+    if (url.pathname === "/api/mcp" || url.pathname === "/mcp-api") return mcpHandler(req, env);
+    if (url.pathname === "/api/recent-runs") return recentRunsHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can
     // see the cron logic without waiting until tomorrow morning.
     // Pass ?email=force to also send digest emails to subscribers even when delta is 0 (demo path).

@@ -66,8 +66,69 @@ function operatorsToCsv(ops: Operator[]): string {
   return lines.join("\n");
 }
 
+/** HubSpot Company import CSV — column names match HubSpot's expected import-wizard headers
+ * exactly so the user can map them 1:1 without editing. */
+function operatorsToHubspotCsv(ops: Operator[]): string {
+  const headers = ["Company name", "Company domain name", "Website URL", "Description", "Number of employees", "Company owner", "Lifecycle stage", "Notes"];
+  const lines = [headers.join(",")];
+  for (const op of ops) {
+    let domain = "";
+    try { domain = new URL(op.url).hostname.replace(/^www\./, ""); } catch { /* skip */ }
+    const employees = op.size_estimate === "1-10" ? "5" : op.size_estimate === "11-50" ? "30" : op.size_estimate === "51-100" ? "75" : op.size_estimate === "100+" ? "150" : "";
+    const notes = [
+      op.icp_fit_reason && `ICP fit: ${op.icp_fit_reason}`,
+      op.sales_angle && `Angle: ${op.sales_angle}`,
+      (op.hiring.count ?? 0) > 0 && `Hiring: ${op.hiring.roles.join(", ")} (${op.hiring.count})`,
+      `Discovered via LongTail Scout · confidence ${op.confidence}/100 · rank ${op.rank}`
+    ].filter(Boolean).join(" | ");
+    lines.push([
+      op.name,
+      domain,
+      op.url,
+      op.about ?? "",
+      employees,
+      "",
+      "lead",
+      notes
+    ].map(escapeCsv).join(","));
+  }
+  return lines.join("\n");
+}
+
+/** Salesforce Account import CSV — column names mirror Salesforce's Data Import Wizard
+ * default Account import template. */
+function operatorsToSalesforceCsv(ops: Operator[]): string {
+  const headers = ["Name", "Website", "Description", "NumberOfEmployees", "Industry", "Type", "Rating", "Description__c"];
+  const lines = [headers.join(",")];
+  for (const op of ops) {
+    const employees = op.size_estimate === "1-10" ? 5 : op.size_estimate === "11-50" ? 30 : op.size_estimate === "51-100" ? 75 : op.size_estimate === "100+" ? 150 : "";
+    const rating = op.confidence >= 80 ? "Hot" : op.confidence >= 60 ? "Warm" : "Cold";
+    const longDesc = [
+      op.about,
+      op.icp_fit_reason && `ICP: ${op.icp_fit_reason}`,
+      op.sales_angle && `Angle: ${op.sales_angle}`,
+      (op.hiring.count ?? 0) > 0 && `Hiring ${op.hiring.count} roles (${op.hiring.roles.join(", ")})`
+    ].filter(Boolean).join(" || ");
+    lines.push([
+      op.name,
+      op.url,
+      op.about ?? "",
+      employees,
+      "Other",
+      "Prospect",
+      rating,
+      longDesc
+    ].map(escapeCsv).join(","));
+  }
+  return lines.join("\n");
+}
+
 function downloadCsv(ops: Operator[], filename: string) {
-  const blob = new Blob([operatorsToCsv(ops)], { type: "text/csv;charset=utf-8" });
+  downloadStringAsFile(operatorsToCsv(ops), filename);
+}
+
+function downloadStringAsFile(csv: string, filename: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = filename;
@@ -146,7 +207,7 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
         title={`${visible.length === operators.length ? `${operators.length} specimens` : `${visible.length} of ${operators.length}`}. Each citation-linked.`}
         lede="Rank = fit for query. Confidence = how much we trust the row, derived from citation count + data depth + hostname-name match. Click any row to open the field card."
         action={
-          <div class="flex gap-2 font-mono text-[11px]">
+          <div class="flex flex-wrap gap-2 font-mono text-[11px]">
             <button
               class="border border-ink-25 bg-paper-2 px-3 py-1.5 uppercase tracking-wider text-ink-70 hover:bg-paper-3"
               onClick={async () => {
@@ -158,9 +219,23 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
               {copied ? "✓ copied" : "copy CSV"}
             </button>
             <button
+              class="border border-ink-25 bg-paper-2 px-3 py-1.5 uppercase tracking-wider text-ink-70 hover:bg-paper-3"
+              onClick={() => downloadStringAsFile(operatorsToHubspotCsv(visible), "longtail-scout-hubspot.csv")}
+              title="Download in HubSpot Company import format — drop straight into HubSpot's import wizard"
+            >
+              HubSpot ↓
+            </button>
+            <button
+              class="border border-ink-25 bg-paper-2 px-3 py-1.5 uppercase tracking-wider text-ink-70 hover:bg-paper-3"
+              onClick={() => downloadStringAsFile(operatorsToSalesforceCsv(visible), "longtail-scout-salesforce.csv")}
+              title="Download in Salesforce Account import format — Data Import Wizard friendly"
+            >
+              Salesforce ↓
+            </button>
+            <button
               class="bg-ink text-paper px-3 py-1.5 uppercase tracking-wider hover:bg-ink-90 inline-flex items-center gap-1.5"
               onClick={() => downloadCsv(visible, "longtail-scout-export.csv")}
-              title="Download filtered CSV"
+              title="Download generic filtered CSV"
             >
               export CSV <span aria-hidden="true">→</span>
             </button>
@@ -288,7 +363,7 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
 
                 {/* Confidence */}
                 <div class="pr-4">
-                  <ConfidenceBar value={op.confidence} />
+                  <ConfidenceBar value={op.confidence} op={op} />
                 </div>
 
                 {/* Hiring */}
@@ -341,13 +416,14 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
   );
 }
 
-/** Vertical-tick confidence bar — 20 segments, color-graded by score. */
-function ConfidenceBar({ value }: { value: number }) {
+/** Vertical-tick confidence bar — 20 segments, color-graded by score, hover-explainer breakdown. */
+function ConfidenceBar({ value, op }: { value: number; op: Operator }) {
   const ticks = 20;
   const filled = Math.round((value / 100) * ticks);
   const color = value >= 80 ? "var(--moss)" : value >= 60 ? "var(--ochre-dk)" : "var(--rust)";
+  const explain = explainConfidence(op);
   return (
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 group relative cursor-help" title={explain.text}>
       <div class="flex gap-[1.5px]">
         {Array.from({ length: ticks }).map((_, i) => (
           <span key={i} class="inline-block w-[3px] h-[14px]" style={{ background: i < filled ? color : "var(--ink-10)" }} />
@@ -356,6 +432,40 @@ function ConfidenceBar({ value }: { value: number }) {
       <span class="font-mono text-[11px] text-ink-70 font-semibold tabular-nums">{value}</span>
     </div>
   );
+}
+
+/** Mirror of worker/src/agent/confidence.ts — derives the breakdown from the operator data we have client-side.
+ * Lets us show a "why 88?" tooltip without a worker round-trip. */
+function explainConfidence(op: Operator): { text: string; total: number } {
+  const parts: string[] = [];
+  let total = 0;
+  if (op.about && op.about.length > 30) { parts.push("+30 about scraped"); total += 30; }
+  if (op.size_estimate) { parts.push(`+15 size (${op.size_estimate})`); total += 15; }
+  if (op.hiring?.source) {
+    parts.push("+20 hiring source URL");
+    total += 20;
+    const roleBoost = Math.min(op.hiring.roles?.length ?? 0, 2) * 5;
+    if (roleBoost > 0) { parts.push(`+${roleBoost} hiring roles (${op.hiring.roles.length})`); total += roleBoost; }
+  }
+  if ((op.recent_activity?.length ?? 0) >= 1) { parts.push(`+10 recent activity (${op.recent_activity.length})`); total += 10; }
+  if ((op.sources?.length ?? 0) >= 3) { parts.push(`+10 ≥3 citations (${op.sources.length})`); total += 10; }
+  if (op.geo) { parts.push("+10 geocoded"); total += 10; }
+
+  try {
+    const host = new URL(op.url).hostname.toLowerCase().replace(/^www\./, "");
+    const nameWords = op.name.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
+      .filter(w => w.length >= 4 && !/^(the|inc|llc|company|corp|group|services|service|solutions)$/.test(w));
+    if (nameWords.some(w => host.includes(w))) { parts.push("+15 hostname matches name"); total += 15; }
+  } catch { /* skip */ }
+
+  if (op.url.includes("#:~:text=")) { parts.push("−25 URL fragment"); total -= 25; }
+  if (/\/list\/|\/top-\d+|\/articles?\//.test(op.url)) { parts.push("−25 aggregator path"); total -= 25; }
+
+  const clamped = Math.max(0, Math.min(100, total));
+  return {
+    text: `Confidence ${clamped}/100 — derived from citation count, data depth, and hostname/name match:\n${parts.join("\n")}\n${total !== clamped ? `(raw ${total} clamped to ${clamped})` : ""}`.trim(),
+    total: clamped
+  };
 }
 
 /** Derive a short "via Greenhouse" / "via Lever" / "heuristic" caption from the hiring citation. */

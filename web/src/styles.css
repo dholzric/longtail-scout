@@ -216,6 +216,27 @@ body[data-palette="blueprint"] .leaflet-tile {
 }
 .leaflet-control-attribution a { color: var(--ink-70) !important; }
 
+/* ─── Print stylesheet — used for PDF dossier export ─────────────────────
+   Activated when the user clicks "Print dossier" on an open DrillDown. Hide
+   everything except the specimen card; force light palette + no paper texture
+   for legible printing.
+*/
+@media print {
+  body::before { display: none !important; }
+  body { background: white !important; color: #111 !important; }
+  /* Hide everything by default; the dossier-target gets shown again */
+  body > * { display: none !important; }
+  body > .lts-print-root { display: block !important; }
+  .lts-no-print { display: none !important; }
+  .lts-print-root { color: #111 !important; }
+  /* All children become visible inside the print root */
+  .lts-print-root *,
+  .lts-print-root *::before,
+  .lts-print-root *::after { background: transparent !important; box-shadow: none !important; }
+  a[href]:after { content: " (" attr(href) ")"; font-size: 9pt; color: #555; }
+  .lts-print-root a[href]:after { content: ""; }
+}
+
 /* ─── Numbered map pins (used in Step 7) ────────────────────────────────── */
 .lts-pin { background: transparent; border: 0; display: flex; flex-direction: column; align-items: center; }
 .lts-pin-box {

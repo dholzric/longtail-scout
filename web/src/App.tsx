@@ -10,12 +10,15 @@ import { CityBreakdown } from "./components/CityBreakdown";
 import { SocialShare } from "./components/SocialShare";
 import { AboutPage } from "./components/AboutPage";
 import { ApiDocsPage } from "./components/ApiDocsPage";
+import { McpDocsPage } from "./components/McpDocsPage";
 import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
 import { Onboarding } from "./components/Onboarding";
 import { DemandProbe } from "./components/DemandProbe";
 import { Hero } from "./components/Hero";
 import { TweaksPanel } from "./components/TweaksPanel";
+import { ByokPanel } from "./components/ByokPanel";
+import { RecentRuns } from "./components/RecentRuns";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -31,6 +34,9 @@ export function App() {
   if (typeof window !== "undefined" && /^\/(docs|api-docs|api-reference)\/?$/.test(window.location.pathname)) {
     return <ApiDocsPage />;
   }
+  if (typeof window !== "undefined" && /^\/mcp\/?$/.test(window.location.pathname)) {
+    return <McpDocsPage />;
+  }
   const [query, setQuery] = useState("roofing contractors in Houston");
   const [status, setStatus] = useState<Status>("idle");
   const [trace, setTrace] = useState<TraceEntry[]>([]);
@@ -44,6 +50,8 @@ export function App() {
   const [initialOpenId, setInitialOpenId] = useState<string | null>(null);
   const [demandCount, setDemandCount] = useState<number | null>(null);
   const showTweaks = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tweaks") === "1";
+  const showByok = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("byok") === "1";
+  const embedMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embed") === "1";
 
   // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
@@ -210,8 +218,8 @@ export function App() {
 
   return (
     <div class="min-h-screen bg-paper text-ink">
-      {/* Top utility bar — sticky cost meter + nav (live indicator, edition, BD/LLM, links) */}
-      <div class="sticky top-0 z-50 border-b border-ink-15 backdrop-blur" style={{ background: "color-mix(in oklab, var(--paper) 88%, transparent)" }}>
+      {/* Top utility bar — sticky cost meter + nav. Hidden in embed mode for iframe-friendliness. */}
+      {!embedMode && <div class="sticky top-0 z-50 border-b border-ink-15 backdrop-blur" style={{ background: "color-mix(in oklab, var(--paper) 88%, transparent)" }}>
         <div class="mx-auto max-w-6xl px-6 py-2 flex flex-wrap items-center gap-4 text-[11px] font-mono text-ink-70">
           <span class="inline-flex items-center gap-1.5">
             <span class="inline-block h-1.5 w-1.5 rounded-full bg-moss" style={{ boxShadow: "0 0 0 3px color-mix(in oklab, var(--moss) 25%, transparent)" }} />
@@ -231,10 +239,11 @@ export function App() {
           )}
           <a href="/about" class="text-ink-70 hover:text-ink border-b border-dotted border-ink-30">field manual</a>
           <a href="/docs" class="text-ink-70 hover:text-ink border-b border-dotted border-ink-30">api</a>
+          <a href="/mcp" class="text-ink-70 hover:text-ink border-b border-dotted border-ink-30">mcp</a>
         </div>
-      </div>
+      </div>}
 
-      <header>
+      {!embedMode && <header>
         <div class="mx-auto max-w-6xl px-6 pt-12 pb-2">
           <div class="flex items-baseline justify-between gap-4">
             <h1 class="text-2xl font-serif font-semibold tracking-tight">
@@ -249,10 +258,10 @@ export function App() {
             </div>
           </div>
         </div>
-      </header>
+      </header>}
 
-      <main class="mx-auto max-w-6xl px-6 py-8 space-y-6">
-        <Onboarding />
+      <main class={`mx-auto max-w-6xl px-6 space-y-6 ${embedMode ? "py-4" : "py-8"}`}>
+        {!embedMode && <Onboarding />}
         {askKey && (
           <form onSubmit={submitKey} class="rounded-lg border border-ochre/40 bg-ochre-tint p-6 shadow-sm">
             <label class="block text-sm font-medium text-ochre-dk mb-2">Demo password required</label>
@@ -269,10 +278,12 @@ export function App() {
             </div>
           </form>
         )}
-        <Hero demandCount={demandCount} />
+        {!embedMode && <Hero demandCount={demandCount} />}
         <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
         <DemandProbe query={query} onCount={setDemandCount} />
-        <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
+        {showByok && <ByokPanel />}
+        {!embedMode && <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />}
+        {!embedMode && <RecentRuns onPickQuery={setQuery} />}
         {sampleMode && (
           <div class="rounded border border-sky-paper/40 bg-sky-tint px-4 py-2 text-xs text-ink-80">
             <span class="font-medium">Sample mode active</span> — replaying a cached result for guaranteed-fast demo (140ms response, no real BD/LLM spend). Remove <code>?sample=1</code> from the URL to run a live scout.
@@ -309,12 +320,12 @@ export function App() {
 
       {showTweaks && <TweaksPanel />}
 
-      <footer class="border-t border-ink-15 mt-12">
+      {!embedMode && <footer class="border-t border-ink-15 mt-12">
         <div class="mx-auto max-w-6xl px-6 py-10 font-mono text-[11px] text-ink-50 uppercase tracking-wider flex flex-wrap items-center justify-between gap-3">
           <span>longtailscout.com · made in Austin · all rights reserved</span>
           <span>Built for the Bright Data Web Data UNLOCKED hackathon, May 2026</span>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }

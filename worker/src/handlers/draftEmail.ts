@@ -6,7 +6,7 @@
  * into a short, specific email a real SDR could send. Costs ~$0.0001 per call.
  */
 import type { Env } from "../index";
-import { llmCall } from "../llm/client";
+import { llmCall, envWithByok } from "../llm/client";
 
 interface DraftRequest {
   operator?: {
@@ -76,9 +76,11 @@ Write the cold email. Return JSON with this exact shape:
   "body": "<3-5 short paragraphs, hand-typed feel, references at least one specific fact>"
 }`;
 
+  // Honor BYOK headers — see worker/src/llm/client.ts envWithByok.
+  const byokEnv = { ...env, ...envWithByok(env, req.headers) };
   let result;
   try {
-    result = await llmCall(env, {
+    result = await llmCall(byokEnv, {
       system,
       messages: [{ role: "user", content: user }],
       responseFormat: "json_object",

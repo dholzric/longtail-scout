@@ -64,6 +64,25 @@ export interface LlmResult {
   model: string;
 }
 
+/**
+ * Build a per-request env that prefers BYOK keys from the inbound request headers over the
+ * worker's own env. Lets a judge paste their DeepSeek key in the UI and have live scouts run
+ * on their budget instead of ours. The fetch-patch in ByokPanel.tsx adds the x-byok-* headers
+ * to every /api/* call from the page.
+ */
+export function envWithByok(env: LlmEnv, headers: Headers): LlmEnv {
+  const ds = headers.get("x-byok-deepseek")?.trim();
+  const or = headers.get("x-byok-openrouter")?.trim();
+  const glm = headers.get("x-byok-glm")?.trim();
+  if (!ds && !or && !glm) return env;
+  return {
+    ...env,
+    DEEPSEEK_API_KEY: ds || env.DEEPSEEK_API_KEY,
+    OPENROUTER_API_KEY: or || env.OPENROUTER_API_KEY,
+    GLM_API_KEY: glm || env.GLM_API_KEY
+  };
+}
+
 export async function llmCall(env: LlmEnv, opts: LlmCallOpts): Promise<LlmResult> {
   const providers = getProviders(env);
   if (providers.length === 0) {
