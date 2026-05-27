@@ -13,6 +13,17 @@ if (!BD_WS) {
 
 let sharedBrowser: Browser | null = null;
 let connectingPromise: Promise<Browser> | null = null;
+let navCount = 0;
+const NAV_RECYCLE = 6; // recycle the session every N navigations
+
+// Simple FIFO mutex — serialize all renders to one-at-a-time.
+// Bright Data Browser API throttles concurrent contexts; serialization sidesteps that.
+let renderChain: Promise<unknown> = Promise.resolve();
+function withMutex<T>(fn: () => Promise<T>): Promise<T> {
+  const next = renderChain.then(fn, fn);
+  renderChain = next.catch(() => undefined);
+  return next;
+}
 
 async function getBrowser(): Promise<Browser> {
   if (sharedBrowser && sharedBrowser.isConnected()) return sharedBrowser;
@@ -46,19 +57,24 @@ interface RenderResult {
   duration_ms: number;
 }
 
-async function renderPage(url: string, opts: { waitMs?: number; selector?: string } = {}): Promise<RenderResult> {
+async function renderOnce(url: string, opts: { waitMs?: number; selector?: string }): Promise<RenderResult> {
   const start = Date.now();
+  // Proactively recycle the browser session every NAV_RECYCLE navigations to avoid hitting BD's per-session limit.
+  if (navCount >= NAV_RECYCLE && sharedBrowser) {
+    console.log(`[bridge] recycling browser after ${navCount} navs`);
+    try { await sharedBrowser.close(); } catch { /* ignore */ }
+    sharedBrowser = null;
+    navCount = 0;
+    await new Promise(r => setTimeout(r, 1500));
+  }
   const browser = await getBrowser();
+  navCount++;
   const context = await browser.newContext({ userAgent: undefined });
   const page = await context.newPage();
   try {
     const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
     if (opts.selector) {
-      try {
-        await page.waitForSelector(opts.selector, { timeout: 10_000 });
-      } catch {
-        // selector didn't appear; continue anyway
-      }
+      try { await page.waitForSelector(opts.selector, { timeout: 10_000 }); } catch { /* continue */ }
     }
     if (opts.waitMs && opts.waitMs > 0) {
       await page.waitForTimeout(Math.min(opts.waitMs, 15_000));
@@ -77,6 +93,31 @@ async function renderPage(url: string, opts: { waitMs?: number; selector?: strin
   } finally {
     await context.close().catch(() => {});
   }
+}
+
+async function renderPage(url: string, opts: { waitMs?: number; selector?: string } = {}): Promise<RenderResult> {
+  return withMutex(async () => {
+    // Retry once on Bright Data session-level errors (domain-limit, disconnected, etc.)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await renderOnce(url, opts);
+      } catch (err) {
+        const msg = (err as Error).message ?? "";
+        const isSessionFault = /domain limit reached|disconnected|Target page, context or browser has been closed|Browser has been closed|Protocol error|Missing Credentials/i.test(msg);
+        if (isSessionFault && attempt === 0) {
+          console.warn(`[bridge] session fault on ${url} — recycling browser:`, msg.slice(0, 200));
+          try { await sharedBrowser?.close(); } catch { /* ignore */ }
+          sharedBrowser = null;
+          navCount = 0;
+          // longer backoff before reconnect to let BD release the session
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error("renderPage: exhausted retries");
+  });
 }
 
 interface SerpResult {
