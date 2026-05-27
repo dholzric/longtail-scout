@@ -92,6 +92,19 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 | Bridge service | Node.js + Playwright + cheerio, ~200 lines |
 | Demand signal | Private ~7M-business demand-signal API, exposed via existing CF Tunnel |
 
+## Features
+
+- **3-phase hybrid pipeline:** LLM-driven discovery (Bright Data SERP queries) → deterministic per-candidate enrichment (homepage scrape via Bright Data Browser API, ICP-fit reasoning, hiring/press signal extraction) → LLM synthesis with citations.
+- **Vertical prompt packs** — auto-detects roofing / HVAC / childcare / dental / auto / electrician / plumbing queries and injects vertical-specific buyer names (AccuLynx, ServiceTitan, Brightwheel…), signal hints, and ICP-fit examples into the prompts.
+- **ICP fit reason column** — a one-line account-intelligence label per row, derived from scraped evidence, not LLM hallucination.
+- **Draft outreach angle** — every row has a one-sentence draft outreach line the SDR edits and sends. Labeled "Draft — edit before sending" so trust signal is honest.
+- **Map view** — Leaflet + local OSM Nominatim geocodes each operator and pins it on the map. Toggle between Table and Map.
+- **Apollo-thin badge** — every operator on its own website (not LinkedIn/Crunchbase/etc.) is labeled `Apollo-thin`. Makes the wedge visible in the UI.
+- **Memory layer** — every URL surfaced across queries is remembered in Cloudflare KV. New operators are labeled `New`; recurring ones show `Seen ×N`. Swappable for Cognee/Pinecone — the interface aligns with vector-DB APIs.
+- **Live cost meter** — running USD tally of Bright Data renders + DeepSeek tokens shown in the UI throughout the scout. No black-box pricing.
+- **CSV export + copy-to-clipboard** — one-click ingest into Apollo, HubSpot, Salesforce, or any CSV-friendly CRM.
+- **Demo gate** — Bearer-token auth on `/api/scout` so judges (with the password) can use the demo without paying for bot abuse.
+
 ## Why this beats Apollo for long-tail
 
 Apollo, ZoomInfo, Clay are built around the LinkedIn-employee-profile graph. That graph is thin for businesses that:
@@ -129,9 +142,22 @@ Deploy: `pnpm deploy` from the repo root (builds web/dist, then runs `wrangler d
 
 ## Tech credits
 
-- **Bright Data** — Scraping Browser zone (Browser API) is the only product needed end-to-end for this build.
-- **DeepSeek** — discovery and synthesis LLM calls; OpenAI-compatible.
+- **Bright Data** — Scraping Browser zone (`browser_api`) is the only BD product needed end-to-end for this build. Powers SERP via rendered google.com searches and per-operator homepage rendering. WSS/CDP only → bridge service required.
+- **DeepSeek** — discovery and synthesis LLM calls; OpenAI-compatible, fast tool-use, $0.27/1M input. **Total LLM spend in this build: <$1.**
 - **Cloudflare** — Workers, KV, Tunnels, Pages assets binding, custom-domain auto-cert.
+- **OpenStreetMap + Nominatim** (self-hosted) — geocoding for the map view, unlimited usage.
+- **Playwright (`playwright-core`)** — drives Bright Data's remote Chrome via CDP from the bridge.
+- **Cheerio** — server-side HTML parsing in the bridge for SERP extraction.
+- **Preact + Tailwind v4 + Vite + Leaflet** — frontend.
+- **AI/ML API / Z.AI GLM / OpenRouter** — configured fallback LLM providers if DeepSeek is unavailable.
+
+## What's next
+
+- **Saved searches / weekly monitoring** — type a niche × city, get a notification every Monday with the new operators that have hit your radar since last week.
+- **Cognee or Pinecone swap** for the memory layer — replace the KV-backed store with a real vector DB so we can also surface "operators similar to this one" cross-niche.
+- **CRM connectors** — direct push to HubSpot / Salesforce / Apollo CSV import, beyond the manual CSV export.
+- **Vertical packs for the next 30 niches** — current packs are 7. Roofing/HVAC-class verticals number in the hundreds; each pack is ~30 minutes to write.
+- **Triggerware / Speechmatics** — voice query and event-driven re-runs as additional partner integrations.
 - **Playwright** (`playwright-core`) — drives Bright Data's remote Chrome via CDP.
 - **cheerio** — server-side HTML parsing in the bridge.
 - **Preact + Tailwind + Vite** — frontend.

@@ -125,8 +125,9 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
 
     if (finalized) break;
 
-    // Force-finalize after turn 2 if we have any candidates — don't burn another turn.
-    if (turn >= 1 && rawCandidates.length >= 20) {
+    // Force-finalize after ANY turn that produces enough candidates. We don't need a second LLM round-trip
+    // just to ask the model to call finalize_candidates — dedupe handles it deterministically downstream.
+    if (rawCandidates.length >= 10) {
       await emit.emit("progress", { message: `Have ${rawCandidates.length} raw candidates after turn ${turn + 1} — finalizing.` });
       break;
     }
