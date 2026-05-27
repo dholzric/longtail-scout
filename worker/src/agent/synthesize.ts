@@ -8,7 +8,7 @@ import { computeConfidence } from "./confidence";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
-type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" | "memory">;
+type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" | "memory" | "confidence">;
 
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
