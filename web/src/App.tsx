@@ -5,6 +5,7 @@ import { QueryForm } from "./components/QueryForm";
 import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
+import { WedgeSummary } from "./components/WedgeSummary";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -155,6 +156,7 @@ export function App() {
         )}
         {operators.length > 0 && (
           <>
+            <WedgeSummary operators={operators} niche={query} />
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500 mr-2">View:</span>
               <button
