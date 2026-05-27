@@ -9,10 +9,23 @@ interface ResearchResponse {
   demand: number;
 }
 
+// Strip trailing common qualifier words ("contractors", "firms", "centers", …) so the
+// demand probe matches against the core noun ("roofing", "law", "childcare") which is
+// how the index is keyworded — and produces the impressive total ("82,200 businesses"
+// vs the much narrower "roofing contractors" exact-phrase count).
+const TRAILING_QUALIFIERS = /\s+(contractors?|firms?|practices?|services?|centers?|shops?|businesses?|companies?|providers?|specialists?|professionals?|technicians?|installers?|locations?|stores?|studios?|salons?|offices?)$/i;
+
 function parseNiche(q: string): string {
-  const m = q.match(/^\s*(.+?)\s+(?:in|near|around|@)\s+(.+?)\s*$/i);
-  if (m && m[1]) return m[1].trim();
-  return q.trim();
+  let inputPart = q.trim();
+  const m = inputPart.match(/^\s*(.+?)\s+(?:in|near|around|@)\s+(.+?)\s*$/i);
+  if (m && m[1]) inputPart = m[1].trim();
+  // Strip trailing qualifier(s) — iteratively in case of multi-word ("law firms" → "law")
+  let prev = "";
+  while (prev !== inputPart) {
+    prev = inputPart;
+    inputPart = inputPart.replace(TRAILING_QUALIFIERS, "").trim();
+  }
+  return inputPart;
 }
 
 /**
@@ -51,12 +64,13 @@ export function DemandProbe({ query }: Props) {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [query]);
 
-  if (errored || count === null) return null;
+  if (errored) return null;
+  if (count === null && !loading) return null;
   return (
     <div class="flex items-center gap-2 rounded border border-cyan-200 bg-cyan-50/50 px-3 py-1.5 text-xs text-cyan-900">
-      <span class="inline-block h-2 w-2 rounded-full bg-cyan-500" />
-      {loading ? (
-        <span class="text-cyan-700">probing demand index…</span>
+      <span class={`inline-block h-2 w-2 rounded-full bg-cyan-500 ${loading ? "animate-pulse" : ""}`} />
+      {loading || count === null ? (
+        <span class="text-cyan-700">probing demand index for matching businesses…</span>
       ) : (
         <span>
           <strong>{count.toLocaleString()}</strong> businesses in our private demand index match this niche
