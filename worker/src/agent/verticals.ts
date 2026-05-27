@@ -193,6 +193,198 @@ const PLUMBING: VerticalPack = {
   ]
 };
 
+const LEGAL: VerticalPack = {
+  id: "legal",
+  label: "law firms / attorneys",
+  matches: /\b(law(yer)?|attorney|legal|paralegal|esquire|llc law|law firm)\b/i,
+  buyer_examples: ["Clio", "MyCase", "PracticePanther", "Smokeball", "Filevine", "LawPay"],
+  signal_hints: [
+    "practice areas listed (personal injury, family, criminal, etc.)",
+    "free consultation / contingency fee language",
+    "attorney count / partner-associate structure",
+    "AV-rated / super-lawyers / state bar mentions",
+    "paralegal / intake / associate hiring"
+  ],
+  icp_examples: [
+    "Solo practitioner, hourly billing",
+    "Multi-attorney plaintiff firm, contingency",
+    "Boutique family-law practice, 3-5 attorneys",
+    "Estate planning, fixed-fee tiers"
+  ],
+  serp_angles: ["law firms", "personal injury attorney", "family law attorney"],
+  sales_angle_examples: [
+    "Contingency-fee personal injury firm + hiring paralegals → Filevine / Clio ICP for case management."
+  ]
+};
+
+const MSP: VerticalPack = {
+  id: "msp",
+  label: "MSPs / managed IT providers",
+  matches: /\b(msp|managed (it|service)|it support|cybersecurity|it services?|it consulting)\b/i,
+  buyer_examples: ["ConnectWise", "NinjaOne", "Datto", "Atera", "SyncroMSP", "Kaseya"],
+  signal_hints: [
+    "24/7 monitoring / NOC language",
+    "MSP / MSSP / co-managed IT terminology",
+    "compliance: SOC 2, HIPAA, PCI mentions",
+    "endpoint / RMM / EDR mentions",
+    "technician / network engineer / SOC analyst hiring"
+  ],
+  icp_examples: [
+    "20-100 endpoint MSP, SMB-focused",
+    "MSSP with cybersecurity practice",
+    "Co-managed IT for mid-market",
+    "Healthcare-vertical MSP, HIPAA-aware"
+  ],
+  serp_angles: ["managed it services", "MSP IT support", "cybersecurity services"],
+  sales_angle_examples: [
+    "24/7 NOC + HIPAA compliance + hiring SOC analysts → NinjaOne / ConnectWise ICP for RMM + ticketing."
+  ]
+};
+
+const ACCOUNTING: VerticalPack = {
+  id: "accounting",
+  label: "accountants / CPA firms",
+  matches: /\b(cpa|accountant|tax(es)?|bookkeep|payroll|accounting firm|tax prep)\b/i,
+  buyer_examples: ["Karbon", "Jirav", "TaxDome", "Canopy", "FreshBooks", "Botkeeper", "Liscio"],
+  signal_hints: [
+    "CPA designation, multi-partner structure",
+    "QuickBooks ProAdvisor / Xero certified mentions",
+    "small-business / individual / advisory specialties",
+    "tax season hiring (Jan-Apr)",
+    "fractional CFO / advisory packages"
+  ],
+  icp_examples: [
+    "Small CPA firm, business tax + payroll",
+    "Bookkeeping + tax shop, 5-15 staff",
+    "Advisory-led firm, fractional CFO services",
+    "Solo practitioner, individual returns"
+  ],
+  serp_angles: ["CPA firm", "accounting firm small business", "tax preparation services"],
+  sales_angle_examples: [
+    "QuickBooks ProAdvisor + 5-staff bookkeeping shop → Karbon / TaxDome ICP for client management."
+  ]
+};
+
+const FITNESS: VerticalPack = {
+  id: "fitness",
+  label: "fitness studios / gyms",
+  matches: /\b(gym|fitness|crossfit|yoga|pilates|spin|personal train(er|ing)|wellness studio)\b/i,
+  buyer_examples: ["Mindbody", "ClassPass", "Wodify", "Glofox", "Trainerize", "Push Press"],
+  signal_hints: [
+    "class schedule visible (group fitness)",
+    "membership tiers / drop-in pricing",
+    "personal trainer / coach roster",
+    "specialties: CrossFit / yoga / barre / spin",
+    "trainer / coach / front-desk hiring"
+  ],
+  icp_examples: [
+    "Boutique studio, group classes + PT",
+    "Multi-location yoga / pilates",
+    "CrossFit affiliate, 60-200 members",
+    "Specialty wellness studio, hybrid in-person + virtual"
+  ],
+  serp_angles: ["yoga studio", "CrossFit gym", "personal training studio"],
+  sales_angle_examples: [
+    "CrossFit affiliate with 4 coaches + hiring front-desk → Wodify / Push Press ICP."
+  ]
+};
+
+const RESTAURANT: VerticalPack = {
+  id: "restaurant",
+  label: "restaurants / food service",
+  matches: /\b(restaurant|cafe|bistro|eatery|food truck|catering|deli|bakery|pizzeria)\b/i,
+  buyer_examples: ["Toast", "Square for Restaurants", "Resy", "OpenTable", "Olo", "Lavu", "TouchBistro"],
+  signal_hints: [
+    "cuisine type listed clearly",
+    "online ordering / delivery integrations",
+    "multi-location signals",
+    "reservation system mention",
+    "server / line cook / GM hiring"
+  ],
+  icp_examples: [
+    "Multi-location casual dining",
+    "Independent fine-dining, reservation-led",
+    "Fast casual chain, 3-15 locations",
+    "Food truck → brick-and-mortar transition"
+  ],
+  serp_angles: ["restaurants", "fast casual chain", "independent restaurant"],
+  sales_angle_examples: [
+    "3 locations + DoorDash/UberEats + hiring 2 GMs → Toast / Olo ICP for multi-location POS."
+  ]
+};
+
+const HOTEL: VerticalPack = {
+  id: "hotel",
+  label: "boutique hotels / inns",
+  matches: /\b(hotel|inn|bed[\s-]?and[\s-]?breakfast|b&b|boutique hotel|guesthouse|lodge)\b/i,
+  buyer_examples: ["Cloudbeds", "Mews", "RoomRaccoon", "Stayflexi", "innRoad", "Little Hotelier"],
+  signal_hints: [
+    "room count (< 100 = boutique)",
+    "direct booking emphasis",
+    "amenities (breakfast, pet-friendly, spa)",
+    "channel manager / OTA language",
+    "front-desk / housekeeping / GM hiring"
+  ],
+  icp_examples: [
+    "Boutique < 50-room property",
+    "Family-owned inn, 12-30 rooms",
+    "Vacation rental cluster, 5-15 units",
+    "Eco-lodge / specialty property"
+  ],
+  serp_angles: ["boutique hotel", "inn bed and breakfast", "small hotel"],
+  sales_angle_examples: [
+    "30-room boutique inn + direct-booking widget + hiring housekeeping → Cloudbeds / Mews ICP."
+  ]
+};
+
+const REAL_ESTATE: VerticalPack = {
+  id: "real_estate",
+  label: "real estate agents / brokerages",
+  matches: /\b(realtor|real estate|realty|broker(age)?|mls|home buyer|home seller)\b/i,
+  buyer_examples: ["Follow Up Boss", "BoomTown", "kvCORE", "Chime", "LionDesk", "Top Producer", "Sierra Interactive"],
+  signal_hints: [
+    "agent count visible",
+    "MLS / area-specific expertise",
+    "brokerage affiliation (Keller Williams, RE/MAX, Compass, indie)",
+    "luxury / first-time-buyer / investor focus",
+    "agent / showing-coordinator hiring"
+  ],
+  icp_examples: [
+    "Small brokerage, 5-25 agents, indie",
+    "Luxury team within a national brand",
+    "Investor / wholesaler specialist",
+    "First-time-buyer focused, FHA-friendly"
+  ],
+  serp_angles: ["real estate broker", "realtor team", "boutique brokerage"],
+  sales_angle_examples: [
+    "15-agent indie brokerage + hiring showing-coordinator → kvCORE / Follow Up Boss ICP for team CRM."
+  ]
+};
+
+const LANDSCAPING: VerticalPack = {
+  id: "landscaping",
+  label: "landscaping / lawn-care companies",
+  matches: /\b(landscap(e|ing|er)|lawn care|tree service|hardscap|irrigation|grounds keep)\b/i,
+  buyer_examples: ["SingleOps", "Aspire", "LMN", "Service Autopilot", "Real Green", "Jobber"],
+  signal_hints: [
+    "residential vs commercial focus",
+    "design / build / maintenance services",
+    "fleet size / multiple trucks",
+    "irrigation / hardscape / tree-service add-ons",
+    "crew lead / foreman / designer hiring"
+  ],
+  icp_examples: [
+    "Multi-crew residential landscape company",
+    "Design/build + maintenance hybrid",
+    "Commercial grounds-keeping, large fleet",
+    "Tree service specialty + ISA-certified arborist"
+  ],
+  serp_angles: ["landscaping company", "lawn care service", "landscape design build"],
+  sales_angle_examples: [
+    "4-crew residential landscape + design-build + hiring foreman → Aspire / SingleOps ICP."
+  ]
+};
+
 const GENERIC: VerticalPack = {
   id: "generic",
   label: "long-tail local service operators",
@@ -215,7 +407,10 @@ const GENERIC: VerticalPack = {
   ]
 };
 
-const PACKS: VerticalPack[] = [ROOFING, HVAC, CHILDCARE, DENTAL, AUTO_REPAIR, ELECTRICIAN, PLUMBING];
+const PACKS: VerticalPack[] = [
+  ROOFING, HVAC, CHILDCARE, DENTAL, AUTO_REPAIR, ELECTRICIAN, PLUMBING,
+  LEGAL, MSP, ACCOUNTING, FITNESS, RESTAURANT, HOTEL, REAL_ESTATE, LANDSCAPING
+];
 
 export function detectVertical(niche: string): VerticalPack {
   for (const p of PACKS) {
