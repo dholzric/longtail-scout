@@ -505,6 +505,126 @@ const TRUCKING: VerticalPack = {
   ]
 };
 
+const MEDICAL_SPECIALTY: VerticalPack = {
+  id: "medical_specialty",
+  label: "specialty medical clinics",
+  matches: /\b(chiropract|physical therapy|dermatolog|pediatric|urgent care|optometr|podiatr|ortho|cardio|psychiatr|gastro)\b/i,
+  buyer_examples: ["Tebra", "Practice Fusion", "DrChrono", "Kareo", "AthenaHealth", "WeaveHealth", "AdvancedMD"],
+  signal_hints: [
+    "specialty (chiropractic / PT / derm / podiatry / etc.)",
+    "insurance accepted (specific carriers)",
+    "telehealth offerings",
+    "evening / weekend hours",
+    "MA / front-desk / DPT hiring"
+  ],
+  icp_examples: [
+    "Solo chiropractor, multi-modality clinic",
+    "PT clinic, 3 therapists, sports + ortho",
+    "Pediatric urgent care, multi-location",
+    "Dermatology + medspa hybrid"
+  ],
+  serp_angles: ["chiropractor clinic", "physical therapy clinic", "dermatology practice"],
+  sales_angle_examples: [
+    "PT clinic + telehealth offerings + hiring DPTs → Tebra / WeaveHealth ICP."
+  ]
+};
+
+const FOOD_TRUCK: VerticalPack = {
+  id: "food_truck",
+  label: "food trucks / mobile food",
+  matches: /\b(food truck|food cart|mobile food|ghost kitchen|street food)\b/i,
+  buyer_examples: ["Square for Restaurants", "Toast", "Roaming Hunger", "Best Food Trucks", "BentoBox"],
+  signal_hints: [
+    "cuisine type listed",
+    "event catering availability",
+    "social media (Instagram/TikTok) prominent",
+    "weekly route / schedule visible",
+    "cook / driver hiring"
+  ],
+  icp_examples: [
+    "Single-truck operator, lunch route + events",
+    "Multi-truck fleet, 3-8 vehicles",
+    "Ghost-kitchen + delivery hybrid",
+    "Specialty cuisine, growing brand"
+  ],
+  serp_angles: ["food truck", "mobile food vendor", "ghost kitchen"],
+  sales_angle_examples: [
+    "3-truck fleet + active Instagram + event catering → Square + BestFoodTrucks ICP."
+  ]
+};
+
+const BREWERY: VerticalPack = {
+  id: "brewery",
+  label: "breweries / craft beverage",
+  matches: /\b(brewery|brewer|brewing|distillery|distiller|cider(y)?|winery|taproom)\b/i,
+  buyer_examples: ["Arryved", "Untappd for Business", "Ekos", "Beer30", "Encompass", "OrderPort"],
+  signal_hints: [
+    "barrel size visible (BBL/year)",
+    "taproom or beer-garden",
+    "self-distribution vs distributor",
+    "events / tours offered",
+    "brewer / server / sales-rep hiring"
+  ],
+  icp_examples: [
+    "Microbrewery + taproom, 500-2000 BBL",
+    "Regional craft brewery, 5+ taproom locations",
+    "Distillery + cocktail bar",
+    "Wine bar + tasting events"
+  ],
+  serp_angles: ["craft brewery", "microbrewery taproom", "local distillery"],
+  sales_angle_examples: [
+    "1,500-BBL microbrewery + taproom + hiring → Arryved / Ekos ICP."
+  ]
+};
+
+const PHOTOGRAPHER: VerticalPack = {
+  id: "photographer",
+  label: "wedding / portrait photographers",
+  matches: /\b(photograph(er|y)|wedding photo|portrait studio|videograph)\b/i,
+  buyer_examples: ["HoneyBook", "17hats", "Studio Ninja", "Dubsado", "Tave", "Pixieset", "ShootProof"],
+  signal_hints: [
+    "specialty (wedding / portrait / commercial / family)",
+    "portfolio + recent featured work",
+    "package pricing tiers",
+    "destination / travel availability",
+    "second-shooter / editor / assistant hiring"
+  ],
+  icp_examples: [
+    "Solo wedding photographer, 25-50 weddings/year",
+    "Family portrait studio, brick-and-mortar",
+    "Multi-shooter wedding team, destination",
+    "Commercial product photographer"
+  ],
+  serp_angles: ["wedding photographer", "portrait photographer", "photography studio"],
+  sales_angle_examples: [
+    "50-weddings-a-year solo + destination work → HoneyBook / Studio Ninja ICP for booking + contracts."
+  ]
+};
+
+const JEWELRY: VerticalPack = {
+  id: "jewelry",
+  label: "jewelry stores / jewelers",
+  matches: /\b(jewel(er|ry)|diamond|gold smith|bridal jewel)\b/i,
+  buyer_examples: ["The Edge", "Jewelers Mutual GemStar", "Trevipay", "Punchmark", "GemFind", "Edge Pulse"],
+  signal_hints: [
+    "specialty (bridal, custom, repairs)",
+    "designer collections carried",
+    "GIA-certified gemologist mentions",
+    "appraisal / insurance services",
+    "bench jeweler / sales / designer hiring"
+  ],
+  icp_examples: [
+    "Independent fine-jewelry retailer, bridal focus",
+    "Custom-design studio, in-house bench",
+    "Multi-location regional chain",
+    "Heirloom-restoration specialty"
+  ],
+  serp_angles: ["independent jeweler", "custom jewelry", "fine jewelry store"],
+  sales_angle_examples: [
+    "Custom-design + in-house bench + GIA gemologist → Punchmark / The Edge ICP for retail + repairs."
+  ]
+};
+
 const GENERIC: VerticalPack = {
   id: "generic",
   label: "long-tail local service operators",
@@ -530,7 +650,8 @@ const GENERIC: VerticalPack = {
 const PACKS: VerticalPack[] = [
   ROOFING, HVAC, CHILDCARE, DENTAL, AUTO_REPAIR, ELECTRICIAN, PLUMBING,
   LEGAL, MSP, ACCOUNTING, FITNESS, RESTAURANT, HOTEL, REAL_ESTATE, LANDSCAPING,
-  MARKETING_AGENCY, INSURANCE_BROKER, SALON, VET, TRUCKING
+  MARKETING_AGENCY, INSURANCE_BROKER, SALON, VET, TRUCKING,
+  MEDICAL_SPECIALTY, FOOD_TRUCK, BREWERY, PHOTOGRAPHER, JEWELRY
 ];
 
 export function detectVertical(niche: string): VerticalPack {

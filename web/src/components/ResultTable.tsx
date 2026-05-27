@@ -56,19 +56,38 @@ async function copyCsv(ops: Operator[]) {
   } catch { return false; }
 }
 
+type SortKey = "rank" | "confidence" | "name" | "hiring";
+
 export function ResultTable({ operators }: { operators: Operator[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [minConfidence, setMinConfidence] = useState(0);
   const [hiringOnly, setHiringOnly] = useState(false);
   const [smallOnly, setSmallOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("rank");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const visible = operators.filter(op => {
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "rank" || key === "name" ? "asc" : "desc"); }
+  }
+
+  const filtered = operators.filter(op => {
     if (op.confidence < minConfidence) return false;
     if (hiringOnly && !(op.hiring.count && op.hiring.count > 0)) return false;
     if (smallOnly && (op.size_estimate === "100+" || op.size_estimate === "51-100")) return false;
     return true;
   });
+  const visible = [...filtered].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    switch (sortKey) {
+      case "rank": return (a.rank - b.rank) * dir;
+      case "confidence": return (a.confidence - b.confidence) * dir;
+      case "name": return a.name.localeCompare(b.name) * dir;
+      case "hiring": return ((a.hiring.count ?? 0) - (b.hiring.count ?? 0)) * dir;
+    }
+  });
+  const arrow = (k: SortKey) => sortKey === k ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   return (
     <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -108,12 +127,12 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
         </div>
       </div>
       <table class="w-full text-sm">
-        <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+        <thead class="bg-slate-50 text-xs uppercase text-slate-500 select-none">
           <tr>
-            <th class="px-4 py-2 text-left">#</th>
-            <th class="px-4 py-2 text-left">Operator</th>
+            <th class="px-4 py-2 text-left cursor-pointer hover:text-slate-900" onClick={() => toggleSort("rank")}>#{arrow("rank")}<span class="ml-1 text-[10px] normal-case opacity-50">conf{arrow("confidence")}</span></th>
+            <th class="px-4 py-2 text-left cursor-pointer hover:text-slate-900" onClick={() => toggleSort("name")}>Operator{arrow("name")}</th>
             <th class="px-4 py-2 text-left">ICP fit</th>
-            <th class="px-4 py-2 text-left">Hiring</th>
+            <th class="px-4 py-2 text-left cursor-pointer hover:text-slate-900" onClick={() => toggleSort("hiring")}>Hiring{arrow("hiring")}</th>
             <th class="px-4 py-2 text-left">Draft outreach angle</th>
           </tr>
         </thead>
