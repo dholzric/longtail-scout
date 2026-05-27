@@ -148,6 +148,13 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
                 </td>
                 <td class="px-4 py-3 align-top">
                   <div class="flex items-center gap-2">
+                    <img
+                      src={(() => { try { return `https://icons.duckduckgo.com/ip3/${new URL(op.url).hostname}.ico`; } catch { return ""; } })()}
+                      alt=""
+                      class="h-4 w-4 rounded-sm shrink-0 ring-1 ring-slate-200"
+                      onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                      loading="lazy"
+                    />
                     <span class="font-medium">{op.name}</span>
                     {operatorIsWebFirst(op) && (
                       <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700 ring-1 ring-emerald-200" title="Apollo-thin: primary signal is operator's own website, not LinkedIn">
