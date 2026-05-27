@@ -385,6 +385,126 @@ const LANDSCAPING: VerticalPack = {
   ]
 };
 
+const MARKETING_AGENCY: VerticalPack = {
+  id: "marketing_agency",
+  label: "marketing agencies / digital agencies",
+  matches: /\b(marketing agency|digital agency|seo agency|ad agency|ppc agency|creative agency|brand agency)\b/i,
+  buyer_examples: ["AgencyAnalytics", "Function Point", "Workamajig", "Productive", "Asana", "ClientFlow", "Mailshake"],
+  signal_hints: [
+    "service mix listed (SEO, PPC, social, content, design)",
+    "case studies / client logos visible",
+    "team count or 'meet the team' page",
+    "white-label / partner-agency language",
+    "AE / SEO specialist / paid-media buyer hiring"
+  ],
+  icp_examples: [
+    "Boutique digital, 8-25 staff, full-service",
+    "PPC-only specialty, Google + Meta",
+    "SEO + content agency, retainer model",
+    "Brand-design studio, project-based"
+  ],
+  serp_angles: ["digital marketing agency", "SEO agency", "PPC agency"],
+  sales_angle_examples: [
+    "PPC specialty + case studies in HVAC + hiring paid-media buyer → AgencyAnalytics / Function Point ICP for client reporting."
+  ]
+};
+
+const INSURANCE_BROKER: VerticalPack = {
+  id: "insurance_broker",
+  label: "insurance brokers / agencies",
+  matches: /\b(insurance|broker|underwrit|agency.*insurance|risk management)\b/i,
+  buyer_examples: ["Applied Epic", "Sagitta", "AMS360", "EZLynx", "HawkSoft", "QQCatalyst", "AgencyZoom"],
+  signal_hints: [
+    "specialty lines (commercial, personal, life/health, benefits)",
+    "carrier appointments listed",
+    "P&C / E&O credentials",
+    "producer / account manager / CSR hiring",
+    "compliance / state-license mentions"
+  ],
+  icp_examples: [
+    "Independent P&C broker, 5-15 producers",
+    "Benefits-focused agency, mid-market",
+    "Commercial-specialty broker, niche lines",
+    "Multi-line family agency"
+  ],
+  serp_angles: ["insurance broker", "independent insurance agency", "commercial insurance broker"],
+  sales_angle_examples: [
+    "Multi-carrier P&C + 6 producers + hiring CSRs → Applied Epic / HawkSoft ICP for agency management."
+  ]
+};
+
+const SALON: VerticalPack = {
+  id: "salon",
+  label: "salons / spas / beauty businesses",
+  matches: /\b(salon|spa|barber|nail (bar|salon)|hair (studio|salon)|beauty (bar|studio)|med ?spa)\b/i,
+  buyer_examples: ["Boulevard", "Vagaro", "Booker", "GlossGenius", "Square Appointments", "Mangomint", "Mindbody"],
+  signal_hints: [
+    "service menu visible (cuts, color, balayage, facials)",
+    "online booking link",
+    "stylist / esthetician roster",
+    "membership / subscription tiers",
+    "stylist / esthetician / front-desk hiring"
+  ],
+  icp_examples: [
+    "Boutique hair salon, 4-12 chairs",
+    "Med-spa, injectables + skincare",
+    "Multi-location nail studio",
+    "Independent barbershop with online booking"
+  ],
+  serp_angles: ["hair salon", "day spa", "med spa", "barber shop"],
+  sales_angle_examples: [
+    "Med-spa + online booking + hiring estheticians → Boulevard / Mangomint ICP for high-AOV scheduling."
+  ]
+};
+
+const VET: VerticalPack = {
+  id: "vet",
+  label: "veterinary clinics",
+  matches: /\b(vet(erinary)?|animal hospital|pet clinic|kennel|pet wellness)\b/i,
+  buyer_examples: ["PetDesk", "Provet Cloud", "Vetspire", "Hippo Manager", "eVetPractice", "Cornerstone"],
+  signal_hints: [
+    "species treated (dogs/cats vs exotics)",
+    "AAHA accreditation",
+    "wellness plans / membership",
+    "surgery / dental / urgent-care offerings",
+    "DVM / vet tech / receptionist hiring"
+  ],
+  icp_examples: [
+    "Single-doctor general practice",
+    "Multi-doctor + ICU, AAHA-accredited",
+    "Mobile / house-call vet",
+    "Exotic / specialty clinic"
+  ],
+  serp_angles: ["veterinarian", "animal hospital", "vet clinic"],
+  sales_angle_examples: [
+    "AAHA-accredited + 3 DVMs + wellness plan + hiring vet tech → PetDesk / Vetspire ICP."
+  ]
+};
+
+const TRUCKING: VerticalPack = {
+  id: "trucking",
+  label: "trucking / freight carriers",
+  matches: /\b(trucking|freight|logistics|carrier|owner[\s-]?operator|haul(ing|er))\b/i,
+  buyer_examples: ["Motive (KeepTruckin)", "Samsara", "McLeod", "Truckstop", "Tenstreet", "Truckbase", "Loadsmith"],
+  signal_hints: [
+    "fleet size visible (e.g., '40 trucks')",
+    "DOT/MC number",
+    "specialty: flatbed / reefer / dry van / specialized",
+    "regional vs OTR vs local",
+    "driver / dispatcher / safety-manager hiring"
+  ],
+  icp_examples: [
+    "40-truck flatbed regional carrier",
+    "Owner-operator + small fleet, 5-15 trucks",
+    "Reefer specialty, mid-market",
+    "Local last-mile carrier"
+  ],
+  serp_angles: ["trucking company", "freight carrier", "logistics provider"],
+  sales_angle_examples: [
+    "40-truck flatbed + hiring drivers + safety manager → Motive / McLeod ICP for ELD + dispatch."
+  ]
+};
+
 const GENERIC: VerticalPack = {
   id: "generic",
   label: "long-tail local service operators",
@@ -409,7 +529,8 @@ const GENERIC: VerticalPack = {
 
 const PACKS: VerticalPack[] = [
   ROOFING, HVAC, CHILDCARE, DENTAL, AUTO_REPAIR, ELECTRICIAN, PLUMBING,
-  LEGAL, MSP, ACCOUNTING, FITNESS, RESTAURANT, HOTEL, REAL_ESTATE, LANDSCAPING
+  LEGAL, MSP, ACCOUNTING, FITNESS, RESTAURANT, HOTEL, REAL_ESTATE, LANDSCAPING,
+  MARKETING_AGENCY, INSURANCE_BROKER, SALON, VET, TRUCKING
 ];
 
 export function detectVertical(niche: string): VerticalPack {
