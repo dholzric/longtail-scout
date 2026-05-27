@@ -16,6 +16,22 @@ const PRESETS = [
   "electrician contractors in Dallas"
 ];
 
+const SAVED_KEY = "lts_saved_queries";
+
+function loadSaved(): string[] {
+  try {
+    const raw = localStorage.getItem(SAVED_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) return arr.filter((s: unknown): s is string => typeof s === "string").slice(0, 12);
+  } catch { /* fall through */ }
+  return [];
+}
+
+function saveSaved(queries: string[]): void {
+  try { localStorage.setItem(SAVED_KEY, JSON.stringify(queries.slice(0, 12))); } catch { /* ignore */ }
+}
+
 // Web Speech API — Chrome/Edge ship it natively. Free, no partner integration needed.
 // We treat speech as a swappable input layer (Speechmatics would slot in here if we wanted
 // production-grade accuracy + language detection).
@@ -40,11 +56,28 @@ function getSpeechRec(): SpeechRec | null {
 export function QueryForm({ value, onChange, onRun, disabled }: Props) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
+  const [saved, setSaved] = useState<string[]>([]);
   const recRef = useRef<SpeechRec | null>(null);
 
   useEffect(() => {
     setSupported(getSpeechRec() !== null);
+    setSaved(loadSaved());
   }, []);
+
+  function addSaved() {
+    const v = value.trim();
+    if (!v) return;
+    if (saved.includes(v)) return;
+    const next = [v, ...saved].slice(0, 12);
+    setSaved(next);
+    saveSaved(next);
+  }
+
+  function removeSaved(s: string) {
+    const next = saved.filter(x => x !== s);
+    setSaved(next);
+    saveSaved(next);
+  }
 
   function startListening() {
     const rec = getSpeechRec();
@@ -106,7 +139,8 @@ export function QueryForm({ value, onChange, onRun, disabled }: Props) {
           {disabled ? "Running…" : "Run"}
         </button>
       </div>
-      <div class="mt-3 flex flex-wrap gap-2 text-xs">
+      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-slate-400">Try:</span>
         {PRESETS.map(p => (
           <button
             class="rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200 disabled:opacity-50"
@@ -117,6 +151,20 @@ export function QueryForm({ value, onChange, onRun, disabled }: Props) {
           </button>
         ))}
       </div>
+      {(saved.length > 0 || value.trim().length > 0) && (
+        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <span class="text-slate-400">Saved:</span>
+          {saved.map(s => (
+            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 ring-1 ring-amber-200 pl-3 pr-1 py-0.5">
+              <button class="text-amber-900 hover:underline disabled:opacity-50" onClick={() => onChange(s)} disabled={disabled}>{s}</button>
+              <button class="ml-1 rounded-full px-1 text-amber-600 hover:bg-amber-100" onClick={() => removeSaved(s)} disabled={disabled} title="Remove">×</button>
+            </span>
+          ))}
+          {value.trim() && !saved.includes(value.trim()) && (
+            <button class="rounded border border-slate-300 px-2 py-0.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50" onClick={addSaved} disabled={disabled} title="Save this query for one-click re-run">+ Save query</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,40 @@
+import { useState } from "preact/hooks";
 import type { Operator } from "../types";
 
+function buildOutreachEmail(op: Operator): { subject: string; body: string } {
+  const subject = `Quick question for ${op.name}`;
+  const lines: string[] = [];
+  lines.push(`Hi ${op.name} team,`);
+  lines.push("");
+  lines.push(op.sales_angle);
+  if (op.hiring.count && op.hiring.count > 0) {
+    lines.push("");
+    lines.push(`Noticed you're hiring ${op.hiring.roles.slice(0, 3).join(", ")} roles right now — feels like a moment where this tool would compound.`);
+  }
+  lines.push("");
+  lines.push("Worth a 15-minute call this week?");
+  lines.push("");
+  lines.push("Best,");
+  lines.push("<your name>");
+  return { subject, body: lines.join("\n") };
+}
+
+async function copyText(s: string): Promise<boolean> {
+  try { await navigator.clipboard.writeText(s); return true; } catch { return false; }
+}
+
 export function DrillDown({ op }: { op: Operator }) {
+  const [copied, setCopied] = useState<string>("");
+
+  async function flash(label: string, text: string) {
+    if (await copyText(text)) {
+      setCopied(label);
+      setTimeout(() => setCopied(""), 1500);
+    }
+  }
+
+  const email = buildOutreachEmail(op);
+
   return (
     <div class="rounded border border-slate-200 bg-slate-50 p-4">
       <h3 class="text-lg font-semibold">{op.name}</h3>
@@ -31,6 +65,28 @@ export function DrillDown({ op }: { op: Operator }) {
           ))}
         </ul>
       </div>
+
+      <div class="mt-4 rounded border border-slate-200 bg-white p-3">
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs font-medium uppercase text-slate-500">Outreach kit — draft email</div>
+          <div class="flex gap-1">
+            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("subject", email.subject)}>
+              {copied === "subject" ? "✓ Subject" : "Copy subject"}
+            </button>
+            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("body", email.body)}>
+              {copied === "body" ? "✓ Body" : "Copy body"}
+            </button>
+            <a class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" href={`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`}>
+              Open in mail
+            </a>
+          </div>
+        </div>
+        <div class="text-xs text-slate-700">
+          <div class="font-mono"><strong>Subject:</strong> {email.subject}</div>
+          <pre class="mt-1 whitespace-pre-wrap font-sans text-slate-800">{email.body}</pre>
+        </div>
+      </div>
+
       <div class="mt-3">
         <div class="text-xs font-medium uppercase text-slate-500">Sources used</div>
         <ul class="mt-1 space-y-1 text-xs text-slate-600">
