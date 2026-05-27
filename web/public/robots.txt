@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /docs
+Disallow: /api/
+
+# This is a hackathon demo. The /api/scout endpoint costs real BD/LLM dollars per call
+# and is gated behind a Bearer-token demo password.

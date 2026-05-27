@@ -195,7 +195,7 @@ git commit -m "chore: initial scaffolding"
   - **Web Unlocker** — zone name + API token
   - **Scraping Browser** — zone name (Bright Data renders via the same `/request` endpoint with `render: true`)
 
-  Note: the API token already saved in memory is `a850c6e9-f379-4112-9b20-2ae8d5a3114c`. Verify it matches the one in the dashboard; if so, reuse it for all zones (Bright Data typically shares the token across products).
+  Note: the API token already saved in memory is `<BRIGHTDATA_API_KEY>`. Verify it matches the one in the dashboard; if so, reuse it for all zones (Bright Data typically shares the token across products).
 
 - [ ] **Step 4:** Locate the MCP Server endpoint (Bright Data dashboard → AI Agents / MCP). Record whether it is:
   - A public HTTPS endpoint with bearer token (preferred), OR
@@ -207,7 +207,7 @@ git commit -m "chore: initial scaffolding"
 
 ```bash
 curl -s "https://api.brightdata.com/serp/req" \
-  -H "Authorization: Bearer a850c6e9-f379-4112-9b20-2ae8d5a3114c" \
+  -H "Authorization: Bearer <BRIGHTDATA_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"zone":"<your-serp-zone>","url":"https://www.google.com/search?q=aerospace+companies+Houston","format":"json"}' | head -c 500
 ```
@@ -393,7 +393,7 @@ git commit -m "feat(worker): bind CACHE KV namespace"
 ```
 AIMLAPI_KEY=<paste-when-redeemed-from-hackathon-partner>
 GLM_API_KEY=<paste-from-z.ai-coding-plan-dashboard>
-BRIGHTDATA_API_KEY=a850c6e9-f379-4112-9b20-2ae8d5a3114c
+BRIGHTDATA_API_KEY=<BRIGHTDATA_API_KEY>
 BRIGHTDATA_SERP_ZONE=<zone-name>
 BRIGHTDATA_WEB_UNLOCKER_ZONE=<zone-name>
 BRIGHTDATA_SCRAPER_ZONE=<zone-name>

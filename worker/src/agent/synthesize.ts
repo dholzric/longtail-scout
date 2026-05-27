@@ -83,6 +83,77 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
     return op;
   });
 
+  // Geo via overlord/demand-index match — PRIMARY source. Our 7M-record scraper DB has exact
+  // lat/lng per business name; that beats Nominatim's POI database (which only has ~1 in 6
+  // Houston roofers indexed). Run for ALL operators and prefer overlord whenever it matches —
+  // if it doesn't, keep whatever Nominatim resolved in enrich.
+  const opsNeedingGeo = operators; // run for all — overlord match beats Nominatim when available
+  if (opsNeedingGeo.length > 0) {
+    try {
+      const upstream = new URL("/api/businesses", env.DEMAND_API_BASE);
+      const nicheKey = q.niche.replace(/\b(companies|firms|operators|businesses|in|the|a|an)\b/gi, "").trim().split(/\s+/).slice(0, 3).join(" ") || q.niche;
+      upstream.searchParams.set("q", nicheKey);
+      if (q.city) upstream.searchParams.set("city", q.city);
+      upstream.searchParams.set("limit", "1000"); // pull full niche+city slice so name match has the most options
+      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-worker/1.0" } });
+      if (r.ok) {
+        const data = await r.json() as { businesses?: Array<{ name?: string; website?: string; lat?: number; lng?: number; address?: string }> };
+        const normalizedNiche = nicheKey.toLowerCase();
+        const normalizeName = (s: string): string => s
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, " ")
+          .replace(new RegExp(`\\b(${normalizedNiche}|llc|inc|corp|co|services?|company|contractors?)\\b`, "g"), "")
+          .replace(/\s+/g, " ")
+          .trim();
+        const byName = new Map<string, { lat: number; lng: number; display_name?: string }>();
+        const byHost = new Map<string, { lat: number; lng: number; display_name?: string }>();
+        for (const b of (data.businesses ?? [])) {
+          if (typeof b.lat !== "number" || typeof b.lng !== "number" || !b.name) continue;
+          const display = `${b.name}${b.address ? " · " + b.address : ""}`;
+          const key = normalizeName(b.name);
+          if (key && !byName.has(key)) byName.set(key, { lat: b.lat, lng: b.lng, display_name: display });
+          // Also index by hostname when website looks like a real homepage (not a Google booking redirect)
+          if (b.website && !/servicetitan|book\.|rwg_token/i.test(b.website)) {
+            try {
+              const host = new URL(b.website).hostname.replace(/^www\./, "").toLowerCase();
+              if (host && !byHost.has(host)) byHost.set(host, { lat: b.lat, lng: b.lng, display_name: display });
+            } catch { /* skip */ }
+          }
+        }
+        let matched = 0;
+        for (const op of opsNeedingGeo) {
+          // 1. Try hostname match first (most precise when available)
+          let hit: { lat: number; lng: number; display_name?: string } | undefined;
+          try {
+            const host = new URL(op.url).hostname.replace(/^www\./, "").toLowerCase();
+            hit = byHost.get(host);
+          } catch { /* skip malformed url */ }
+          // 2. Fall back to fuzzy name match (normalized exact)
+          if (!hit) {
+            const opKey = normalizeName(op.name);
+            if (opKey) {
+              hit = byName.get(opKey);
+              if (!hit) {
+                // Try prefix match: operator name starts with a known business name (or vice versa)
+                for (const [k, v] of byName.entries()) {
+                  if (k.length >= 4 && (opKey.startsWith(k) || k.startsWith(opKey))) { hit = v; break; }
+                }
+              }
+            }
+          }
+          if (hit) {
+            op.geo = hit;
+            op.sources.push({ field: "geo", tool: "demand_index_match", url: `${env.DEMAND_API_BASE}/api/businesses?q=${encodeURIComponent(nicheKey)}` });
+            matched++;
+          }
+        }
+        if (matched > 0) await emit.emit("progress", { message: `Geo fallback: matched ${matched}/${opsNeedingGeo.length} operators to demand-index lat/lng (hostname + name).` });
+      }
+    } catch (err) {
+      await emit.emit("progress", { message: `Demand-index geo fallback failed: ${(err as Error).message.slice(0, 80)}` });
+    }
+  }
+
   // Record each operator in the memory store + annotate with seen-count/new-vs-familiar.
   // 1 KV read + 1 KV write per operator. Cheap; runs after synthesis (post-rank).
   for (const op of operators) {

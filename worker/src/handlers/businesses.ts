@@ -34,7 +34,7 @@ export async function businessesHandler(req: Request, env: Env): Promise<Respons
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const city = (url.searchParams.get("city") ?? "").trim() || null;
   const state = (url.searchParams.get("state") ?? "").trim() || null;
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "200", 10) || 200, 1), 500);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "200", 10) || 200, 1), 1000);
 
   if (!q || q.length > 80) {
     return Response.json({ error: "missing or invalid q param" }, { status: 400 });

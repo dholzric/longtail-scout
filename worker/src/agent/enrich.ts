@@ -21,6 +21,60 @@ function extractAbout(html: string): string | null {
   return text.slice(0, 400) || null;
 }
 
+/**
+ * Pull a US-format postal address out of the homepage HTML. Most SMB sites put their
+ * address in the footer in some recognizable form. We try three sources in order of
+ * precision: schema.org PostalAddress (JSON-LD), <address> tag, then regex over the
+ * plain-text rendering. Returns null if nothing convincing.
+ */
+function extractAddress(html: string): string | null {
+  // 1. JSON-LD schema.org LocalBusiness/PostalAddress (most reliable)
+  try {
+    const jsonLdMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const m of jsonLdMatches) {
+      try {
+        const data = JSON.parse((m[1] ?? "").trim());
+        const candidates = Array.isArray(data) ? data : [data];
+        for (const node of candidates) {
+          const addr = node?.address;
+          if (!addr) continue;
+          if (typeof addr === "string") return addr.slice(0, 200);
+          const street = addr.streetAddress ?? "";
+          const city = addr.addressLocality ?? "";
+          const region = addr.addressRegion ?? "";
+          const zip = addr.postalCode ?? "";
+          const combined = [street, city, region, zip].filter(Boolean).join(", ");
+          if (combined && combined.length > 8) return combined.slice(0, 200);
+        }
+      } catch { /* malformed JSON-LD — try next */ }
+    }
+  } catch { /* fall through */ }
+
+  // 2. <address> tag content
+  const addressTag = /<address[^>]*>([\s\S]{10,300}?)<\/address>/i.exec(html);
+  if (addressTag) {
+    const cleaned = (addressTag[1] ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (/\b[A-Z]{2}\s+\d{5}\b/.test(cleaned)) return cleaned.slice(0, 200);
+  }
+
+  // 3. Regex over plain-text body — look for "City, ST ZIP" patterns and grab the line they're on.
+  // Most US-business footers have a single line like "123 Main St, Houston, TX 77030".
+  const plain = html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ");
+  // Capture up to 100 chars BEFORE the "City, ST ZIP" anchor (covers street + city)
+  const m = /([A-Z0-9][\w\s.#&'-]{8,80}?,\s*[A-Za-z][\w\s.'-]{2,40},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)/.exec(plain);
+  if (m && m[1]) return m[1].trim().slice(0, 200);
+  return null;
+}
+
 function estimateSize(html: string): Operator["size_estimate"] {
   const t = html.toLowerCase();
   if (/\b(global|fortune|enterprise|thousands of employees|10,000\+|nasdaq|nyse)\b/.test(t)) return "100+";
@@ -94,19 +148,32 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   }
   await emit.emit("enrich", { name: c.name, field: "press", status: "ok", count: recent_activity.length });
 
-  // Geocode via local Nominatim (unlimited, no API key). Use "<operator name> <city>" as the search query.
+  // Geocode via local Nominatim. Strategy: prefer the postal address extracted from the homepage
+  // (footer / JSON-LD / <address> tag) — that's the most precise input Nominatim can use. Fall
+  // back to "<operator name> <city>" which Nominatim matches when the business is in OSM as a
+  // POI. We don't fall back to bare city — that stacks every pin on the centroid.
   let geo: Operator["geo"] = null;
+  const address = homepageHtml ? extractAddress(homepageHtml) : null;
   if (env.NOMINATIM_BASE) {
     try {
-      // Extract city from the candidate's origin_query if available, otherwise nothing.
-      const cityHint = (c.origin_query.match(/\b(in|near|around)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/) ?? [])[2] ?? "";
-      const q = `${c.name}${cityHint ? " " + cityHint : ""}`;
-      const g = await geocode(q, env.NOMINATIM_BASE, env.CACHE);
+      const cityHint = (c.origin_query.match(/\b(?:in|near|around)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i) ?? [])[1]?.trim() ?? "";
+      const businessQuery = `${c.name}${cityHint ? " " + cityHint : ""}`;
+      let g: Operator["geo"] = null;
+      let resolvedVia: "address" | "business" | "fail" = "fail";
+      if (address) {
+        g = await geocode(address, env.NOMINATIM_BASE, env.CACHE);
+        if (g) resolvedVia = "address";
+      }
+      if (!g) {
+        g = await geocode(businessQuery, env.NOMINATIM_BASE, env.CACHE);
+        if (g) resolvedVia = "business";
+      }
       if (g) {
         geo = g;
-        sources.push({ field: "geo", tool: "nominatim", url: `${env.NOMINATIM_BASE}/search?q=${encodeURIComponent(q)}` });
+        const usedQuery = resolvedVia === "address" ? address! : businessQuery;
+        sources.push({ field: "geo", tool: "nominatim", url: `${env.NOMINATIM_BASE}/search?q=${encodeURIComponent(usedQuery)}` });
       }
-      await emit.emit("enrich", { name: c.name, field: "geo", status: g ? "ok" : "fail" });
+      await emit.emit("enrich", { name: c.name, field: "geo", status: g ? "ok" : "fail", resolved_via: resolvedVia, address_found: !!address });
     } catch (err) {
       await emit.emit("enrich", { name: c.name, field: "geo", status: "fail", error: (err as Error).message.slice(0, 80) });
     }

@@ -21,13 +21,24 @@ export interface Env {
   NOMINATIM_BASE?: string;
   BRIDGE_BASE: string;
   BRIDGE_AUTH_TOKEN?: string;
+  RESEND_API_KEY?: string;
 }
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
-    if (url.pathname === "/api/smoke") return smokeHandler(env);
+    if (url.pathname === "/api/smoke") {
+      // SECURITY: smoke hits Bright Data SERP (real $$$) — gate behind the demo password
+      // so anonymous traffic can't drain credits with curl loops.
+      const expected = env.DEMO_PASSWORD;
+      const auth = req.headers.get("authorization") ?? "";
+      const keyParam = url.searchParams.get("key") ?? "";
+      if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      return smokeHandler(env);
+    }
     if (url.pathname === "/api/scout") return scoutHandler(req, env, ctx);
     if (url.pathname.startsWith("/api/watchlist")) return watchlistHandler(req, env);
     if (url.pathname === "/api/businesses") return businessesHandler(req, env);
@@ -36,6 +47,7 @@ export default {
     if (url.pathname === "/api/draft-email") return draftEmailHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can
     // see the cron logic without waiting until tomorrow morning.
+    // Pass ?email=force to also send digest emails to subscribers even when delta is 0 (demo path).
     if (url.pathname === "/api/cron/watchlist-refresh") {
       const expected = env.DEMO_PASSWORD;
       const auth = req.headers.get("authorization") ?? "";
@@ -43,7 +55,8 @@ export default {
       if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
         return new Response("unauthorized", { status: 401 });
       }
-      const result = await refreshWatchlistDemand(env);
+      const forceEmail = url.searchParams.get("email") === "force";
+      const result = await refreshWatchlistDemand(env, { forceEmail });
       return Response.json(result);
     }
     if (env.ASSETS) return env.ASSETS.fetch(req);

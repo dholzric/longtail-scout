@@ -10,6 +10,7 @@ interface Watch {
   last_demand_count?: number | null;
   previous_demand_count?: number | null;
   last_demand_check_at?: number | null;
+  subscribers?: string[];
 }
 
 interface Props {
@@ -30,6 +31,35 @@ function fmtRelative(ts: number | null): string {
 export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
   const [watches, setWatches] = useState<Watch[]>([]);
   const [loading, setLoading] = useState(false);
+  const [subForm, setSubForm] = useState<{ watchId: string; email: string } | null>(null);
+  const [subFeedback, setSubFeedback] = useState<{ watchId: string; msg: string; kind: "ok" | "err" } | null>(null);
+
+  async function subscribe(watchId: string, email: string) {
+    if (!demoKey) return;
+    const res = await fetch(`/api/watchlist/${encodeURIComponent(watchId)}/subscribe`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${demoKey}` },
+      body: JSON.stringify({ email })
+    });
+    if (res.ok) {
+      setSubFeedback({ watchId, msg: `subscribed ${email}`, kind: "ok" });
+      setSubForm(null);
+      await refresh();
+    } else {
+      const txt = await res.text().catch(() => `HTTP ${res.status}`);
+      setSubFeedback({ watchId, msg: `error: ${txt.slice(0, 60)}`, kind: "err" });
+    }
+    setTimeout(() => setSubFeedback(null), 3000);
+  }
+
+  async function unsubscribe(watchId: string, email: string) {
+    if (!demoKey) return;
+    await fetch(`/api/watchlist/${encodeURIComponent(watchId)}/subscribe?email=${encodeURIComponent(email)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${demoKey}` }
+    });
+    await refresh();
+  }
 
   async function refresh() {
     if (!demoKey) return;
