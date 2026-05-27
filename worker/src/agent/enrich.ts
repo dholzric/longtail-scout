@@ -1,8 +1,6 @@
 import type { Env } from "../index";
 import type { Candidate, Citation, Operator } from "../types";
-import { serpSearchCached } from "../brightdata/serp";
 import { webUnlockerCached } from "../brightdata/webUnlocker";
-import { needsBrowser, scrapingBrowserCached } from "../brightdata/scrapingBrowser";
 import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
 
@@ -56,47 +54,26 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
   const about = extractAbout(homepageHtml);
   const size_estimate = estimateSize(homepageHtml);
 
+  // Lightweight on-page heuristics (no extra BD calls — keeps us under session limits)
   const hiring: Operator["hiring"] = { count: null, roles: [], source: null };
-  try {
-    const hiringSerp = await serpSearchCached(`"${c.name}" hiring careers`, bridge, env.CACHE, { num: 10 });
-    const careersHit = hiringSerp.results.find(r => /career|jobs|hiring/i.test(r.link + r.title));
-    if (careersHit) {
-      hiring.source = careersHit.link;
-      sources.push({ field: "hiring", tool: "bridge_serp", url: careersHit.link });
-      if (needsBrowser(careersHit.link)) {
-        try {
-          const page = await scrapingBrowserCached(careersHit.link, bridge, env.CACHE);
-          hiring.roles = extractRoles(page.text);
-          hiring.count = hiring.roles.length || null;
-        } catch (err) {
-          await emit.emit("enrich", { name: c.name, field: "hiring-browser", status: "fail", error: (err as Error).message });
-        }
-      } else {
-        try {
-          const page = await webUnlockerCached(careersHit.link, bridge, env.CACHE);
-          hiring.roles = extractRoles(page.html);
-          hiring.count = hiring.roles.length || null;
-        } catch {
-          // tolerate
-        }
-      }
+  const text = homepageHtml.toLowerCase();
+  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings/i.test(text)) {
+    hiring.roles = extractRoles(text);
+    hiring.count = hiring.roles.length || null;
+    // Try to find a careers link on the homepage
+    const careersMatch = /href=["']([^"']*(?:careers?|jobs)[^"']*)["']/i.exec(homepageHtml);
+    if (careersMatch) {
+      try {
+        const careersUrl = new URL(careersMatch[1] ?? "", c.url).toString();
+        hiring.source = careersUrl;
+        sources.push({ field: "hiring", tool: "homepage_link", url: careersUrl });
+      } catch { /* skip bad URL */ }
     }
-    await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
-  } catch (err) {
-    await emit.emit("enrich", { name: c.name, field: "hiring", status: "fail", error: (err as Error).message });
   }
+  await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
 
   const recent_activity: Operator["recent_activity"] = [];
-  try {
-    const newsSerp = await serpSearchCached(`"${c.name}" news`, bridge, env.CACHE, { num: 5 });
-    for (const r of newsSerp.results.slice(0, 3)) {
-      recent_activity.push({ headline: r.title, date: "", source: r.link });
-      sources.push({ field: "recent_activity", tool: "bridge_serp", url: r.link });
-    }
-    await emit.emit("enrich", { name: c.name, field: "news", status: "ok", count: recent_activity.length });
-  } catch {
-    await emit.emit("enrich", { name: c.name, field: "news", status: "fail" });
-  }
+  // No news SERP — judges' demo loop can't afford the BD call budget.
 
   let demand_signal: Operator["demand_signal"] = null;
   try {
@@ -113,12 +90,35 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
   return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal };
 }
 
+async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = new Array(items.length);
+  let cursor = 0;
+  const runners = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= items.length) return;
+      const item = items[idx]!;
+      try {
+        const value = await worker(item);
+        results[idx] = { status: "fulfilled", value };
+      } catch (reason) {
+        results[idx] = { status: "rejected", reason };
+      }
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
-  const capped = candidates.slice(0, 15);
-  await emit.emit("progress", { message: `Enriching ${capped.length} candidates in parallel…` });
+  // Bright Data Browser API has a navigation/concurrency quota per session.
+  // Cap concurrency low and cap total candidates so we stay under it.
+  const capped = candidates.slice(0, 8);
+  const CONCURRENCY = 2;
+  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY} at a time)…` });
 
-  const settled = await Promise.allSettled(capped.map(c => enrichOne(c, env, emit)));
+  const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit));
   const out: EnrichedPartial[] = [];
   for (const r of settled) {
     if (r.status === "fulfilled" && r.value) out.push(r.value);
