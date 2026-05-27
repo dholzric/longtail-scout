@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LongTail Scout - Phase B test</title>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, sans-serif; max-width: 920px; margin: 2rem auto; padding: 0 1rem; }
+    #trace { background: #111; color: #ddd; padding: 1rem; height: 320px; overflow: auto; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+    pre { background: #f6f6f6; padding: 1rem; overflow: auto; }
+    input { width: 60%; padding: 0.5rem; font-size: 1rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; }
+    .pill { display: inline-block; padding: 2px 8px; background: #e2e8f0; border-radius: 99px; font-size: 11px; margin-right: 4px; }
+  </style>
+</head>
+<body>
+  <h1>LongTail Scout - Phase B test page</h1>
+  <p>This is the unstyled dev surface. Real UI in Phase C.</p>
+  <input id="q" value="aerospace and space-tech companies in Houston" />
+  <button id="go">Run</button>
+  <h2>Trace</h2>
+  <div id="trace"></div>
+  <h2>Result</h2>
+  <pre id="result"></pre>
+  <script>
+    const trace = document.getElementById('trace');
+    const result = document.getElementById('result');
+    document.getElementById('go').onclick = async () => {
+      trace.textContent = '';
+      result.textContent = '';
+      const resp = await fetch('/api/scout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: document.getElementById('q').value })
+      });
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const chunk = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          const evLine = chunk.split('\n').find(l => l.startsWith('event: '));
+          const dataLine = chunk.split('\n').find(l => l.startsWith('data: '));
+          if (!evLine || !dataLine) continue;
+          const ev = evLine.slice(7);
+          const data = JSON.parse(dataLine.slice(6));
+          trace.textContent += '[' + ev + '] ' + JSON.stringify(data) + '\n';
+          trace.scrollTop = trace.scrollHeight;
+          if (ev === 'result') result.textContent = JSON.stringify(data, null, 2);
+        }
+      }
+    };
+  </script>
+</body>
+</html>
