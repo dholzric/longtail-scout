@@ -113,15 +113,26 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 
 ### UI / workflow
 - **Map view** — Leaflet + local OSM Nominatim geocodes each operator and pins it on the map. Toggle between Table and Map.
+- **Heat-map underlay** — colored circle markers underneath the operator pins, drawn from the 7M-record demand index. Color encodes rating, radius encodes review-count. Visualizes the entire niche density, not just the LLM's picks.
+- **Homepage screenshots** — each drill-down lazy-loads a real homepage screenshot via Bright Data Browser API, cached 30 days in KV. Demonstrates the BD browser path live.
+- **AI-personalized cold email** — `/api/draft-email` calls DeepSeek with the operator's about + hiring + recent_activity + buyer context, returns a 100-word personalized email (~$0.0002/call). Sits next to the static template option in the drill-down.
+- **Apollo vs LongTail comparison panel** — side-by-side wedge proof. Hardcoded per-vertical Apollo counterfactuals (national franchises, dead LinkedIn profiles, aggregators) contrasted with actual LongTail results.
 - **Wedge summary banner** — quantifies the Apollo gap above the table (citations, hiring, geocoded, new-to-index).
-- **Live cost meter** — running USD tally of Bright Data renders + DeepSeek tokens shown in the UI throughout the scout.
+- **Per-city breakdown** — bar chart of operators-per-city when a state-level query expanded into 2+ metros.
+- **Demand-index live probe** — small badge under the query input shows "N businesses match this niche in our 7M-record index" the moment a niche is typed (debounced, KV-cached).
+- **Live cost meter** — running USD tally of Bright Data renders + DeepSeek tokens shown sticky-at-top throughout the scout.
+- **3-phase progress strip** — Discovery → Enrichment → Synthesis chips above the raw trace log, with current-phase highlight.
 - **Filter + sort table** — min-confidence slider, hiring-only toggle, long-tail-only toggle; click column headers to sort.
 - **CSV export + copy-to-clipboard** — one-click ingest into Apollo, HubSpot, Salesforce. Filters apply.
 - **Voice input** — Web Speech API native (Chrome/Edge), no partner integration required.
-- **Saved queries chips** + **shareable URLs** (`?q=<query>&run=1` auto-fills + auto-runs).
+- **One-click vertical demo chips** — 8 emoji-tagged niche×city presets (Roofing·Houston, HVAC·Dallas, …). Click to instantly run; every chip has cached sample data so judges can stress-test at zero cost via `?sample=1`.
+- **Saved queries chips** + **shareable URLs** (`?q=<query>&run=1` auto-fills + auto-runs) + **per-operator permalinks** (`?op=<hash>` auto-expands a specific row).
+- **Social-share snippets** — copy-paste-ready Twitter/LinkedIn posts summarizing the just-completed run with the Apollo-vs-LongTail framing.
+- **First-visit onboarding card** — three "what to click" steps, dismissible.
 - **Watchlist** — server-side saved queries with new-vs-seen tracking on every re-run.
+- **CF Cron Triggers** — daily 13:00 UTC refresh of demand-API counts per watch, surfaces "+N businesses since yesterday" badges in the UI without spending real BD/LLM dollars per cron tick.
 - **Keyboard shortcuts** — Cmd/Ctrl+Enter runs, Cmd/Ctrl+K focuses the input.
-- **`/about` page** — how-it-works diagram, full feature list, tech stack table.
+- **`/about`** — how-it-works diagram, full feature list, tech stack table. **`/docs`** — public API reference with curl examples.
 - **Skeleton loading rows** during the pipeline; **sample-mode banner** when active.
 - **Demo gate** — Bearer-token auth on `/api/scout` so judges (with the password) can use the demo without paying for bot abuse.
 
@@ -173,14 +184,11 @@ Deploy: `pnpm deploy` from the repo root (builds web/dist, then runs `wrangler d
 
 ## What's next
 
-- **Saved searches / weekly monitoring** — type a niche × city, get a notification every Monday with the new operators that have hit your radar since last week.
-- **Cognee or Pinecone swap** for the memory layer — replace the KV-backed store with a real vector DB so we can also surface "operators similar to this one" cross-niche.
+- **Bright Data MCP Server** — wrap the existing /api/scout, /api/businesses, /api/screenshot, /api/draft-email endpoints as MCP tools so any MCP-aware client (Claude Desktop, ChatGPT MCP, etc.) can call them directly. The HTTP/SSE shape is already in place.
 - **CRM connectors** — direct push to HubSpot / Salesforce / Apollo CSV import, beyond the manual CSV export.
-- **Vertical packs for the next 30 niches** — current packs are 7. Roofing/HVAC-class verticals number in the hundreds; each pack is ~30 minutes to write.
-- **Triggerware / Speechmatics** — voice query and event-driven re-runs as additional partner integrations.
-- **Playwright** (`playwright-core`) — drives Bright Data's remote Chrome via CDP.
-- **cheerio** — server-side HTML parsing in the bridge.
-- **Preact + Tailwind + Vite** — frontend.
+- **Per-operator screenshot diffs** — recapture once a quarter; flag operators whose homepages have materially changed (homepage refresh ≈ leadership change ≈ trigger event).
+- **Slack/Discord webhook** — wire the watchlist cron to ping a channel when `+N new operators` lands.
+- **Vertical packs for the next 50 niches** — current packs are 25.
 
 ## License
 
