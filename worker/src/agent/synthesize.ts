@@ -5,7 +5,7 @@ import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
 
-type EnrichmentInput = Omit<Operator, "rank" | "sales_angle">;
+type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" | "geo">;
 
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
@@ -39,7 +39,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
   const fenceMatch = fenceRe.exec(jsonStr);
   if (fenceMatch) jsonStr = (fenceMatch[1] ?? "").trim();
 
-  let parsed: { operators: Array<{ name: string; url: string; rank: number; sales_angle: string }> };
+  let parsed: { operators: Array<{ name: string; url: string; rank: number; icp_fit_reason?: string; sales_angle: string }> };
   try {
     parsed = JSON.parse(jsonStr);
   } catch (err) {
@@ -49,6 +49,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
   const byName = new Map(enriched.map(e => [e.name, e]));
   const operators: Operator[] = parsed.operators.map(o => {
     const base = byName.get(o.name);
+    const icp_fit_reason = (o.icp_fit_reason ?? "").trim() || "Long-tail operator, web-first";
     if (!base) {
       return {
         name: o.name,
@@ -59,11 +60,13 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
         hiring: { count: null, roles: [], source: null },
         recent_activity: [],
         demand_signal: null,
+        icp_fit_reason,
         sales_angle: o.sales_angle,
-        rank: o.rank
+        rank: o.rank,
+        geo: null
       };
     }
-    return { ...base, sales_angle: o.sales_angle, rank: o.rank };
+    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, geo: null };
   });
 
   operators.sort((a, b) => a.rank - b.rank);

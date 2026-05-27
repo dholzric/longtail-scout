@@ -45,11 +45,20 @@ Generate diverse SERP queries, call serp_search for each, then call finalize_can
 }
 
 export function buildSynthesisPrompt(q: ScoutQuery, enriched: unknown[], nicheDemand: { count: number; rank_signal: number | null } | null = null): PromptPair {
-  const system = `You are a GTM analyst ranking long-tail business operators and writing a single-sentence sales angle for each.
+  const system = `You are a GTM analyst ranking long-tail business operators for a vertical-SaaS buyer (e.g. for a "roofing contractors" query the buyer is roofing-SaaS like AccuLynx / JobNimbus / Roofr; for "HVAC contractors" the buyer is ServiceTitan / HousecallPro; etc.).
 
-For each operator, output:
-- rank (1 = strongest fit for the query)
-- sales_angle: ONE sentence, specific, evidence-grounded. Reference at least one concrete fact from the enrichment record (hiring role, headline, demand score, or a phrase from the "about" field). Bad angles use vague language like "established presence" or "strong demand"; good angles cite specifics.
+For each operator, output THREE fields beyond name/url/rank:
+
+1. **icp_fit_reason** — ≤ 15 words, concrete, derived from the enrichment record. The label an SDR would use to qualify this account at a glance. Examples:
+   - "Residential roofing, storm-restoration language on homepage"
+   - "HVAC contractor, 3 lead-tech roles open, multi-truck fleet"
+   - "Childcare center w/ 2 locations, hiring directors"
+   - "Boutique dental practice, mentions Invisalign and implants"
+   If no good evidence, output "Long-tail operator, web-first" — never invent.
+
+2. **sales_angle** — ONE sentence draft outreach angle. Specific, evidence-grounded. Reference at least one concrete fact from the enrichment record. This is a DRAFT for the SDR to edit, not a fact. Bad angles use vague language like "established presence" or "strong demand"; good angles cite specifics from hiring/news/about.
+
+3. **rank** — 1 = strongest fit. Smaller operators rank higher (this is the long-tail wedge).
 
 Rules:
 - NEVER invent facts. Only use data present in the enrichment record.
@@ -72,7 +81,7 @@ Include as many real operators as possible from the input. Aim for 70-90% of the
 - Output strictly the JSON schema. No prose. No surrounding markdown fences.
 
 Example of a GOOD sales angle (uses concrete scraped facts):
-  "Posted 3 RF-engineer roles in the last 30 days; site mentions Lunar Gateway program — likely a fit if our tool helps small space subcontractors hit RFP deadlines."
+  "Posted 3 lead-tech roles in 30 days; homepage emphasizes 'multi-truck team' — likely scaling and needs dispatch/scheduling SaaS."
 
 Example of a BAD sales angle (vague):
   "Strong demand signal and established presence make this a good fit."`;
@@ -88,7 +97,9 @@ City: ${q.city}
 ${niche}Enriched candidates (JSON):
 ${JSON.stringify(enriched, null, 2)}
 
-Output JSON: { "operators": [ { "name": "...", "url": "...", "rank": 1, "sales_angle": "..." }, ... ] }`;
+Output JSON exactly:
+{ "operators": [ { "name": "...", "url": "...", "rank": 1, "icp_fit_reason": "...", "sales_angle": "..." }, ... ] }
+No prose, no markdown fences, no other fields.`;
 
   return { system, user };
 }

@@ -5,6 +5,9 @@ export function DrillDown({ op }: { op: Operator }) {
     <div class="rounded border border-slate-200 bg-slate-50 p-4">
       <h3 class="text-lg font-semibold">{op.name}</h3>
       <p class="text-sm text-slate-600">{op.about ?? "—"}</p>
+      {op.icp_fit_reason && (
+        <p class="mt-2 text-sm"><span class="text-xs font-medium uppercase text-slate-500">ICP fit:</span> {op.icp_fit_reason}</p>
+      )}
       <div class="mt-3 grid grid-cols-2 gap-4 text-sm">
         <div>
           <div class="text-xs font-medium uppercase text-slate-500">Hiring</div>
@@ -15,8 +18,8 @@ export function DrillDown({ op }: { op: Operator }) {
           ) : <span class="text-slate-400">No signal</span>}
         </div>
         <div>
-          <div class="text-xs font-medium uppercase text-slate-500">Demand</div>
-          {op.demand_signal ? <span>score {op.demand_signal.score} · nearby {op.demand_signal.nearby_count}</span> : <span class="text-slate-400">—</span>}
+          <div class="text-xs font-medium uppercase text-slate-500">Location</div>
+          {op.geo ? <span>{op.geo.lat.toFixed(4)}, {op.geo.lng.toFixed(4)}{op.geo.display_name ? ` · ${op.geo.display_name.slice(0, 60)}` : ""}</span> : <span class="text-slate-400">—</span>}
         </div>
       </div>
       <div class="mt-3">

@@ -17,8 +17,13 @@ export interface Operator {
   };
   recent_activity: { headline: string; date: string; source: string }[];
   demand_signal: { score: number; nearby_count: number } | null;
+  /** Short evidence-grounded reason this operator fits the buyer's ICP for the query. */
+  icp_fit_reason: string;
+  /** Draft outreach angle the SDR can lift, edit, and send. NOT a fact — a starting point. */
   sales_angle: string;
   rank: number;
+  /** Optional geocoded location for the map view. */
+  geo: { lat: number; lng: number; display_name?: string } | null;
 }
 
 export interface Candidate {
