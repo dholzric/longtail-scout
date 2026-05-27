@@ -69,8 +69,18 @@ async function copyText(s: string): Promise<boolean> {
   try { await navigator.clipboard.writeText(s); return true; } catch { return false; }
 }
 
+interface AiDraft {
+  subject: string;
+  body: string;
+  provider: string;
+  cost: number;
+}
+
 export function DrillDown({ op }: { op: Operator }) {
   const [copied, setCopied] = useState<string>("");
+  const [ai, setAi] = useState<AiDraft | null>(null);
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   async function flash(label: string, text: string) {
     if (await copyText(text)) {
@@ -79,7 +89,32 @@ export function DrillDown({ op }: { op: Operator }) {
     }
   }
 
-  const email = buildOutreachEmail(op);
+  async function generateWithAi() {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem("lts_demo_key") : null) ?? "";
+      const res = await fetch("/api/draft-email", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({ operator: op })
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        setAiError(j.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      const j = await res.json() as { subject: string; body: string; provider: string; estimated_cost_usd: number };
+      setAi({ subject: j.subject, body: j.body, provider: j.provider, cost: j.estimated_cost_usd });
+    } catch (err) {
+      setAiError((err as Error).message);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  const templateEmail = buildOutreachEmail(op);
+  const activeEmail = ai ? { subject: ai.subject, body: ai.body } : templateEmail;
 
   return (
     <div class="rounded border border-slate-200 bg-slate-50 p-4">
@@ -113,24 +148,42 @@ export function DrillDown({ op }: { op: Operator }) {
       </div>
 
       <div class="mt-4 rounded border border-slate-200 bg-white p-3">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-xs font-medium uppercase text-slate-500">Outreach kit — draft email</div>
-          <div class="flex gap-1">
-            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("subject", email.subject)}>
+        <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
+          <div class="text-xs font-medium uppercase text-slate-500">
+            Outreach kit — {ai ? <span class="text-emerald-700">AI-personalized email</span> : "draft email"}
+            {ai && <span class="ml-2 text-[10px] font-normal normal-case text-slate-400">via {ai.provider} · ~${ai.cost.toFixed(5)}</span>}
+          </div>
+          <div class="flex gap-1 flex-wrap">
+            <button
+              class={`rounded border px-2 py-0.5 text-xs ${aiLoading ? "border-slate-200 bg-slate-100 text-slate-400" : ai ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"}`}
+              onClick={generateWithAi}
+              disabled={aiLoading}
+              title="Generate a personalized cold email referencing this operator's actual facts (about, hiring, recent activity)"
+              type="button"
+            >
+              {aiLoading ? "✨ generating…" : ai ? "✨ regenerate with AI" : "✨ generate with AI"}
+            </button>
+            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("subject", activeEmail.subject)}>
               {copied === "subject" ? "✓ Subject" : "Copy subject"}
             </button>
-            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("body", email.body)}>
+            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("body", activeEmail.body)}>
               {copied === "body" ? "✓ Body" : "Copy body"}
             </button>
-            <a class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" href={`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`}>
+            <a class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" href={`mailto:?subject=${encodeURIComponent(activeEmail.subject)}&body=${encodeURIComponent(activeEmail.body)}`}>
               Open in mail
             </a>
           </div>
         </div>
+        {aiError && <div class="mb-2 rounded bg-rose-50 px-2 py-1 text-xs text-rose-700 ring-1 ring-rose-200">AI error: {aiError}. Showing template draft.</div>}
         <div class="text-xs text-slate-700">
-          <div class="font-mono"><strong>Subject:</strong> {email.subject}</div>
-          <pre class="mt-1 whitespace-pre-wrap font-sans text-slate-800">{email.body}</pre>
+          <div class="font-mono"><strong>Subject:</strong> {activeEmail.subject}</div>
+          <pre class="mt-1 whitespace-pre-wrap font-sans text-slate-800">{activeEmail.body}</pre>
         </div>
+        {ai && (
+          <div class="mt-2 text-[10px] text-slate-400">
+            Generated by DeepSeek from operator about + hiring + recent activity. Edit before sending — it's a starting point, not a fact.
+          </div>
+        )}
       </div>
 
       {op.memory && op.memory.cross_niche && op.memory.cross_niche.length > 0 && (

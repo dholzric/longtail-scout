@@ -3,6 +3,7 @@ import { scoutHandler } from "./handlers/scout";
 import { watchlistHandler, refreshWatchlistDemand } from "./handlers/watchlist";
 import { businessesHandler } from "./handlers/businesses";
 import { screenshotHandler } from "./handlers/screenshot";
+import { draftEmailHandler } from "./handlers/draftEmail";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -31,6 +32,7 @@ export default {
     if (url.pathname.startsWith("/api/watchlist")) return watchlistHandler(req, env);
     if (url.pathname === "/api/businesses") return businessesHandler(req, env);
     if (url.pathname === "/api/screenshot") return screenshotHandler(req, env);
+    if (url.pathname === "/api/draft-email") return draftEmailHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can
     // see the cron logic without waiting until tomorrow morning.
     if (url.pathname === "/api/cron/watchlist-refresh") {
