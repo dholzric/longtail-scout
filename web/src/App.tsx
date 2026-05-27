@@ -6,7 +6,6 @@ import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
-import { ApolloCompare } from "./components/ApolloCompare";
 import { CityBreakdown } from "./components/CityBreakdown";
 import { SocialShare } from "./components/SocialShare";
 import { AboutPage } from "./components/AboutPage";
@@ -16,6 +15,7 @@ import { Watchlist } from "./components/Watchlist";
 import { Onboarding } from "./components/Onboarding";
 import { DemandProbe } from "./components/DemandProbe";
 import { Hero } from "./components/Hero";
+import { TweaksPanel } from "./components/TweaksPanel";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -43,6 +43,7 @@ export function App() {
   const [sampleMode, setSampleMode] = useState<boolean>(false);
   const [initialOpenId, setInitialOpenId] = useState<string | null>(null);
   const [demandCount, setDemandCount] = useState<number | null>(null);
+  const showTweaks = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tweaks") === "1";
 
   // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
@@ -288,7 +289,6 @@ export function App() {
           <>
             <div data-section="wedge-summary"><WedgeSummary operators={operators} niche={query} /></div>
             <CityBreakdown operators={operators} />
-            <ApolloCompare operators={operators} query={query} />
             <SocialShare operators={operators} query={query} />
             <div class="flex items-center gap-2">
               <span class="text-xs text-ink-50 mr-2 font-mono uppercase tracking-wider">view:</span>
@@ -306,6 +306,8 @@ export function App() {
           </>
         )}
       </main>
+
+      {showTweaks && <TweaksPanel />}
 
       <footer class="border-t border-ink-15 mt-12">
         <div class="mx-auto max-w-6xl px-6 py-10 font-mono text-[11px] text-ink-50 uppercase tracking-wider flex flex-wrap items-center justify-between gap-3">

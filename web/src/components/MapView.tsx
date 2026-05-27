@@ -2,16 +2,18 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { Operator } from "../types";
+import { SectionHeader } from "./SectionHeader";
 
-const defaultIcon = L.icon({
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+/** Numbered black-box pin matching the design language. Stem + dot footprint. */
+function numberedPinIcon(rank: number): L.DivIcon {
+  return L.divIcon({
+    className: "lts-pin",
+    html: `<div class="lts-pin-box">${rank}</div><div class="lts-pin-stem"></div>`,
+    iconSize: [26, 40],
+    iconAnchor: [13, 40],
+    popupAnchor: [0, -40],
+  });
+}
 
 interface Props {
   operators: Operator[];
@@ -106,8 +108,13 @@ export function MapView({ operators, query }: Props) {
       const revs = b.review_count ?? 0;
       const radius = 4 + Math.min(10, Math.sqrt(revs / Math.max(1, maxReviews)) * 10);
       const rating = b.rating ?? 0;
-      // Color ramp: cool blue (low rating) → warm orange (high rating)
-      const color = rating >= 4.5 ? "#f97316" : rating >= 4.0 ? "#eab308" : rating >= 3.5 ? "#84cc16" : "#3b82f6";
+      // Color ramp keyed to the editorial palette: rust → ochre → moss → sky-dk
+      const cs = getComputedStyle(document.documentElement);
+      const color =
+        rating >= 4.5 ? cs.getPropertyValue("--rust").trim() :
+        rating >= 4.0 ? cs.getPropertyValue("--ochre").trim() :
+        rating >= 3.5 ? cs.getPropertyValue("--moss").trim() :
+        cs.getPropertyValue("--sky-dk").trim();
       const c = L.circleMarker([b.lat, b.lng], {
         radius,
         color,
@@ -134,13 +141,13 @@ export function MapView({ operators, query }: Props) {
     const bounds = L.latLngBounds([]);
     for (const op of withGeo) {
       const g = op.geo!;
-      const m = L.marker([g.lat, g.lng], { icon: defaultIcon, title: op.name, zIndexOffset: 1000 });
+      const m = L.marker([g.lat, g.lng], { icon: numberedPinIcon(op.rank), title: op.name, zIndexOffset: 1000 });
       const popup = `
-        <div style="min-width:220px">
-          <div style="font-weight:600;margin-bottom:2px">#${op.rank} ${escapeHtml(op.name)}</div>
-          <a href="${escapeAttr(op.url)}" target="_blank" rel="noreferrer" style="color:#1d4ed8;font-size:12px">${escapeHtml(op.url)}</a>
-          <div style="margin-top:6px;font-size:12px;color:#475569">${escapeHtml(op.icp_fit_reason)}</div>
-          <div style="margin-top:6px;font-size:11px;color:#1e293b;border-top:1px solid #e2e8f0;padding-top:6px">${escapeHtml(op.sales_angle)}</div>
+        <div style="min-width:240px;font-family:var(--font-sans)">
+          <div style="font-family:var(--font-serif);font-weight:600;font-size:14px;color:var(--ink);margin-bottom:2px">#${op.rank} · ${escapeHtml(op.name)}</div>
+          <a href="${escapeAttr(op.url)}" target="_blank" rel="noreferrer" style="color:var(--ink-60);font-size:11px;font-family:var(--font-mono);text-decoration:none;border-bottom:1px dotted var(--ink-30)">${escapeHtml(op.url)}</a>
+          <div style="margin-top:8px;font-size:12px;color:var(--ink-70)">${escapeHtml(op.icp_fit_reason)}</div>
+          <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--ink-15);font-size:11px;color:var(--ink-80);font-style:italic">"${escapeHtml(op.sales_angle)}"</div>
         </div>`;
       m.bindPopup(popup);
       m.addTo(pinLayerRef.current);
@@ -159,50 +166,52 @@ export function MapView({ operators, query }: Props) {
   const densityCount = density?.businesses.length ?? 0;
 
   return (
-    <div class="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
-      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-3 gap-3 flex-wrap">
-        <div class="flex items-baseline gap-3">
-          <h2 class="text-base font-semibold">Map</h2>
-          <span class="text-xs text-slate-500">{geoCount} of {operators.length} operators geocoded</span>
-          {densityCount > 0 && (
-            <span class="text-xs text-slate-500">· {densityCount} demand-index points</span>
-          )}
-          {loadingHeat && <span class="text-xs text-slate-400">loading heat…</span>}
-        </div>
-        <div class="flex items-center gap-2">
-          {densityCount > 0 && (
-            <label class="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showHeat}
-                onChange={(e) => setShowHeat((e.target as HTMLInputElement).checked)}
-                class="rounded"
-              />
-              Heat underlay
-            </label>
-          )}
-          <span class="text-xs text-slate-400">tiles &copy; OSM</span>
-        </div>
+    <section>
+      <SectionHeader
+        number="05"
+        kicker="on the map"
+        title="Operators pinned · demand density underneath."
+        lede="Numbered pins are the operators we surfaced; circles are the demand-index businesses they live among. Rating drives color; review count drives size."
+        action={
+          <div class="flex items-center gap-3 font-mono text-[11px] text-ink-60">
+            <span>{geoCount}/{operators.length} geocoded</span>
+            {densityCount > 0 && <><span class="text-ink-30">·</span><span>{densityCount} index pts</span></>}
+            {densityCount > 0 && (
+              <label class="inline-flex items-center gap-1.5 text-ink-70 cursor-pointer ml-2">
+                <input
+                  type="checkbox"
+                  checked={showHeat}
+                  onChange={(e) => setShowHeat((e.target as HTMLInputElement).checked)}
+                />
+                heat
+              </label>
+            )}
+            {loadingHeat && <span class="text-ink-40 animate-pulse">loading…</span>}
+          </div>
+        }
+      />
+
+      <div class="border border-ink-20 bg-paper overflow-hidden">
+        {densityCount > 0 && showHeat && (
+          <div class="border-b border-ink-15 bg-paper-2 px-5 py-2 font-mono text-[11px] text-ink-60 flex items-center gap-4 flex-wrap">
+            <span class="uppercase tracking-[0.14em] text-ink-50">demand density:</span>
+            <LegendDot color="var(--rust)" label="4.5★+ high signal" />
+            <LegendDot color="var(--ochre)" label="4.0-4.4★" />
+            <LegendDot color="var(--moss)" label="3.5-3.9★" />
+            <LegendDot color="var(--sky-dk)" label="< 3.5★" />
+            <span class="text-ink-40 ml-auto">size = review count · pins = LongTail discoveries</span>
+          </div>
+        )}
+        <div ref={containerRef} style="height:560px;width:100%" />
       </div>
-      {densityCount > 0 && showHeat && (
-        <div class="border-b border-slate-200 bg-slate-50 px-6 py-2 text-xs text-slate-600 flex items-center gap-4 flex-wrap">
-          <span class="font-medium text-slate-700">Demand density:</span>
-          <LegendDot color="#f97316" label="4.5★+ (high signal)" />
-          <LegendDot color="#eab308" label="4.0-4.4★" />
-          <LegendDot color="#84cc16" label="3.5-3.9★" />
-          <LegendDot color="#3b82f6" label="< 3.5★" />
-          <span class="text-slate-400 ml-auto">circle size = review count · pins = LongTail discoveries</span>
-        </div>
-      )}
-      <div ref={containerRef} style="height:520px;width:100%" />
-    </div>
+    </section>
   );
 }
 
 function LegendDot({ color, label }: { color: string; label: string }) {
   return (
-    <span class="inline-flex items-center gap-1">
-      <span style={`display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};opacity:0.7`} />
+    <span class="inline-flex items-center gap-1.5">
+      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: color, opacity: 0.75 }} />
       <span>{label}</span>
     </span>
   );

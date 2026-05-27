@@ -24,13 +24,13 @@ function HomepageShot({ url }: { url: string }) {
     return () => { cancelled = true; };
   }, [url]);
 
-  if (errored) return null; // hide silently rather than show error UI in the drill-down
+  if (errored) return null;
   return (
-    <div class="mt-3 overflow-hidden rounded border border-slate-200 bg-slate-100">
-      <div class="flex items-center justify-between px-3 py-1.5 text-xs">
-        <span class="text-slate-500">Homepage snapshot <span class="text-slate-400">· captured live via Bright Data Browser API</span></span>
-        {loaded && <span class="text-slate-400">cached 30d</span>}
-        {!loaded && <span class="text-slate-400 animate-pulse">rendering…</span>}
+    <div class="overflow-hidden border border-ink-15 bg-paper-3">
+      <div class="flex items-center justify-between px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider">
+        <span class="text-ink-50">Homepage snapshot <span class="text-ink-40">· captured live via Bright Data Browser API</span></span>
+        {loaded && <span class="text-ink-40">cached 30d</span>}
+        {!loaded && <span class="text-ink-40 animate-pulse">rendering…</span>}
       </div>
       {imageSrc && (
         <img
@@ -40,7 +40,7 @@ function HomepageShot({ url }: { url: string }) {
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
-          style="aspect-ratio: 1024/640; background:#f1f5f9"
+          style="aspect-ratio: 1024/640; background: var(--paper-3)"
         />
       )}
     </div>
@@ -116,100 +116,180 @@ export function DrillDown({ op }: { op: Operator }) {
   const templateEmail = buildOutreachEmail(op);
   const activeEmail = ai ? { subject: ai.subject, body: ai.body } : templateEmail;
 
+  const hostname = (() => { try { return new URL(op.url).hostname.replace(/^www\./, ""); } catch { return op.url; } })();
+  const hiringPattern = op.sources.find(s => s.field === "hiring")?.tool ?? "";
+  const hiringVia = hiringPattern.startsWith("careers_page:") ? hiringPattern.slice("careers_page:".length) : hiringPattern === "homepage_keyword_heuristic" ? "homepage heuristic" : hiringPattern;
+
   return (
-    <div class="rounded border border-slate-200 bg-slate-50 p-4">
-      <h3 class="text-lg font-semibold">{op.name}</h3>
-      <p class="text-sm text-slate-600">{op.about ?? "—"}</p>
-      {op.icp_fit_reason && (
-        <p class="mt-2 text-sm"><span class="text-xs font-medium uppercase text-slate-500">ICP fit:</span> {op.icp_fit_reason}</p>
-      )}
-      <div class="mt-3 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <div class="text-xs font-medium uppercase text-slate-500">Hiring</div>
-          {op.hiring.source ? (
-            <a class="text-blue-700 underline" href={op.hiring.source} target="_blank">
-              {op.hiring.count ?? 0} role-signals: {op.hiring.roles.join(", ") || "—"}
-            </a>
-          ) : <span class="text-slate-400">No signal</span>}
+    <div>
+      {/* Specimen header */}
+      <div class="flex items-baseline justify-between gap-4 mb-3 flex-wrap">
+        <div class="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-60">
+          § specimen no. {String(op.rank).padStart(2, "0")} · field card
         </div>
-        <div>
-          <div class="text-xs font-medium uppercase text-slate-500">Location</div>
-          {op.geo ? <span>{op.geo.lat.toFixed(4)}, {op.geo.lng.toFixed(4)}{op.geo.display_name ? ` · ${op.geo.display_name.slice(0, 60)}` : ""}</span> : <span class="text-slate-400">—</span>}
+        <div class="flex items-center gap-2">
+          <a
+            class="border border-ink-25 bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1.5"
+            href={op.url} target="_blank" rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            open homepage <span aria-hidden="true">→</span>
+          </a>
         </div>
       </div>
-      <div class="mt-3">
-        <div class="text-xs font-medium uppercase text-slate-500">Recent activity</div>
-        <ul class="mt-1 space-y-1 text-sm">
-          {op.recent_activity.length === 0 && <li class="text-slate-400">—</li>}
-          {op.recent_activity.map((a, i) => (
-            <li key={i}><a class="text-blue-700 underline" href={a.source} target="_blank">{a.headline}</a></li>
-          ))}
-        </ul>
+
+      {/* Title + metadata */}
+      <h3 class="font-serif text-3xl font-bold text-ink leading-tight">{op.name}</h3>
+      <div class="font-mono text-[11px] text-ink-50 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+        <span>{hostname}</span>
+        {op.size_estimate && <><span>·</span><span>{op.size_estimate} emp</span></>}
+        {op.city && <><span>·</span><span>{op.city}</span></>}
+        {op.geo?.display_name && <><span>·</span><span class="truncate max-w-md" title={op.geo.display_name}>{op.geo.display_name.slice(0, 60)}</span></>}
       </div>
 
-      <div class="mt-4 rounded border border-slate-200 bg-white p-3">
-        <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-          <div class="text-xs font-medium uppercase text-slate-500">
-            Outreach kit — {ai ? <span class="text-emerald-700">AI-personalized email</span> : "draft email"}
-            {ai && <span class="ml-2 text-[10px] font-normal normal-case text-slate-400">via {ai.provider} · ~${ai.cost.toFixed(5)}</span>}
+      {/* Two-column layout */}
+      <div class="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] gap-6">
+        {/* LEFT COLUMN — about + hiring + ICP + activity */}
+        <div class="space-y-5">
+          <p class="text-sm text-ink-70 leading-relaxed">{op.about ?? "—"}</p>
+
+          {/* Hiring signal box — moss-bordered if real, ochre if heuristic, none if no signal */}
+          {(op.hiring.count ?? 0) > 0 && (
+            <div class={`border ${hiringPattern.startsWith("careers_page:") ? "border-moss bg-moss-tint/30" : "border-ochre-dk/40 bg-ochre-tint/30"} px-4 py-3 relative`}>
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-1.5">
+                hiring signal · trigger event
+              </div>
+              <div class="flex items-baseline gap-3">
+                <span class="font-serif text-3xl font-semibold text-ink leading-none">{op.hiring.count}</span>
+                <span class="text-sm text-ink-70 leading-tight">open role{(op.hiring.count ?? 0) > 1 ? "s" : ""}{hiringVia ? ` — ${hiringPattern.startsWith("careers_page:") ? `parsed from ${hiringVia} via BD Scraping Browser` : "extracted from homepage text"}` : ""}</span>
+              </div>
+              {op.hiring.roles.length > 0 && (
+                <div class="mt-3 flex flex-wrap gap-1.5">
+                  {op.hiring.roles.slice(0, 6).map((r, i) => (
+                    <span key={i} class="border border-ink-25 bg-paper px-2 py-0.5 text-xs text-ink-80">{r}</span>
+                  ))}
+                </div>
+              )}
+              {op.hiring.source && (
+                <a class="block mt-2 font-mono text-[11px] text-ink-50 hover:text-ink underline decoration-dotted" href={op.hiring.source} target="_blank" rel="noreferrer">{op.hiring.source}</a>
+              )}
+            </div>
+          )}
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-rust mb-1">icp fit reason</div>
+              <div class="text-sm text-ink-80 leading-snug">{op.icp_fit_reason || "—"}</div>
+            </div>
+            <div>
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-rust mb-1">draft outreach angle</div>
+              <div class="text-sm text-ink-80 leading-snug italic">"{op.sales_angle}"</div>
+            </div>
           </div>
-          <div class="flex gap-1 flex-wrap">
-            <button
-              class={`rounded border px-2 py-0.5 text-xs ${aiLoading ? "border-slate-200 bg-slate-100 text-slate-400" : ai ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"}`}
-              onClick={generateWithAi}
-              disabled={aiLoading}
-              title="Generate a personalized cold email referencing this operator's actual facts (about, hiring, recent activity)"
-              type="button"
-            >
-              {aiLoading ? "✨ generating…" : ai ? "✨ regenerate with AI" : "✨ generate with AI"}
-            </button>
-            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("subject", activeEmail.subject)}>
-              {copied === "subject" ? "✓ Subject" : "Copy subject"}
-            </button>
-            <button class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" onClick={() => flash("body", activeEmail.body)}>
-              {copied === "body" ? "✓ Body" : "Copy body"}
-            </button>
-            <a class="rounded border border-slate-300 px-2 py-0.5 text-xs hover:bg-slate-50" href={`mailto:?subject=${encodeURIComponent(activeEmail.subject)}&body=${encodeURIComponent(activeEmail.body)}`}>
-              Open in mail
-            </a>
+
+          {op.recent_activity.length > 0 && (
+            <div>
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-2">recent activity</div>
+              <ul class="m-0 p-0 list-none">
+                {op.recent_activity.map((a, i) => (
+                  <li key={i} class={`flex gap-3 py-1.5 ${i > 0 ? "border-t border-dashed border-ink-15" : ""}`}>
+                    {a.date && <span class="font-mono text-[11px] text-ink-50 shrink-0 w-20">{a.date}</span>}
+                    <a class="flex-1 text-sm text-ink-80 hover:text-ink underline decoration-dotted" href={a.source} target="_blank" rel="noreferrer">{a.headline}</a>
+                    <span class="font-mono text-[10px] text-ink-50 shrink-0">{(() => { try { return new URL(a.source).hostname.replace(/^www\./, ""); } catch { return ""; } })()}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {op.memory && op.memory.cross_niche && op.memory.cross_niche.length > 0 && (
+            <div class="border border-sky-paper/40 bg-sky-tint px-3 py-2.5 text-sm">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-1">cross-niche signal</div>
+              <div class="text-ink-80">
+                Also appeared under:{" "}
+                {op.memory.cross_niche.map((q, i) => (
+                  <span key={i} class="ml-1 inline-block bg-paper px-2 py-0.5 text-xs border border-ink-25">{q}</span>
+                ))}
+              </div>
+              <div class="mt-1 text-xs text-ink-60">Multi-vertical operators are often the highest-LTV accounts — they buy multiple SaaS tools.</div>
+            </div>
+          )}
+
+          <HomepageShot url={op.url} />
+          <OperatorNotes opUrl={op.url} />
+        </div>
+
+        {/* RIGHT COLUMN — outreach draft + footnotes + index memory */}
+        <div class="space-y-4">
+          {/* Outreach draft panel */}
+          <div class="border border-ink-20 bg-paper">
+            <div class="border-b border-ink-15 px-3 py-2 flex items-center justify-between gap-2 flex-wrap">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">
+                outreach draft{ai && <span class="ml-1.5 text-moss">· DeepSeek</span>}
+              </div>
+              {ai && <span class="font-mono text-[10px] text-ink-50">+ AI-personalized · ${ai.cost.toFixed(5)}</span>}
+            </div>
+            <div class="px-3 py-3 space-y-2">
+              <div class="flex items-baseline gap-2">
+                <span class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-50 shrink-0">subj</span>
+                <span class="text-sm font-semibold text-ink">{activeEmail.subject}</span>
+              </div>
+              <pre class="font-serif text-sm text-ink-80 whitespace-pre-wrap leading-relaxed m-0">{activeEmail.body}</pre>
+            </div>
+            {aiError && <div class="mx-3 mb-2 bg-rust-tint px-2 py-1 text-xs text-rust-dk">AI error: {aiError}</div>}
+            <div class="border-t border-ink-15 px-2 py-2 flex flex-wrap gap-1">
+              <button
+                class={`px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider ${aiLoading ? "bg-paper-3 text-ink-40" : "bg-ink text-paper hover:bg-ink-90"} disabled:opacity-50`}
+                onClick={generateWithAi}
+                disabled={aiLoading}
+                title="Generate a personalized cold email referencing operator's actual facts"
+                type="button"
+              >
+                {aiLoading ? "✨ generating…" : ai ? "✨ regenerate" : "✨ + AI"}
+              </button>
+              <button class="border border-ink-25 bg-paper px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3" onClick={() => flash("subject", activeEmail.subject)}>
+                {copied === "subject" ? "✓ subj" : "📋 subject"}
+              </button>
+              <button class="border border-ink-25 bg-paper px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3" onClick={() => flash("body", activeEmail.body)}>
+                {copied === "body" ? "✓ body" : "📋 body"}
+              </button>
+              <a class="border border-ink-25 bg-paper px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1" href={`mailto:?subject=${encodeURIComponent(activeEmail.subject)}&body=${encodeURIComponent(activeEmail.body)}`}>
+                open in mail →
+              </a>
+            </div>
           </div>
-        </div>
-        {aiError && <div class="mb-2 rounded bg-rose-50 px-2 py-1 text-xs text-rose-700 ring-1 ring-rose-200">AI error: {aiError}. Showing template draft.</div>}
-        <div class="text-xs text-slate-700">
-          <div class="font-mono"><strong>Subject:</strong> {activeEmail.subject}</div>
-          <pre class="mt-1 whitespace-pre-wrap font-sans text-slate-800">{activeEmail.body}</pre>
-        </div>
-        {ai && (
-          <div class="mt-2 text-[10px] text-slate-400">
-            Generated by DeepSeek from operator about + hiring + recent activity. Edit before sending — it's a starting point, not a fact.
+
+          {/* Footnotes table — numbered citations */}
+          <div class="border border-ink-20 bg-paper">
+            <div class="border-b border-ink-15 px-3 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">
+              footnotes · {op.sources.length} bright data fetch{op.sources.length === 1 ? "" : "es"}
+            </div>
+            <ol class="m-0 p-0 list-none">
+              {op.sources.map((s, i) => (
+                <li key={i} class={`flex items-center gap-2 px-3 py-1.5 text-xs ${i > 0 ? "border-t border-dashed border-ink-15" : ""}`}>
+                  <span class="font-mono text-[10px] text-ink-50 w-4 shrink-0">{i + 1}</span>
+                  <span class="font-mono text-[10px] uppercase text-ink-60 w-24 shrink-0">{s.field}</span>
+                  <a class="text-ink-80 hover:text-ink underline decoration-dotted truncate flex-1" href={s.url} target="_blank" rel="noreferrer" title={s.url}>{s.tool}</a>
+                </li>
+              ))}
+            </ol>
           </div>
-        )}
-      </div>
 
-      {op.memory && op.memory.cross_niche && op.memory.cross_niche.length > 0 && (
-        <div class="mt-3 rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
-          <div class="text-xs font-medium uppercase text-indigo-700 mb-1">Cross-niche signal</div>
-          This operator also appeared under: {op.memory.cross_niche.map((q, i) => (
-            <span key={i} class="ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs ring-1 ring-indigo-200">{q}</span>
-          ))}
-          <div class="mt-1 text-xs text-indigo-700/80">Multi-vertical operators are often the highest-LTV accounts — they buy multiple SaaS tools.</div>
+          {/* Index memory chip */}
+          {op.memory && (
+            <div class="border border-ink-15 bg-paper px-3 py-2.5">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">index memory</div>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span class="font-serif text-2xl font-semibold text-ink leading-none">×{op.memory.seen_count}</span>
+                <span class="text-xs text-ink-60">
+                  {op.memory.memory_state === "new" ? "first time in any LongTail Scout query" :
+                   op.memory.memory_state === "familiar" ? `seen ${op.memory.seen_count}× across prior queries` :
+                   `frequent — ${op.memory.seen_count}× across queries`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      <HomepageShot url={op.url} />
-
-      <OperatorNotes opUrl={op.url} />
-
-      <div class="mt-3">
-        <div class="text-xs font-medium uppercase text-slate-500">Sources used</div>
-        <ul class="mt-1 space-y-1 text-xs text-slate-600">
-          {op.sources.map((s, i) => (
-            <li key={i}>
-              <span class="inline-block w-32 text-slate-500">{s.field}</span>
-              <a class="text-blue-700 underline" href={s.url} target="_blank">{s.tool}</a>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );
