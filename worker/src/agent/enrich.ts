@@ -249,11 +249,12 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
-  // Bright Data Browser API has a navigation/concurrency quota per session.
-  // The bridge serializes requests via mutex + recycles browser every 6 navs.
-  // Cap candidates so total BD calls (3 per candidate: homepage + careers SERP + news SERP) fit within the demo time window.
-  const capped = candidates.slice(0, 6);
-  const CONCURRENCY = 2; // worker-side concurrency; bridge mutex serializes anyway, but this paces SSE events nicely
+  // Bright Data Browser API serializes navigations via the bridge mutex.
+  // Each candidate does 1-2 BD renders (homepage; careers if linked). Cap at 30 so a busy-city
+  // query like "roofing in Chicago" returns ~20-30 operators rather than the prior 6-cap that
+  // bottlenecked everything. Total time at ~4-5s/render: 30 × 5s ≈ 2-3 min worst case.
+  const capped = candidates.slice(0, 30);
+  const CONCURRENCY = 3; // bridge mutex bottlenecks BD anyway; this paces SSE events + processes non-BD parts in parallel
   await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY} at a time)…` });
 
   const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit, tally));

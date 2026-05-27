@@ -83,7 +83,7 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         const query = String(args.query ?? "");
         await emit.emit("tool", { tool: "serp", args: { query }, url: null });
         try {
-          const result = await serpSearchCached(query, bridge, env.CACHE, { num: 15 });
+          const result = await serpSearchCached(query, bridge, env.CACHE, { num: 25 });
           if (tally) tally.bd_renders += 1; // each SERP = one Bright Data Browser render
           for (const r of result.results) {
             rawCandidates.push({ name: r.title, url: r.link, origin_query: query });
@@ -94,7 +94,9 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
             tool_call_id: tc.id,
             content: JSON.stringify({
               count: result.results.length,
-              results: result.results.slice(0, 8).map(r => ({ title: r.title, link: r.link }))
+              // Show the LLM 15 per query so it has visibility for finalize_candidates; all results
+            // are added to rawCandidates above regardless of this slice.
+            results: result.results.slice(0, 15).map(r => ({ title: r.title, link: r.link }))
             })
           };
         } catch (err) {
@@ -125,15 +127,19 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
 
     if (finalized) break;
 
-    // Force-finalize after ANY turn that produces enough candidates. We don't need a second LLM round-trip
-    // just to ask the model to call finalize_candidates — dedupe handles it deterministically downstream.
-    if (rawCandidates.length >= 10) {
+    // Force-finalize only when we have a meaningful pool — was 10, now 30. Lower thresholds were
+    // capping major-metro queries at ~8 operators when the niche actually has hundreds of local
+    // operators (e.g. "roofing in Chicago" → 2 SERP queries → 30 raw → force-finalize → only 8
+    // surface). 30 lets the LLM fire 3-4 diverse SERP queries before we cut it off.
+    if (rawCandidates.length >= 30) {
       await emit.emit("progress", { message: `Have ${rawCandidates.length} raw candidates after turn ${turn + 1} — finalizing.` });
       break;
     }
   }
 
-  const deduped = dedupeCandidates(rawCandidates).slice(0, 25);
+  // Was 25 — letting more candidates through so we don't pre-truncate before synthesis can rank.
+  // Synthesis is the right place to filter, not discovery.
+  const deduped = dedupeCandidates(rawCandidates).slice(0, 60);
   await emit.emit("progress", { message: `Discovered ${deduped.length} candidates after dedupe.` });
   return deduped;
 }

@@ -97,7 +97,7 @@ Rules:
 - The URL hostname matches the operator name (Braun's Roofing → braunsroofing.com)
 - Multi-location operator's own site (one regional brand operating across cities)
 
-Include as many real operators as possible from the input. Aim for 70-90% of the legitimate ones. Be ruthless about cutting aggregators and manufacturers even if they have rich enrichment data.
+**Output size: include EVERY legitimate operator from the input.** If the input has 30 operators that pass the KEEP rules, return all 30. Major-metro queries (Chicago, Houston, Dallas, LA, NYC) often have 20-40+ legitimate operators — return them all, ranked. The buyer needs depth, not curation. Only cut for the DROP rules below; never cut for "I think the buyer only wants the top 8". Be ruthless about cutting aggregators and manufacturers even if they have rich enrichment data.
 - Output strictly the JSON schema. No prose. No surrounding markdown fences.
 
 Example of a GOOD sales angle (uses concrete scraped facts):
