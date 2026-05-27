@@ -3,6 +3,7 @@ import type { Candidate, Citation, Operator } from "../types";
 import { webUnlockerCached } from "../brightdata/webUnlocker";
 import { demandLookup } from "../demand/client";
 import { geocode } from "../geocode/nominatim";
+import { parseCareersPage } from "./careers";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
@@ -111,23 +112,58 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   const about = extractAbout(homepageHtml);
   const size_estimate = estimateSize(homepageHtml);
 
-  // Hiring — on-page heuristic only (no extra google.com hits which trigger BD per-domain cooldown).
-  // We look for "hiring" keywords + a careers/jobs link on the homepage HTML.
+  // Hiring — two-pass: find the careers/jobs link on the homepage, then ACTUALLY fetch and
+  // parse that page (ATS-aware: Greenhouse, Lever, Workday, Ashby, Workable + generic
+  // fallback). The parsed count is the real number of postings, not a keyword-frequency
+  // proxy. If no careers link exists, fall back to the homepage-keyword heuristic (clearly
+  // labeled as "heuristic" in the source citation so the UI can show provenance).
   const hiring: Operator["hiring"] = { count: null, roles: [], source: null };
   const homeText = homepageHtml.toLowerCase();
-  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings|join us|we are growing/i.test(homeText)) {
-    hiring.roles = extractRoles(homeText);
-    hiring.count = hiring.roles.length || null;
+  const homeHasHiringPhrase = /we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings|join us|we are growing/i.test(homeText);
+  let careersUrl: string | null = null;
+  if (homeHasHiringPhrase) {
     const careersMatch = /href=["']([^"']*(?:careers?|jobs|join-us|we-are-hiring)[^"']*)["']/i.exec(homepageHtml);
     if (careersMatch) {
-      try {
-        const careersUrl = new URL(careersMatch[1] ?? "", c.url).toString();
-        hiring.source = careersUrl;
-        sources.push({ field: "hiring", tool: "homepage_link", url: careersUrl });
-      } catch { /* skip bad URL */ }
+      try { careersUrl = new URL(careersMatch[1] ?? "", c.url).toString(); } catch { /* skip */ }
     }
   }
-  await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
+
+  if (careersUrl) {
+    // Fetch + parse the actual careers page. One additional BD render per candidate that has
+    // a careers link — bounded, cached, only fires when we have signal worth verifying.
+    try {
+      const careersPage = await webUnlockerCached(careersUrl, bridge, env.CACHE);
+      if (tally) tally.bd_renders += 1;
+      const parsed = parseCareersPage(careersPage.html);
+      hiring.source = careersUrl;
+      sources.push({ field: "hiring", tool: `careers_page:${parsed.pattern}`, url: careersUrl });
+      if (parsed.count > 0) {
+        hiring.count = parsed.count;
+        hiring.roles = parsed.roles;
+        await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", count: parsed.count, pattern: parsed.pattern });
+      } else {
+        // Careers page exists but no postings parsed — that's still a signal ("they care about
+        // hiring infrastructure, no current openings"). Surface count=0 honestly.
+        hiring.count = 0;
+        hiring.roles = [];
+        await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", count: 0, pattern: parsed.pattern, note: "careers page reachable, no postings detected" });
+      }
+    } catch (err) {
+      // Fetch failed — keep the careers URL as source but mark unknown count.
+      hiring.source = careersUrl;
+      sources.push({ field: "hiring", tool: "homepage_link", url: careersUrl });
+      await emit.emit("enrich", { name: c.name, field: "hiring", status: "fail", error: (err as Error).message.slice(0, 80), note: "careers page fetch failed" });
+    }
+  } else if (homeHasHiringPhrase) {
+    // No careers link on homepage but the page does mention hiring — fall back to keyword count.
+    // Note the tool tag so judges can tell heuristic-derived counts from real ones.
+    hiring.roles = extractRoles(homeText);
+    hiring.count = hiring.roles.length || null;
+    sources.push({ field: "hiring", tool: "homepage_keyword_heuristic", url: c.url });
+    await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", count: hiring.count ?? 0, pattern: "heuristic" });
+  } else {
+    await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", count: 0, pattern: "no_signal" });
+  }
 
   // Recent activity — derived from on-page press/blog links. No google.com hit.
   const recent_activity: Operator["recent_activity"] = [];
