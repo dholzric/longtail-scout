@@ -58,7 +58,7 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
                    │  Browser — Preact + Tailwind SPA       │
                    │  Streams SSE events into a live trace  │
                    └───────────────┬────────────────────────┘
-                                   │ POST /api/scout (Bearer Piglet)
+                                   │ POST /api/scout (Bearer <demo-key>)
                                    ▼
                    ┌────────────────────────────────────────┐
                    │  Cloudflare Worker (TypeScript)        │

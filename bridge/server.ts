@@ -168,13 +168,52 @@ async function serpSearch(query: string, num = 15): Promise<{ query: string; res
   return { query, results, duration_ms: Date.now() - start };
 }
 
+const MAX_BODY_BYTES = 32 * 1024; // 32 KB — way more than we need for a render or serp request
+
 function readBody(req: http.IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let buf = "";
-    req.on("data", c => (buf += c));
-    req.on("end", () => resolve(buf));
+    let bytes = 0;
+    let aborted = false;
+    req.on("data", (c: Buffer | string) => {
+      if (aborted) return;
+      bytes += typeof c === "string" ? Buffer.byteLength(c) : c.length;
+      if (bytes > MAX_BODY_BYTES) {
+        aborted = true;
+        reject(new Error(`request body exceeds ${MAX_BODY_BYTES} bytes`));
+        req.destroy();
+        return;
+      }
+      buf += c;
+    });
+    req.on("end", () => { if (!aborted) resolve(buf); });
     req.on("error", reject);
   });
+}
+
+const PRIVATE_HOSTNAME_RE = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|fe80:|fc00:|fd00:|::1$|metadata\.google\.internal)/i;
+
+function validateRenderUrl(input: string): { ok: true; url: string } | { ok: false; error: string } {
+  if (typeof input !== "string") return { ok: false, error: "url must be a string" };
+  if (input.length > 4096) return { ok: false, error: "url too long" };
+  let parsed: URL;
+  try {
+    parsed = new URL(input);
+  } catch {
+    return { ok: false, error: "url is not a valid URL" };
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { ok: false, error: "url must be http or https" };
+  }
+  if (PRIVATE_HOSTNAME_RE.test(parsed.hostname)) {
+    return { ok: false, error: "private/loopback hostnames are not allowed" };
+  }
+  return { ok: true, url: parsed.toString() };
+}
+
+function clampWaitMs(v: unknown): number | undefined {
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return undefined;
+  return Math.min(Math.floor(v), 15_000);
 }
 
 function checkAuth(req: http.IncomingMessage): boolean {
@@ -202,14 +241,19 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/render") {
       const body = JSON.parse(await readBody(req)) as { url?: string; waitMs?: number; selector?: string };
       if (!body.url) return send(res, 400, { error: "missing url" });
-      const result = await renderPage(body.url, { waitMs: body.waitMs, selector: body.selector });
+      const validated = validateRenderUrl(body.url);
+      if (!validated.ok) return send(res, 400, { error: validated.error });
+      const selector = typeof body.selector === "string" && body.selector.length <= 256 ? body.selector : undefined;
+      const result = await renderPage(validated.url, { waitMs: clampWaitMs(body.waitMs), selector });
       return send(res, 200, result);
     }
 
     if (req.method === "POST" && url.pathname === "/serp") {
       const body = JSON.parse(await readBody(req)) as { query?: string; num?: number };
-      if (!body.query) return send(res, 400, { error: "missing query" });
-      const result = await serpSearch(body.query, body.num ?? 15);
+      if (!body.query || typeof body.query !== "string") return send(res, 400, { error: "missing query" });
+      if (body.query.length > 512) return send(res, 400, { error: "query too long" });
+      const num = typeof body.num === "number" && body.num >= 1 ? Math.min(body.num, 30) : 15;
+      const result = await serpSearch(body.query, num);
       return send(res, 200, result);
     }
 

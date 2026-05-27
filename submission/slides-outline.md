@@ -135,8 +135,11 @@ Apollo doesn't have either of these. Their build-vs-buy decision was made before
 >
 > A private 7M-business demand-signal index (built independently of LinkedIn) provides niche-size context to the synthesis prompt, so the agent reasons about real market dynamics, not LLM hallucination.
 >
-> **Live demo:** https://longtailscout.com — demo password: `Piglet`
+> **Live demo:** https://longtailscout.com — demo password: `<see Demo Notes section below>`
 > **Source:** https://github.com/dholzric/longtail-scout (MIT)
+
+**Demo Notes (paste into the lablab submission's private notes / judge comments field, not the public description):**
+> Password to unlock the demo: `Piglet` (set as the `DEMO_PASSWORD` env on the Worker). Open `https://longtailscout.com/?key=Piglet` to auto-fill.
 
 **Tech tags:** Bright Data, DeepSeek, Cloudflare Workers, TypeScript, Preact, Playwright
 

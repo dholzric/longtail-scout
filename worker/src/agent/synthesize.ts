@@ -10,7 +10,7 @@ type EnrichmentInput = Omit<Operator, "rank" | "sales_angle">;
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
 
-  // Niche-level demand context — one lookup against the 4M-business demand index for the *niche keyword* the user typed.
+  // Niche-level demand context — one lookup against the ~7M-business demand index for the *niche keyword* the user typed.
   // This is the correct interpretation of the demand API; per-operator brandability scores were misleading.
   let nicheDemand: { count: number; rank_signal: number | null } | null = null;
   try {

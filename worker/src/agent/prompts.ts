@@ -78,7 +78,7 @@ Example of a BAD sales angle (vague):
   "Strong demand signal and established presence make this a good fit."`;
 
   const niche = nicheDemand
-    ? `Niche-level demand context (from a private 3.97M-business index): the niche keyword has ${nicheDemand.count} matching businesses in the index${nicheDemand.rank_signal !== null ? ` (demand component score ${nicheDemand.rank_signal}/100)` : ""}. Interpret as market size — high count = crowded/active niche, low count = rare/niche.\n\n`
+    ? `Niche-level demand context (from a private ~7M-business index of US local services): the niche keyword has ${nicheDemand.count} matching businesses in the index${nicheDemand.rank_signal !== null ? ` (demand component score ${nicheDemand.rank_signal}/100)` : ""}. Interpret as market size — high count = crowded/active niche, low count = rare/niche.\n\n`
     : "";
 
   const user = `Query:
