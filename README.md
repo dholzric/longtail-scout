@@ -94,15 +94,35 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 
 ## Features
 
+### Discovery & enrichment
 - **3-phase hybrid pipeline:** LLM-driven discovery (Bright Data SERP queries) → deterministic per-candidate enrichment (homepage scrape via Bright Data Browser API, ICP-fit reasoning, hiring/press signal extraction) → LLM synthesis with citations.
-- **Vertical prompt packs** — auto-detects roofing / HVAC / childcare / dental / auto / electrician / plumbing queries and injects vertical-specific buyer names (AccuLynx, ServiceTitan, Brightwheel…), signal hints, and ICP-fit examples into the prompts.
-- **ICP fit reason column** — a one-line account-intelligence label per row, derived from scraped evidence, not LLM hallucination.
+- **25 vertical prompt packs** — auto-detects roofing / HVAC / childcare / dental / auto / electrician / plumbing / legal / MSP / accounting / fitness / restaurant / hotel / real-estate / landscaping / marketing-agency / insurance-broker / salon / vet / trucking / medical-specialty / food-truck / brewery / photographer / jewelry queries and injects vertical-specific buyer names (AccuLynx, ServiceTitan, Brightwheel, Clio, …), signal hints, and ICP-fit examples into the prompts.
+- **Multi-city batch** — type "roofers in Texas" → expands to top 3 cities and globally re-ranks by confidence × per-city rank.
+- **Streaming synthesis** — operators appear one-by-one in the UI as they're ranked.
+- **Sample mode** (`?sample=1`) — canned 140 ms response with full SSE event flow for guaranteed-fast demos. 4 verticals seeded (roofing, HVAC, childcare, dental in Houston). Live pipeline also auto-falls-back to sample if BD/LLM errors.
+
+### Per-operator intelligence
+- **ICP fit reason** — a one-line account-intelligence label per row, derived from scraped evidence, not LLM hallucination.
 - **Draft outreach angle** — every row has a one-sentence draft outreach line the SDR edits and sends. Labeled "Draft — edit before sending" so trust signal is honest.
-- **Map view** — Leaflet + local OSM Nominatim geocodes each operator and pins it on the map. Toggle between Table and Map.
-- **Apollo-thin badge** — every operator on its own website (not LinkedIn/Crunchbase/etc.) is labeled `Apollo-thin`. Makes the wedge visible in the UI.
+- **Confidence score (0-100)** — derived from citation count + data depth + hostname-name match. Rank answers "who first?"; confidence answers "how much do I trust this row?"
+- **Apollo-thin badge** — every operator on its own website (not LinkedIn/Crunchbase/etc.) is labeled `Apollo-thin`.
 - **Memory layer** — every URL surfaced across queries is remembered in Cloudflare KV. New operators are labeled `New`; recurring ones show `Seen ×N`. Swappable for Cognee/Pinecone — the interface aligns with vector-DB APIs.
-- **Live cost meter** — running USD tally of Bright Data renders + DeepSeek tokens shown in the UI throughout the scout. No black-box pricing.
-- **CSV export + copy-to-clipboard** — one-click ingest into Apollo, HubSpot, Salesforce, or any CSV-friendly CRM.
+- **City badge** in multi-city results; **favicons** next to each operator's name.
+- **Outreach kit** in the drill-down — copy email subject/body, `mailto:` deep link, vertical-specific template.
+- **SDR notes** per operator — private localStorage scratchpad ("called Tuesday, no answer").
+
+### UI / workflow
+- **Map view** — Leaflet + local OSM Nominatim geocodes each operator and pins it on the map. Toggle between Table and Map.
+- **Wedge summary banner** — quantifies the Apollo gap above the table (citations, hiring, geocoded, new-to-index).
+- **Live cost meter** — running USD tally of Bright Data renders + DeepSeek tokens shown in the UI throughout the scout.
+- **Filter + sort table** — min-confidence slider, hiring-only toggle, long-tail-only toggle; click column headers to sort.
+- **CSV export + copy-to-clipboard** — one-click ingest into Apollo, HubSpot, Salesforce. Filters apply.
+- **Voice input** — Web Speech API native (Chrome/Edge), no partner integration required.
+- **Saved queries chips** + **shareable URLs** (`?q=<query>&run=1` auto-fills + auto-runs).
+- **Watchlist** — server-side saved queries with new-vs-seen tracking on every re-run.
+- **Keyboard shortcuts** — Cmd/Ctrl+Enter runs, Cmd/Ctrl+K focuses the input.
+- **`/about` page** — how-it-works diagram, full feature list, tech stack table.
+- **Skeleton loading rows** during the pipeline; **sample-mode banner** when active.
 - **Demo gate** — Bearer-token auth on `/api/scout` so judges (with the password) can use the demo without paying for bot abuse.
 
 ## Why this beats Apollo for long-tail
