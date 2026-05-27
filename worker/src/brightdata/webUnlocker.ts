@@ -1,5 +1,5 @@
-import { brightDataFetch, BrightDataAuth } from "./client";
 import { cachedFetch } from "../cache";
+import { bridgeRender, type BridgeAuth } from "../bridge/client";
 
 export interface UnlockedPage {
   url: string;
@@ -10,26 +10,15 @@ export interface UnlockedPage {
 
 export async function webUnlocker(
   url: string,
-  zone: string,
-  auth: BrightDataAuth
+  bridge: BridgeAuth
 ): Promise<UnlockedPage> {
-  const raw = await brightDataFetch(
-    "https://api.brightdata.com/request",
-    { zone, url, format: "raw" },
-    auth
-  ) as { body?: string; status_code?: number };
-  return {
-    url,
-    status: raw.status_code ?? 200,
-    html: raw.body ?? "",
-    fetched_at: new Date().toISOString()
-  };
+  const r = await bridgeRender(url, {}, bridge);
+  return { url: r.url, status: r.status, html: r.html, fetched_at: r.fetched_at };
 }
 
 export async function webUnlockerCached(
   url: string,
-  zone: string,
-  auth: BrightDataAuth,
+  bridge: BridgeAuth,
   kv: KVNamespace
 ): Promise<UnlockedPage> {
   return cachedFetch(
@@ -37,6 +26,6 @@ export async function webUnlockerCached(
     "web_unlocker",
     { url },
     { ttlSeconds: 604800 },
-    () => webUnlocker(url, zone, auth)
+    () => webUnlocker(url, bridge)
   );
 }

@@ -1,10 +1,6 @@
 import { cachedFetch } from "../cache";
+import { bridgeRender, type BridgeAuth } from "../bridge/client";
 
-/**
- * Heuristic: returns true if the URL looks like a JS-heavy ATS page that needs
- * a real browser to render. Used by enrichment to decide between
- * webUnlocker (cheap, fast) and scrapingBrowser (expensive, slow, reliable).
- */
 export function needsBrowser(url: string): boolean {
   return /greenhouse\.io|lever\.co|workday\.com|ashbyhq\.com|myworkdayjobs\.com/i.test(url);
 }
@@ -15,32 +11,13 @@ export interface BrowserPage {
   links: string[];
 }
 
-/**
- * Calls Bright Data via the unified `/request` endpoint with `render: true`,
- * which (for `unblocker`-style zones) triggers a real browser render.
- * NOTE: pure `browser_api` zones cannot be hit via REST; they require WSS/CDP.
- * If this is wired against a browser_api zone, expect 403s with x-brd-err-code
- * client_10090. In that case we either swap to an unblocker zone or use a
- * separate Playwright bridge.
- */
 export async function scrapingBrowserFetch(
   url: string,
-  zone: string,
-  apiKey: string
+  bridge: BridgeAuth
 ): Promise<BrowserPage> {
-  const res = await fetch("https://api.brightdata.com/request", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ zone, url, format: "raw", render: true })
-  });
-  if (!res.ok) {
-    throw new Error(`scrapingBrowserFetch ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  }
-  const data = await res.json() as { body?: string };
-  const html = data.body ?? "";
+  // Pass a selector hint so the bridge waits for likely-content; falls through gracefully
+  const r = await bridgeRender(url, { selector: "main, body", waitMs: 1500 }, bridge);
+  const html = r.html;
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -55,8 +32,7 @@ export async function scrapingBrowserFetch(
 
 export async function scrapingBrowserCached(
   url: string,
-  zone: string,
-  apiKey: string,
+  bridge: BridgeAuth,
   kv: KVNamespace
 ): Promise<BrowserPage> {
   return cachedFetch(
@@ -64,6 +40,6 @@ export async function scrapingBrowserCached(
     "scraping_browser",
     { url },
     { ttlSeconds: 604800 },
-    () => scrapingBrowserFetch(url, zone, apiKey)
+    () => scrapingBrowserFetch(url, bridge)
   );
 }

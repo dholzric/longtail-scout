@@ -1,37 +1,30 @@
-import { brightDataFetch, BrightDataAuth } from "./client";
 import { cachedFetch } from "../cache";
+import { bridgeRender, type BridgeAuth } from "../bridge/client";
 
 export interface ScrapedPage {
   url: string;
-  fields: Record<string, unknown>;
+  html: string;
+  fetched_at: string;
 }
 
 export async function webScraperGeneric(
   url: string,
-  zone: string,
-  auth: BrightDataAuth,
-  extractFields: string[]
+  bridge: BridgeAuth
 ): Promise<ScrapedPage> {
-  const raw = await brightDataFetch(
-    "https://api.brightdata.com/request",
-    { zone, url, format: "json", extract: extractFields },
-    auth
-  ) as { extracted?: Record<string, unknown> };
-  return { url, fields: raw.extracted ?? {} };
+  const r = await bridgeRender(url, {}, bridge);
+  return { url: r.url, html: r.html, fetched_at: r.fetched_at };
 }
 
 export async function webScraperCached(
   url: string,
-  zone: string,
-  auth: BrightDataAuth,
-  kv: KVNamespace,
-  extractFields: string[]
+  bridge: BridgeAuth,
+  kv: KVNamespace
 ): Promise<ScrapedPage> {
   return cachedFetch(
     kv,
     "web_scraper",
-    { url, fields: extractFields },
+    { url },
     { ttlSeconds: 604800 },
-    () => webScraperGeneric(url, zone, auth, extractFields)
+    () => webScraperGeneric(url, bridge)
   );
 }
