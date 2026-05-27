@@ -2,9 +2,10 @@ import OpenAI from "openai";
 import type { ChatCompletion, ChatCompletionMessageParam, ChatCompletionTool } from "openai/resources/chat/completions";
 
 export interface LlmEnv {
-  OPENROUTER_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
   AIMLAPI_KEY?: string;
   GLM_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
 }
 
 interface Provider {
@@ -18,14 +19,10 @@ interface Provider {
 function getProviders(env: LlmEnv): Provider[] {
   return [
     {
-      name: "openrouter",
-      baseURL: "https://openrouter.ai/api/v1",
-      apiKey: env.OPENROUTER_API_KEY,
-      model: "anthropic/claude-sonnet-4.6",
-      extraHeaders: {
-        "HTTP-Referer": "https://longtailscout.com",
-        "X-Title": "LongTail Scout"
-      }
+      name: "deepseek",
+      baseURL: "https://api.deepseek.com/v1",
+      apiKey: env.DEEPSEEK_API_KEY,
+      model: "deepseek-chat"
     },
     {
       name: "aimlapi",
@@ -35,9 +32,19 @@ function getProviders(env: LlmEnv): Provider[] {
     },
     {
       name: "glm",
-      baseURL: "https://api.z.ai/api/paas/v4",
+      baseURL: "https://api.z.ai/api/coding/paas/v4",
       apiKey: env.GLM_API_KEY,
       model: "glm-4.6"
+    },
+    {
+      name: "openrouter",
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: env.OPENROUTER_API_KEY,
+      model: "anthropic/claude-sonnet-4.6",
+      extraHeaders: {
+        "HTTP-Referer": "https://longtailscout.com",
+        "X-Title": "LongTail Scout"
+      }
     }
   ].filter(p => p.apiKey);
 }
