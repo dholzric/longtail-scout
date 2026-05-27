@@ -6,6 +6,7 @@ import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
+import { AboutPage } from "./components/AboutPage";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -13,6 +14,11 @@ type ViewMode = "table" | "map";
 const STORAGE_KEY = "lts_demo_key";
 
 export function App() {
+  // Tiny client-side router — Cloudflare assets serves the SPA on every path that doesn't
+  // match /api/*, so we just look at window.location.pathname.
+  if (typeof window !== "undefined" && /^\/(about|how-it-works)\/?$/.test(window.location.pathname)) {
+    return <AboutPage />;
+  }
   const [query, setQuery] = useState("roofing contractors in Houston");
   const [status, setStatus] = useState<Status>("idle");
   const [trace, setTrace] = useState<TraceEntry[]>([]);
@@ -151,7 +157,10 @@ export function App() {
     <div class="min-h-screen bg-slate-50 text-slate-900">
       <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto max-w-6xl px-6 py-5">
-          <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
+          <div class="flex items-baseline justify-between gap-4">
+            <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
+            <a class="text-xs text-blue-700 underline" href="/about">How it works →</a>
+          </div>
           <p class="text-sm text-slate-600">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
         </div>
       </header>
