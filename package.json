@@ -1,0 +1,10 @@
+{
+  "name": "longtail-scout",
+  "private": true,
+  "scripts": {
+    "build:web": "pnpm -C web build",
+    "deploy": "pnpm build:web && pnpm -C worker deploy",
+    "dev:worker": "pnpm -C worker dev",
+    "dev:web": "pnpm -C web dev"
+  }
+}

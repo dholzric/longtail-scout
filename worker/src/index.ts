@@ -1,6 +1,5 @@
 import { smokeHandler } from "./handlers/smoke";
 import { scoutHandler } from "./handlers/scout";
-import indexHtml from "./static/index.html";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -23,6 +22,7 @@ export default {
     if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
     if (url.pathname === "/api/smoke") return smokeHandler(env);
     if (url.pathname === "/api/scout") return scoutHandler(req, env, ctx);
-    return new Response(indexHtml, { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (env.ASSETS) return env.ASSETS.fetch(req);
+    return new Response("Not Found", { status: 404 });
   }
 };
