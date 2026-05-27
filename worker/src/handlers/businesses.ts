@@ -77,6 +77,30 @@ export async function businessesHandler(req: Request, env: Env): Promise<Respons
   });
 }
 
+/** Lightweight passthrough to /api/research on the demand-API. Used by the live "N businesses match this niche" probe under the query input. */
+export async function demandResearchHandler(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+  const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  if (!q || q.length < 3 || q.length > 80) return Response.json({ error: "invalid q" }, { status: 400 });
+  const cacheKey = `demand-research:${q}`;
+  const cached = await env.CACHE.get(cacheKey, "json") as { query: string; demand: number } | null;
+  if (cached) return Response.json({ ...cached, cached: true }, { headers: { "cache-control": "public, max-age=600" } });
+  const upstream = new URL("/api/research", env.DEMAND_API_BASE);
+  upstream.searchParams.set("q", q);
+  upstream.searchParams.set("tlds", "com");
+  upstream.searchParams.set("limit", "1");
+  try {
+    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-worker/1.0" } });
+    if (!r.ok) return Response.json({ error: "upstream error" }, { status: 502 });
+    const j = await r.json() as { query?: string; demand?: number };
+    const out = { query: j.query ?? q, demand: typeof j.demand === "number" ? j.demand : 0 };
+    await env.CACHE.put(cacheKey, JSON.stringify(out), { expirationTtl: 600 });
+    return Response.json(out, { headers: { "cache-control": "public, max-age=600" } });
+  } catch (err) {
+    return Response.json({ error: "demand api unreachable", detail: (err as Error).message }, { status: 502 });
+  }
+}
+
 function dedupeBusinesses(rows: BusinessRecord[]): BusinessRecord[] {
   const byKey = new Map<string, BusinessRecord>();
   for (const r of rows) {

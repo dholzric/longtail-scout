@@ -14,6 +14,7 @@ import { ApiDocsPage } from "./components/ApiDocsPage";
 import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
 import { Onboarding } from "./components/Onboarding";
+import { DemandProbe } from "./components/DemandProbe";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -239,6 +240,7 @@ export function App() {
           </form>
         )}
         <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
+        <DemandProbe query={query} />
         <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
         {sampleMode && (
           <div class="rounded border border-violet-200 bg-violet-50 px-4 py-2 text-xs text-violet-900">
@@ -246,8 +248,8 @@ export function App() {
           </div>
         )}
         {cost && (
-          <div class="flex items-center gap-3 rounded border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-sm">
-            <span class="font-medium text-slate-700">Live cost meter:</span>
+          <div class="sticky top-2 z-30 flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-white/95 backdrop-blur px-4 py-2 text-xs text-slate-600 shadow-sm">
+            <span class="font-medium text-slate-700">{status === "running" ? "Live cost meter:" : "Final cost:"}</span>
             <span title="Bright Data Scraping Browser nav cost">BD ${cost.bd_usd.toFixed(4)} <span class="text-slate-400">({cost.bd_renders} renders)</span></span>
             <span class="text-slate-300">·</span>
             <span title="DeepSeek token cost">LLM ${cost.llm_usd.toFixed(4)} <span class="text-slate-400">({cost.llm_input_tokens.toLocaleString()} in / {cost.llm_output_tokens.toLocaleString()} out)</span></span>

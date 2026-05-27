@@ -1,7 +1,7 @@
 import { smokeHandler } from "./handlers/smoke";
 import { scoutHandler } from "./handlers/scout";
 import { watchlistHandler, refreshWatchlistDemand } from "./handlers/watchlist";
-import { businessesHandler } from "./handlers/businesses";
+import { businessesHandler, demandResearchHandler } from "./handlers/businesses";
 import { screenshotHandler } from "./handlers/screenshot";
 import { draftEmailHandler } from "./handlers/draftEmail";
 
@@ -31,6 +31,7 @@ export default {
     if (url.pathname === "/api/scout") return scoutHandler(req, env, ctx);
     if (url.pathname.startsWith("/api/watchlist")) return watchlistHandler(req, env);
     if (url.pathname === "/api/businesses") return businessesHandler(req, env);
+    if (url.pathname === "/api/demand-research") return demandResearchHandler(req, env);
     if (url.pathname === "/api/screenshot") return screenshotHandler(req, env);
     if (url.pathname === "/api/draft-email") return draftEmailHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can

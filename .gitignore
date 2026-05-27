@@ -10,5 +10,6 @@ coverage/
 demand-snapshot.json
 NUL
 .playwright-mcp/
-all-features-snapshot.png
-heatmap-overlay.png
+*-snapshot.png
+*-overlay.png
+api-docs.png
