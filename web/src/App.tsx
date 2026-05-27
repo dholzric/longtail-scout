@@ -7,6 +7,7 @@ import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
 import { AboutPage } from "./components/AboutPage";
+import { SkeletonStrip } from "./components/Skeleton";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -196,6 +197,9 @@ export function App() {
         {error && <div class="rounded border border-red-300 bg-red-50 p-4 text-red-800">Error: {error}</div>}
         {(status === "running" || trace.length > 0) && (
           <AgentTrace entries={trace} running={status === "running"} />
+        )}
+        {status === "running" && operators.length === 0 && (
+          <SkeletonStrip count={3} />
         )}
         {operators.length > 0 && (
           <>
