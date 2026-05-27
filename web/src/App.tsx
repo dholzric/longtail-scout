@@ -108,7 +108,7 @@ export function App() {
       <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto max-w-6xl px-6 py-5">
           <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
-          <p class="text-sm text-slate-600">Apollo for the long tail — built on Bright Data, DeepSeek, and a private 7M-business demand-signal index.</p>
+          <p class="text-sm text-slate-600">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
         </div>
       </header>
 

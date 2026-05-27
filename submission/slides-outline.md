@@ -8,27 +8,26 @@ Submission for Bright Data Web Data UNLOCKED hackathon, Track 1 (GTM Intelligenc
 ## Slide 1 — Title
 
 **LongTail Scout**
-*Apollo for the long tail.*
+*Live long-tail prospect scout for vertical-SaaS GTM teams.*
 
-An AI agent that finds the small, local, niche businesses Apollo, ZoomInfo, and Clay can't see.
+Find net-new accounts in markets Apollo, ZoomInfo, and Clay can't see.
 
 Built for the Bright Data Web Data UNLOCKED hackathon — Track 1, GTM Intelligence.
 2026-05-30 · `https://longtailscout.com` · MIT on GitHub
 
 ---
 
-## Slide 2 — The problem
+## Slide 2 — The buyer's problem
 
-> Apollo, ZoomInfo, and Clay were built around the **LinkedIn employee-profile graph**.
+The GTM teams at **AccuLynx, ServiceTitan, JobNimbus, HousecallPro, Roofr, Brightwheel, Jobber, Bambee** spend their weeks chasing the same kind of account:
 
-Three groups of businesses are missing from that graph:
-1. Companies with < 50 employees who don't maintain a LinkedIn corporate page
-2. Long-tail verticals — local trades, niche manufacturing, family-owned services
-3. The "Bob's Roofing LLC" segment — real revenue, no online presence except their own site
+> *Small, local, operator-owned, web-first. Real revenue, real budget, no LinkedIn corporate page, no Apollo record.*
 
-Estimated US TAM blind to Apollo: **millions of small operators**, billions in collective revenue.
+Their SDRs spend Monday building lists by hand — scrolling through directory sites, copying URLs from Google searches, opening every roofing company's website to see if they're hiring or what services they sell. **One SDR can build ~10 qualified accounts a day this way.** That's $300/account in fully-loaded cost just to *find* them, before any outreach happens.
 
-These are exactly the companies that **buy SaaS from vertical-specific vendors** (AccuLynx for roofing, ServiceTitan for HVAC, etc.) — and their go-to-market teams pay six figures a year to find them.
+Apollo, ZoomInfo, and Clay don't help here. Their data was built around the LinkedIn employee-profile graph. For the long tail — local trades, niche manufacturers, family-owned services, franchisees — that graph is empty.
+
+This is the job we automate.
 
 ---
 
