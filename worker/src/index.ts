@@ -4,6 +4,7 @@ import { scoutHandler } from "./handlers/scout";
 export interface Env {
   CACHE: KVNamespace;
   ASSETS?: Fetcher;
+  DEMO_PASSWORD?: string;
   DEEPSEEK_API_KEY?: string;
   OPENROUTER_API_KEY?: string;
   AIMLAPI_KEY?: string;

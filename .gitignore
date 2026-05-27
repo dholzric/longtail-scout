@@ -8,3 +8,4 @@ dist/
 .DS_Store
 coverage/
 demand-snapshot.json
+NUL

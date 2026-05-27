@@ -13,8 +13,28 @@ function parseQuery(raw: string): ScoutQuery {
   return { niche: raw, city: "", raw };
 }
 
+function checkAuth(req: Request, env: Env): boolean {
+  const expected = env.DEMO_PASSWORD;
+  if (!expected) return true; // gate disabled if password unset
+  // Authorization: Bearer <pw>
+  const auth = req.headers.get("authorization") ?? "";
+  if (auth === `Bearer ${expected}`) return true;
+  // x-demo-key header
+  if (req.headers.get("x-demo-key") === expected) return true;
+  // ?key=<pw> query param (handy for demo URLs in slides)
+  const url = new URL(req.url);
+  if (url.searchParams.get("key") === expected) return true;
+  return false;
+}
+
 export async function scoutHandler(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
+  if (!checkAuth(req, env)) {
+    return new Response(JSON.stringify({ error: "demo gated — enter demo password" }), {
+      status: 401,
+      headers: { "content-type": "application/json", "www-authenticate": "Bearer realm=\"longtail-scout-demo\"" }
+    });
+  }
   let body: { query?: string };
   try {
     body = await req.json();

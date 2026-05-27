@@ -1,5 +1,6 @@
 import http from "node:http";
 import { chromium, type Browser } from "playwright-core";
+import * as cheerio from "cheerio";
 
 const BD_WS = process.env.BRIGHTDATA_BROWSER_WSS;
 const PORT = Number(process.env.BRIDGE_PORT ?? 8081);
@@ -85,30 +86,44 @@ interface SerpResult {
   position: number;
 }
 
+const BLOCKED_LINK_RE = /google\.com\/(search|imgres|maps|aclk|url|finance|shopping|preferences|policies)|googleusercontent|webcache\.googleusercontent|accounts\.google\.com|support\.google\.com|youtube\.com\/watch/i;
+
 async function serpSearch(query: string, num = 15): Promise<{ query: string; results: SerpResult[]; duration_ms: number }> {
   const start = Date.now();
   const u = new URL("https://www.google.com/search");
   u.searchParams.set("q", query);
   u.searchParams.set("num", String(num));
   u.searchParams.set("hl", "en");
-  const rendered = await renderPage(u.toString(), { selector: "div#search" });
+  const rendered = await renderPage(u.toString(), { selector: "h3" });
 
+  const $ = cheerio.load(rendered.html);
   const results: SerpResult[] = [];
-  const html = rendered.html;
-  const linkRe = /<a[^>]*href="(https?:\/\/[^"#]+)"[^>]*>(?:[^<]|<(?!a\s))*?<h3[^>]*>([^<]+)<\/h3>/gi;
   const seen = new Set<string>();
-  let position = 0;
-  for (const m of html.matchAll(linkRe)) {
-    if (results.length >= num) break;
-    const link = m[1] ?? "";
-    const title = (m[2] ?? "").trim();
-    if (!link || !title) continue;
-    if (/google\.com\/(search|imgres|maps)|googleusercontent|webcache\.googleusercontent/.test(link)) continue;
-    if (seen.has(link)) continue;
+
+  $("h3").each((_, h3) => {
+    if (results.length >= num) return;
+    const title = $(h3).text().trim();
+    if (!title) return;
+    // Climb to nearest ancestor <a href="http(s)://...">
+    const anchor = $(h3).closest("a[href^='http']");
+    let link = anchor.attr("href") ?? "";
+    if (!link) {
+      // fallback: nearest sibling a in the result block
+      const block = $(h3).closest("div");
+      link = block.find("a[href^='http']").first().attr("href") ?? "";
+    }
+    if (!link.startsWith("http")) return;
+    if (BLOCKED_LINK_RE.test(link)) return;
+    if (seen.has(link)) return;
     seen.add(link);
-    position++;
-    results.push({ title, link, snippet: "", position });
-  }
+    // Snippet — adjacent description span/div
+    let snippet = "";
+    const block = $(h3).closest("div");
+    const cand = block.parent().find("div[data-sncf], div[style*='-webkit-line-clamp'], span.aCOpRe, span.st").first();
+    if (cand.length) snippet = cand.text().trim().slice(0, 280);
+    results.push({ title, link, snippet, position: results.length + 1 });
+  });
+
   return { query, results, duration_ms: Date.now() - start };
 }
 

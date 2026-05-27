@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { readSse } from "./sse";
 import type { Operator, SseEvent } from "./types";
 import { QueryForm } from "./components/QueryForm";
@@ -7,14 +7,38 @@ import { ResultTable } from "./components/ResultTable";
 
 type Status = "idle" | "running" | "done" | "error";
 
+const STORAGE_KEY = "lts_demo_key";
+
 export function App() {
   const [query, setQuery] = useState("aerospace and space-tech companies in Houston");
   const [status, setStatus] = useState<Status>("idle");
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [demoKey, setDemoKey] = useState<string>("");
+  const [askKey, setAskKey] = useState<boolean>(false);
+
+  // Pull saved key on first mount + from URL ?key=
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const fromUrl = url.searchParams.get("key");
+    if (fromUrl) {
+      localStorage.setItem(STORAGE_KEY, fromUrl);
+      setDemoKey(fromUrl);
+      // Clean the URL so password doesn't stay in the bar
+      url.searchParams.delete("key");
+      window.history.replaceState(null, "", url.toString());
+      return;
+    }
+    const saved = localStorage.getItem(STORAGE_KEY) ?? "";
+    if (saved) setDemoKey(saved);
+  }, []);
 
   async function run() {
+    if (!demoKey) {
+      setAskKey(true);
+      return;
+    }
     setStatus("running");
     setTrace([]);
     setOperators([]);
@@ -22,9 +46,20 @@ export function App() {
 
     const resp = await fetch("/api/scout", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${demoKey}`
+      },
       body: JSON.stringify({ query })
     });
+    if (resp.status === 401) {
+      localStorage.removeItem(STORAGE_KEY);
+      setDemoKey("");
+      setAskKey(true);
+      setError("Demo password rejected.");
+      setStatus("error");
+      return;
+    }
     if (!resp.ok) {
       setError(`HTTP ${resp.status}`);
       setStatus("error");
@@ -37,6 +72,17 @@ export function App() {
     } catch (err) {
       setError((err as Error).message);
       setStatus("error");
+    }
+  }
+
+  function submitKey(e: Event) {
+    e.preventDefault();
+    const input = (document.getElementById("demo-key-input") as HTMLInputElement | null);
+    const v = input?.value?.trim() ?? "";
+    if (v) {
+      localStorage.setItem(STORAGE_KEY, v);
+      setDemoKey(v);
+      setAskKey(false);
     }
   }
 
@@ -67,6 +113,22 @@ export function App() {
       </header>
 
       <main class="mx-auto max-w-6xl px-6 py-8 space-y-6">
+        {askKey && (
+          <form onSubmit={submitKey} class="rounded-lg border border-amber-300 bg-amber-50 p-6 shadow-sm">
+            <label class="block text-sm font-medium text-amber-900 mb-2">Demo password required</label>
+            <p class="text-xs text-amber-800 mb-3">This is a gated demo (Bright Data + DeepSeek API calls cost real money). Hackathon judges: the password is in the lablab.ai submission description.</p>
+            <div class="flex gap-2">
+              <input
+                id="demo-key-input"
+                type="password"
+                autocomplete="current-password"
+                class="flex-1 rounded border border-amber-300 px-3 py-2 focus:border-amber-500 focus:outline-none"
+                placeholder="enter password"
+              />
+              <button type="submit" class="rounded bg-amber-700 px-4 py-2 text-white hover:bg-amber-800">Unlock</button>
+            </div>
+          </form>
+        )}
         <QueryForm value={query} onChange={setQuery} onRun={run} disabled={status === "running"} />
         {error && <div class="rounded border border-red-300 bg-red-50 p-4 text-red-800">Error: {error}</div>}
         {(status === "running" || trace.length > 0) && (
