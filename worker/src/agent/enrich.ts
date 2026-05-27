@@ -1,11 +1,11 @@
 import type { Env } from "../index";
 import type { Candidate, Citation, Operator } from "../types";
 import { webUnlockerCached } from "../brightdata/webUnlocker";
-import { serpSearchCached } from "../brightdata/serp";
 import { demandLookup } from "../demand/client";
+import { geocode } from "../geocode/nominatim";
 import type { SseEmitter } from "../stream";
 
-type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal">;
+type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo">;
 
 function extractAbout(html: string): string | null {
   const meta = /<meta\s+name=["']description["']\s+content=["']([^"']{20,400})["']/i;
@@ -92,8 +92,26 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
   }
   await emit.emit("enrich", { name: c.name, field: "press", status: "ok", count: recent_activity.length });
 
+  // Geocode via local Nominatim (unlimited, no API key). Use "<operator name> <city>" as the search query.
+  let geo: Operator["geo"] = null;
+  if (env.NOMINATIM_BASE) {
+    try {
+      // Extract city from the candidate's origin_query if available, otherwise nothing.
+      const cityHint = (c.origin_query.match(/\b(in|near|around)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/) ?? [])[2] ?? "";
+      const q = `${c.name}${cityHint ? " " + cityHint : ""}`;
+      const g = await geocode(q, env.NOMINATIM_BASE, env.CACHE);
+      if (g) {
+        geo = g;
+        sources.push({ field: "geo", tool: "nominatim", url: `${env.NOMINATIM_BASE}/search?q=${encodeURIComponent(q)}` });
+      }
+      await emit.emit("enrich", { name: c.name, field: "geo", status: g ? "ok" : "fail" });
+    } catch (err) {
+      await emit.emit("enrich", { name: c.name, field: "geo", status: "fail", error: (err as Error).message.slice(0, 80) });
+    }
+  }
+
   // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
-  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null };
+  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo };
 }
 
 async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {

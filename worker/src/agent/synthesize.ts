@@ -5,7 +5,7 @@ import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
 
-type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" | "geo">;
+type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason">;
 
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
@@ -66,7 +66,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
         geo: null
       };
     }
-    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, geo: null };
+    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank };
   });
 
   operators.sort((a, b) => a.rank - b.rank);

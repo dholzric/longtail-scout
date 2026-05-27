@@ -14,6 +14,7 @@ export interface Env {
   BRIGHTDATA_WEB_UNLOCKER_ZONE: string;
   BRIGHTDATA_SCRAPER_ZONE: string;
   DEMAND_API_BASE: string;
+  NOMINATIM_BASE?: string;
   BRIDGE_BASE: string;
   BRIDGE_AUTH_TOKEN?: string;
 }

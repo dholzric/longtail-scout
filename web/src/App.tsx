@@ -4,8 +4,10 @@ import type { Operator, SseEvent } from "./types";
 import { QueryForm } from "./components/QueryForm";
 import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
+import { MapView } from "./components/MapView";
 
 type Status = "idle" | "running" | "done" | "error";
+type ViewMode = "table" | "map";
 
 const STORAGE_KEY = "lts_demo_key";
 
@@ -17,6 +19,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [demoKey, setDemoKey] = useState<string>("");
   const [askKey, setAskKey] = useState<boolean>(false);
+  const [view, setView] = useState<ViewMode>("table");
 
   // Pull saved key on first mount + from URL ?key=
   useEffect(() => {
@@ -134,7 +137,23 @@ export function App() {
         {(status === "running" || trace.length > 0) && (
           <AgentTrace entries={trace} running={status === "running"} />
         )}
-        {operators.length > 0 && <ResultTable operators={operators} />}
+        {operators.length > 0 && (
+          <>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-500 mr-2">View:</span>
+              <button
+                class={`rounded px-3 py-1 text-xs ${view === "table" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                onClick={() => setView("table")}
+              >Table</button>
+              <button
+                class={`rounded px-3 py-1 text-xs ${view === "map" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                onClick={() => setView("map")}
+              >Map</button>
+              <span class="ml-auto text-xs text-slate-500">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
+            </div>
+            {view === "table" ? <ResultTable operators={operators} /> : <MapView operators={operators} />}
+          </>
+        )}
       </main>
 
       <footer class="mx-auto max-w-6xl px-6 py-12 text-xs text-slate-500">
