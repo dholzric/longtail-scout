@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import type { Operator } from "../types";
+import { OperatorNotes } from "./OperatorNotes";
 
 function buildOutreachEmail(op: Operator): { subject: string; body: string } {
   const subject = `Quick question for ${op.name}`;
@@ -86,6 +87,8 @@ export function DrillDown({ op }: { op: Operator }) {
           <pre class="mt-1 whitespace-pre-wrap font-sans text-slate-800">{email.body}</pre>
         </div>
       </div>
+
+      <OperatorNotes opUrl={op.url} />
 
       <div class="mt-3">
         <div class="text-xs font-medium uppercase text-slate-500">Sources used</div>

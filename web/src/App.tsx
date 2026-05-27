@@ -67,6 +67,29 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, demoKey]);
 
+  // Keyboard shortcuts:
+  //   Cmd/Ctrl+Enter — run the current query
+  //   Cmd/Ctrl+K     — focus the query input
+  //   Cmd/Ctrl+E     — export CSV (when results visible) — handled in ResultTable's Export button
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const meta = e.metaKey || e.ctrlKey;
+      if (!meta) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void run();
+      } else if (e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        const input = document.querySelector('input[placeholder^="roofing"]') as HTMLInputElement | null;
+        input?.focus();
+        input?.select();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, demoKey]);
+
   function copyShareUrl() {
     const url = new URL(window.location.href);
     url.searchParams.set("q", query);
