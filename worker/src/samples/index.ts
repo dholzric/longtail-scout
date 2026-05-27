@@ -243,11 +243,187 @@ const DENTAL_HOUSTON: Operator[] = [
   }
 ];
 
+const LAW_CALIFORNIA: Operator[] = [
+  {
+    rank: 1, confidence: 84,
+    name: "Bay Area Family Law Group",
+    url: "https://www.bayareafamilylaw.com/",
+    icp_fit_reason: "Boutique 3-office family-law firm, paid Clio Grow ads in past year",
+    sales_angle: "Boutique multi-attorney family law with recent web-design refresh — fits Clio / MyCase for case management and billing.",
+    about: "Bay Area Family Law Group — divorce, custody, mediation across San Francisco, Oakland, and San Jose offices.",
+    size_estimate: "11-50",
+    hiring: { count: 2, roles: ["paralegal", "associate attorney"], source: null },
+    recent_activity: [{ headline: "Press: 'Top family-law boutique 2025'", date: "", source: "https://www.bayareafamilylaw.com/news/" }],
+    demand_signal: null,
+    geo: { lat: 37.7749, lng: -122.4194, display_name: "San Francisco, California" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.bayareafamilylaw.com/" }],
+    city: "San Francisco"
+  },
+  {
+    rank: 2, confidence: 79,
+    name: "Sandberg PLLC — Personal Injury",
+    url: "https://www.sandberg-injury.com/",
+    icp_fit_reason: "2-attorney plaintiff PI firm; high-volume case intake (signals doc-mgmt need)",
+    sales_angle: "Plaintiff-side personal-injury practice with steady intake — fits Filevine for document automation and case-velocity tracking.",
+    about: "Sandberg PLLC — Bay Area personal injury attorneys: auto, slip-and-fall, dog bite, and wrongful death.",
+    size_estimate: "1-10",
+    hiring: { count: 1, roles: ["case manager"], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 37.8044, lng: -122.2712, display_name: "Oakland, California" },
+    memory: { memory_state: "familiar", first_seen_ts: 1779700000000, seen_count: 2 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.sandberg-injury.com/" }],
+    city: "Oakland"
+  },
+  {
+    rank: 3, confidence: 72,
+    name: "LA Estate Planning Counsel",
+    url: "https://www.laestateplanningcounsel.com/",
+    icp_fit_reason: "Estate-planning niche, single-attorney with admin; fits low-friction practice-mgmt SaaS",
+    sales_angle: "Solo estate-planning attorney with admin staff — sweet spot for Clio Manage / Smokeball at a small-firm price point.",
+    about: "LA Estate Planning Counsel — wills, trusts, probate, and estate administration for Los Angeles families.",
+    size_estimate: "1-10",
+    hiring: { count: null, roles: [], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 34.0522, lng: -118.2437, display_name: "Los Angeles, California" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.laestateplanningcounsel.com/" }],
+    city: "Los Angeles"
+  }
+];
+
+const MSP_FLORIDA: Operator[] = [
+  {
+    rank: 1, confidence: 86,
+    name: "GulfCoast IT Partners",
+    url: "https://www.gulfcoast-itpartners.com/",
+    icp_fit_reason: "30-seat MSP, Tampa-based, ConnectWise tickets visible on careers page",
+    sales_angle: "Tampa-area MSP running ConnectWise — perfect upsell target for Auvik / Liongard / Huntress at the mid-tier MSP segment.",
+    about: "GulfCoast IT Partners — Tampa Bay's managed-services provider for SMB and mid-market clients across Florida.",
+    size_estimate: "11-50",
+    hiring: { count: 2, roles: ["L2 technician", "service coordinator"], source: null },
+    recent_activity: [{ headline: "Hired new VP of Sales", date: "", source: "https://www.gulfcoast-itpartners.com/news" }],
+    demand_signal: null,
+    geo: { lat: 27.9506, lng: -82.4572, display_name: "Tampa, Florida" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.gulfcoast-itpartners.com/" }],
+    city: "Tampa"
+  },
+  {
+    rank: 2, confidence: 81,
+    name: "Miami MSP Group",
+    url: "https://www.miamimspgroup.com/",
+    icp_fit_reason: "10-tech Miami MSP with HIPAA-medical vertical specialty",
+    sales_angle: "HIPAA-focused Miami MSP serving healthcare clients — strong fit for Compliancy Group / RocketCyber's vertical compliance modules.",
+    about: "Miami MSP Group — managed IT, cybersecurity, and HIPAA compliance for South Florida medical practices.",
+    size_estimate: "1-10",
+    hiring: { count: 1, roles: ["security analyst"], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 25.7617, lng: -80.1918, display_name: "Miami, Florida" },
+    memory: { memory_state: "familiar", first_seen_ts: 1779700000000, seen_count: 3 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.miamimspgroup.com/" }],
+    city: "Miami"
+  },
+  {
+    rank: 3, confidence: 74,
+    name: "Orlando NetWorks",
+    url: "https://www.orlandonetworks.com/",
+    icp_fit_reason: "Orlando MSP, 5-tech shop, hiring helpdesk roles",
+    sales_angle: "Growing Orlando MSP with active helpdesk hiring — needs ticketing/dispatch software (Halo PSA, SyncroMSP).",
+    about: "Orlando NetWorks — Central Florida managed IT services, VoIP, and cloud migration support.",
+    size_estimate: "1-10",
+    hiring: { count: 3, roles: ["helpdesk", "field tech", "account rep"], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 28.5383, lng: -81.3792, display_name: "Orlando, Florida" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.orlandonetworks.com/" }],
+    city: "Orlando"
+  }
+];
+
+const AUTO_ATLANTA: Operator[] = [
+  {
+    rank: 1, confidence: 82,
+    name: "Peachtree Auto Body",
+    url: "https://www.peachtreeautobody.com/",
+    icp_fit_reason: "Family-owned auto-body shop, 2 bays, hiring estimators",
+    sales_angle: "Peachtree Auto Body's growing estimator team is a clean fit for CCC ONE / Mitchell estimating + parts ordering tools.",
+    about: "Peachtree Auto Body — collision repair, custom paint, and insurance claims handling in metro Atlanta.",
+    size_estimate: "11-50",
+    hiring: { count: 2, roles: ["estimator", "painter"], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 33.749, lng: -84.388, display_name: "Atlanta, Georgia" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.peachtreeautobody.com/" }],
+    city: "Atlanta"
+  },
+  {
+    rank: 2, confidence: 76,
+    name: "Buckhead European Auto",
+    url: "https://www.buckheadeuropeanauto.com/",
+    icp_fit_reason: "European specialty shop; high-margin BMW/Mercedes/Audi clientele",
+    sales_angle: "Specialty European-marque repair — ideal for AllData / Tekmetric workflow + parts software at a premium price point.",
+    about: "Buckhead European Auto — BMW, Mercedes, Audi, and Porsche service in Atlanta's Buckhead neighborhood.",
+    size_estimate: "1-10",
+    hiring: { count: null, roles: [], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 33.8484, lng: -84.376, display_name: "Atlanta, Georgia" },
+    memory: { memory_state: "familiar", first_seen_ts: 1779700000000, seen_count: 2 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.buckheadeuropeanauto.com/" }],
+    city: "Atlanta"
+  }
+];
+
+const HOTEL_MIAMI: Operator[] = [
+  {
+    rank: 1, confidence: 80,
+    name: "Brickell Boutique Hotel",
+    url: "https://www.brickellboutiquehotel.com/",
+    icp_fit_reason: "12-room boutique hotel in Brickell financial district; high-end clientele",
+    sales_angle: "Small-format boutique with high ADR — a sweet spot for Mews / Cloudbeds PMS + revenue-management bolt-on.",
+    about: "Brickell Boutique Hotel — 12 designer rooms, rooftop bar, and concierge service in downtown Miami.",
+    size_estimate: "11-50",
+    hiring: { count: 1, roles: ["front desk lead"], source: null },
+    recent_activity: [{ headline: "Featured in Conde Nast 'Hidden Miami' list", date: "", source: "https://www.brickellboutiquehotel.com/press/" }],
+    demand_signal: null,
+    geo: { lat: 25.7617, lng: -80.1918, display_name: "Miami, Florida" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.brickellboutiquehotel.com/" }],
+    city: "Miami"
+  },
+  {
+    rank: 2, confidence: 73,
+    name: "South Beach Suites",
+    url: "https://www.southbeachsuites.com/",
+    icp_fit_reason: "Independent 28-room South Beach property; strong Instagram presence",
+    sales_angle: "Indie South Beach hotel with active social — needs Stayntouch / Hopper revenue-management + channel-manager combo.",
+    about: "South Beach Suites — 28 oceanview rooms on Collins Ave, independent and family-run since 2008.",
+    size_estimate: "11-50",
+    hiring: { count: 2, roles: ["housekeeping lead", "night manager"], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 25.7907, lng: -80.13, display_name: "Miami Beach, Florida" },
+    memory: { memory_state: "familiar", first_seen_ts: 1779800000000, seen_count: 2 },
+    sources: [{ field: "about", tool: "bridge_render", url: "https://www.southbeachsuites.com/" }],
+    city: "Miami Beach"
+  }
+];
+
 const SAMPLES: Sample[] = [
   { matches: /roof/i, operators: ROOFING_HOUSTON, label: "roofing-houston" },
   { matches: /hvac|heating|cooling|air[\s-]?conditioning/i, operators: HVAC_HOUSTON, label: "hvac-houston" },
   { matches: /childcare|daycare|preschool/i, operators: CHILDCARE_HOUSTON, label: "childcare-houston" },
-  { matches: /dental|dentist/i, operators: DENTAL_HOUSTON, label: "dental-houston" }
+  { matches: /dental|dentist/i, operators: DENTAL_HOUSTON, label: "dental-houston" },
+  { matches: /law\s+firm|attorney|lawyer/i, operators: LAW_CALIFORNIA, label: "law-california" },
+  { matches: /msp|managed[\s-]?(it|service)/i, operators: MSP_FLORIDA, label: "msp-florida" },
+  { matches: /auto[\s-]?body|auto[\s-]?repair|mechanic|car[\s-]?repair/i, operators: AUTO_ATLANTA, label: "auto-atlanta" },
+  { matches: /hotel|boutique[\s-]?hotel|inn/i, operators: HOTEL_MIAMI, label: "hotel-miami" }
 ];
 
 export function findSample(rawQuery: string): Sample | null {

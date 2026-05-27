@@ -1,7 +1,33 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import type { Operator } from "../types";
 import { CitationLink } from "./CitationLink";
 import { DrillDown } from "./DrillDown";
+
+/**
+ * Short, stable, URL-safe identifier for an operator. We hash the homepage URL via DJB2
+ * (no crypto needed for non-security use) and base36-encode it. Used in the permalink
+ * `?op=<id>` so a judge can share a deep-link to a specific row.
+ */
+function operatorPermalinkId(opUrl: string): string {
+  let h = 5381;
+  const s = opUrl.trim().toLowerCase().replace(/\/$/, "");
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
+async function copyShareLink(op: Operator, query: string): Promise<boolean> {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("q", query);
+    url.searchParams.set("run", "1");
+    url.searchParams.set("op", operatorPermalinkId(op.url));
+    url.searchParams.delete("key");
+    await navigator.clipboard.writeText(url.toString());
+    return true;
+  } catch { return false; }
+}
 
 function operatorIsWebFirst(op: Operator): boolean {
   // Heuristic: rank-eligible operators we surfaced from their own website are the ones Apollo's LinkedIn-graph misses.
@@ -58,14 +84,37 @@ async function copyCsv(ops: Operator[]) {
 
 type SortKey = "rank" | "confidence" | "name" | "hiring";
 
-export function ResultTable({ operators }: { operators: Operator[] }) {
+interface ResultTableProps {
+  operators: Operator[];
+  /** Permalink ID from `?op=` — auto-opens the matching row's drill-down on mount. */
+  initialOpenId?: string | null;
+  /** Current query (used to build per-row copy-link URLs). */
+  query?: string;
+}
+
+export function ResultTable({ operators, initialOpenId, query }: ResultTableProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [linkCopiedUrl, setLinkCopiedUrl] = useState<string | null>(null);
   const [minConfidence, setMinConfidence] = useState(0);
   const [hiringOnly, setHiringOnly] = useState(false);
   const [smallOnly, setSmallOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  // When operators stream in, match the URL ?op=<id> hash and auto-open that row.
+  useEffect(() => {
+    if (!initialOpenId || open) return;
+    const match = operators.find(o => operatorPermalinkId(o.url) === initialOpenId);
+    if (match) {
+      setOpen(match.url);
+      // Smooth-scroll to the row after layout settles.
+      requestAnimationFrame(() => {
+        const el = document.querySelector(`tr[data-op-id="${initialOpenId}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    }
+  }, [operators, initialOpenId, open]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -139,7 +188,7 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
         <tbody>
           {visible.map(op => (
             <>
-              <tr key={op.url} class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setOpen(open === op.url ? null : op.url)}>
+              <tr key={op.url} data-op-id={operatorPermalinkId(op.url)} class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setOpen(open === op.url ? null : op.url)}>
                 <td class="px-4 py-3 align-top text-slate-500">
                   <div>{op.rank}</div>
                   <div class={`mt-1 text-[10px] font-medium ${op.confidence >= 70 ? "text-emerald-700" : op.confidence >= 40 ? "text-amber-700" : "text-slate-400"}`} title={`Confidence: ${op.confidence}/100 — derived from citation count, data depth, and hostname-name match. Not rank — rank is fit-for-query.`}>
@@ -179,6 +228,20 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
                   </div>
                   <a class="text-xs text-blue-700 underline" href={op.url} target="_blank" onClick={(e) => e.stopPropagation()}>{op.url}</a>
                   {op.size_estimate && <span class="ml-2 text-xs text-slate-500">· {op.size_estimate}<CitationLink citations={op.sources} field="about" /></span>}
+                  <button
+                    class="ml-2 text-[10px] text-slate-400 hover:text-slate-700 underline decoration-dotted"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (await copyShareLink(op, query ?? "")) {
+                        setLinkCopiedUrl(op.url);
+                        setTimeout(() => setLinkCopiedUrl(null), 1500);
+                      }
+                    }}
+                    title="Copy a share URL that opens this operator's drill-down directly"
+                    type="button"
+                  >
+                    {linkCopiedUrl === op.url ? "✓ link copied" : "🔗 link"}
+                  </button>
                 </td>
                 <td class="px-4 py-3 align-top text-slate-700 max-w-[16rem]">{op.icp_fit_reason || <span class="text-slate-400">—</span>}</td>
                 <td class="px-4 py-3 align-top text-slate-700">

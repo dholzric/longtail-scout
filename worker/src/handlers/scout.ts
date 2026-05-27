@@ -114,7 +114,16 @@ export async function scoutHandler(req: Request, env: Env, ctx: ExecutionContext
         }
         return;
       }
-      // No matching sample — fall through to live mode
+      // No matching sample — DO NOT silently fall through to live mode (would burn real BD/LLM
+      // dollars on a query the judge thought was free). Emit a clear stub instead.
+      try {
+        await emitter.emit("progress", { message: `Sample mode: no canned sample for "${q.raw}". Remove ?sample=1 from the URL to run this query live.` });
+        await emitter.emit("result", { operators: [] });
+        await emitter.emit("done", { sample: true, no_sample_available: true });
+      } catch { /* ignore */ } finally {
+        await emitter.close();
+      }
+      return;
     }
 
     const tally = newCostTally();

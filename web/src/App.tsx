@@ -7,9 +7,11 @@ import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
 import { ApolloCompare } from "./components/ApolloCompare";
+import { CityBreakdown } from "./components/CityBreakdown";
 import { AboutPage } from "./components/AboutPage";
 import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
+import { Onboarding } from "./components/Onboarding";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -32,6 +34,7 @@ export function App() {
   const [view, setView] = useState<ViewMode>("table");
   const [cost, setCost] = useState<CostSnapshot | null>(null);
   const [sampleMode, setSampleMode] = useState<boolean>(false);
+  const [initialOpenId, setInitialOpenId] = useState<string | null>(null);
 
   // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
@@ -59,6 +62,9 @@ export function App() {
         }, 50);
       }
     }
+    // Operator permalink (?op=<id>) — ResultTable will auto-expand the matching row.
+    const opParam = url.searchParams.get("op");
+    if (opParam) setInitialOpenId(opParam);
   }, []);
 
   // Listen for the auto-run signal dispatched after URL parsing.
@@ -200,6 +206,7 @@ export function App() {
       </header>
 
       <main class="mx-auto max-w-6xl px-6 py-8 space-y-6">
+        <Onboarding />
         {askKey && (
           <form onSubmit={submitKey} class="rounded-lg border border-amber-300 bg-amber-50 p-6 shadow-sm">
             <label class="block text-sm font-medium text-amber-900 mb-2">Demo password required</label>
@@ -243,6 +250,7 @@ export function App() {
         {operators.length > 0 && (
           <>
             <WedgeSummary operators={operators} niche={query} />
+            <CityBreakdown operators={operators} />
             <ApolloCompare operators={operators} query={query} />
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500 mr-2">View:</span>
@@ -256,7 +264,7 @@ export function App() {
               >Map</button>
               <span class="ml-auto text-xs text-slate-500">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
             </div>
-            {view === "table" ? <ResultTable operators={operators} /> : <MapView operators={operators} query={query} />}
+            {view === "table" ? <ResultTable operators={operators} initialOpenId={initialOpenId} query={query} /> : <MapView operators={operators} query={query} />}
           </>
         )}
       </main>
