@@ -1,6 +1,7 @@
 export interface Env {
   CACHE: KVNamespace;
   ASSETS?: Fetcher;
+  OPENROUTER_API_KEY?: string;
   AIMLAPI_KEY?: string;
   GLM_API_KEY?: string;
   BRIGHTDATA_API_KEY: string;
