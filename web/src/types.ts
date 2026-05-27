@@ -13,7 +13,7 @@ export interface Operator {
   sales_angle: string;
   rank: number;
   geo: { lat: number; lng: number; display_name?: string } | null;
-  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
+  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number; cross_niche?: string[] } | null;
   confidence: number;
   city?: string;
 }

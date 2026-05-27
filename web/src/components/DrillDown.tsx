@@ -88,6 +88,16 @@ export function DrillDown({ op }: { op: Operator }) {
         </div>
       </div>
 
+      {op.memory && op.memory.cross_niche && op.memory.cross_niche.length > 0 && (
+        <div class="mt-3 rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
+          <div class="text-xs font-medium uppercase text-indigo-700 mb-1">Cross-niche signal</div>
+          This operator also appeared under: {op.memory.cross_niche.map((q, i) => (
+            <span key={i} class="ml-1 inline-block rounded-full bg-white px-2 py-0.5 text-xs ring-1 ring-indigo-200">{q}</span>
+          ))}
+          <div class="mt-1 text-xs text-indigo-700/80">Multi-vertical operators are often the highest-LTV accounts — they buy multiple SaaS tools.</div>
+        </div>
+      )}
+
       <OperatorNotes opUrl={op.url} />
 
       <div class="mt-3">

@@ -25,7 +25,7 @@ export interface Operator {
   /** Optional geocoded location for the map view. */
   geo: { lat: number; lng: number; display_name?: string } | null;
   /** Memory annotation — has this URL been surfaced by prior queries? */
-  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
+  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number; cross_niche?: string[] } | null;
   /** 0-100 confidence the agent has in this row — derived from citation count + data depth + domain-match heuristics. NOT the rank. */
   confidence: number;
   /** Origin city when the query expanded to multiple cities (state-level query). Empty for single-city queries. */

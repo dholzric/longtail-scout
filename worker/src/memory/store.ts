@@ -21,12 +21,16 @@ export interface RememberedOperator {
   last_seen_ts: number;
   seen_count: number;
   last_query: string;
+  /** Distinct queries this operator has appeared under (capped at 8) — surfaces cross-niche reach. */
+  query_history: string[];
 }
 
 export interface OperatorMemoryAnnotation {
   memory_state: "new" | "familiar" | "frequent";
   first_seen_ts: number;
   seen_count: number;
+  /** Other queries this URL has appeared in (excluding the current one). */
+  cross_niche: string[];
 }
 
 async function opKey(url: string): Promise<string> {
@@ -39,15 +43,18 @@ export async function recordOperator(kv: KVNamespace, url: string, name: string,
   const existing = await kv.get(key, "json") as RememberedOperator | null;
   let record: RememberedOperator;
   if (existing) {
+    const history = Array.isArray(existing.query_history) ? existing.query_history : [];
+    if (!history.includes(query)) history.unshift(query);
     record = {
       ...existing,
       name: existing.name || name,
       last_seen_ts: now,
       seen_count: existing.seen_count + 1,
-      last_query: query
+      last_query: query,
+      query_history: history.slice(0, 8)
     };
   } else {
-    record = { url, name, first_seen_ts: now, last_seen_ts: now, seen_count: 1, last_query: query };
+    record = { url, name, first_seen_ts: now, last_seen_ts: now, seen_count: 1, last_query: query, query_history: [query] };
   }
   // 90-day retention
   await kv.put(key, JSON.stringify(record), { expirationTtl: 90 * 86400 });
@@ -55,5 +62,7 @@ export async function recordOperator(kv: KVNamespace, url: string, name: string,
     record.seen_count === 1 ? "new" :
     record.seen_count <= 3 ? "familiar" :
     "frequent";
-  return { memory_state: state, first_seen_ts: record.first_seen_ts, seen_count: record.seen_count };
+  // Cross-niche = the other queries this URL has appeared under, excluding the current one.
+  const cross_niche = record.query_history.filter(q => q !== query).slice(0, 4);
+  return { memory_state: state, first_seen_ts: record.first_seen_ts, seen_count: record.seen_count, cross_niche };
 }
