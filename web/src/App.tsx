@@ -1,6 +1,6 @@
 import { useState, useEffect } from "preact/hooks";
 import { readSse } from "./sse";
-import type { Operator, SseEvent } from "./types";
+import type { Operator, SseEvent, CostSnapshot } from "./types";
 import { QueryForm } from "./components/QueryForm";
 import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
@@ -20,6 +20,7 @@ export function App() {
   const [demoKey, setDemoKey] = useState<string>("");
   const [askKey, setAskKey] = useState<boolean>(false);
   const [view, setView] = useState<ViewMode>("table");
+  const [cost, setCost] = useState<CostSnapshot | null>(null);
 
   // Pull saved key on first mount + from URL ?key=
   useEffect(() => {
@@ -46,6 +47,7 @@ export function App() {
     setTrace([]);
     setOperators([]);
     setError(null);
+    setCost(null);
 
     const resp = await fetch("/api/scout", {
       method: "POST",
@@ -90,6 +92,10 @@ export function App() {
   }
 
   function ingest(ev: SseEvent) {
+    if (ev.event === "cost") {
+      setCost(ev.data);
+      return;
+    }
     if (ev.event === "result") {
       setOperators(ev.data.operators);
       return;
@@ -133,6 +139,16 @@ export function App() {
           </form>
         )}
         <QueryForm value={query} onChange={setQuery} onRun={run} disabled={status === "running"} />
+        {cost && (
+          <div class="flex items-center gap-3 rounded border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-sm">
+            <span class="font-medium text-slate-700">Live cost meter:</span>
+            <span title="Bright Data Scraping Browser nav cost">BD ${cost.bd_usd.toFixed(4)} <span class="text-slate-400">({cost.bd_renders} renders)</span></span>
+            <span class="text-slate-300">·</span>
+            <span title="DeepSeek token cost">LLM ${cost.llm_usd.toFixed(4)} <span class="text-slate-400">({cost.llm_input_tokens.toLocaleString()} in / {cost.llm_output_tokens.toLocaleString()} out)</span></span>
+            <span class="text-slate-300">·</span>
+            <span class="font-medium text-slate-900">Total ${cost.total_usd.toFixed(4)}</span>
+          </div>
+        )}
         {error && <div class="rounded border border-red-300 bg-red-50 p-4 text-red-800">Error: {error}</div>}
         {(status === "running" || trace.length > 0) && (
           <AgentTrace entries={trace} running={status === "running"} />

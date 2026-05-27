@@ -4,10 +4,11 @@ import { buildSynthesisPrompt } from "./prompts";
 import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
+import type { CostTally } from "../cost";
 
 type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason">;
 
-export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter): Promise<Operator[]> {
+export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
 
   // Niche-level demand context — one lookup against the ~7M-business demand index for the *niche keyword* the user typed.
@@ -31,6 +32,11 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
     messages: [{ role: "user", content: user }],
     responseFormat: "json_object"
   });
+  if (tally) {
+    tally.llm_calls += 1;
+    tally.llm_input_tokens += response.usage?.prompt_tokens ?? 0;
+    tally.llm_output_tokens += response.usage?.completion_tokens ?? 0;
+  }
   await emit.emit("progress", { message: `Synthesis via ${provider}` });
 
   const text = response.choices[0]?.message.content ?? "";

@@ -6,6 +6,7 @@ import { dedupeCandidates } from "./dedupe";
 import { buildDiscoveryPrompt } from "./prompts";
 import { llmCall } from "../llm/client";
 import type { SseEmitter } from "../stream";
+import type { CostTally } from "../cost";
 
 const DISCOVERY_TOOLS: ChatCompletionTool[] = [
   {
@@ -43,7 +44,7 @@ const DISCOVERY_TOOLS: ChatCompletionTool[] = [
   }
 ];
 
-export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitter): Promise<Candidate[]> {
+export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitter, tally?: CostTally): Promise<Candidate[]> {
   await emit.emit("phase", { phase: "discovery" });
   const bridge = { base: env.BRIDGE_BASE, token: env.BRIDGE_AUTH_TOKEN };
   const { system, user } = buildDiscoveryPrompt(q);
@@ -58,6 +59,11 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
       tools: DISCOVERY_TOOLS,
       toolChoice: "auto"
     });
+    if (tally) {
+      tally.llm_calls += 1;
+      tally.llm_input_tokens += response.usage?.prompt_tokens ?? 0;
+      tally.llm_output_tokens += response.usage?.completion_tokens ?? 0;
+    }
     await emit.emit("progress", { message: `Discovery turn ${turn + 1} via ${provider}` });
 
     const choice = response.choices[0];
@@ -78,6 +84,7 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         await emit.emit("tool", { tool: "serp", args: { query }, url: null });
         try {
           const result = await serpSearchCached(query, bridge, env.CACHE, { num: 15 });
+          if (tally) tally.bd_renders += 1; // each SERP = one Bright Data Browser render
           for (const r of result.results) {
             rawCandidates.push({ name: r.title, url: r.link, origin_query: query });
             await emit.emit("candidate", { name: r.title, url: r.link });

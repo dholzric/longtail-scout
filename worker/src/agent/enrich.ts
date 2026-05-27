@@ -4,6 +4,7 @@ import { webUnlockerCached } from "../brightdata/webUnlocker";
 import { demandLookup } from "../demand/client";
 import { geocode } from "../geocode/nominatim";
 import type { SseEmitter } from "../stream";
+import type { CostTally } from "../cost";
 
 type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo">;
 
@@ -37,13 +38,14 @@ function extractRoles(text: string): string[] {
   return [...roles];
 }
 
-async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<EnrichedPartial | null> {
+async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial | null> {
   const bridge = { base: env.BRIDGE_BASE, token: env.BRIDGE_AUTH_TOKEN };
   const sources: Citation[] = [];
 
   let homepageHtml = "";
   try {
     const page = await webUnlockerCached(c.url, bridge, env.CACHE);
+    if (tally) tally.bd_renders += 1;
     homepageHtml = page.html;
     sources.push({ field: "about", tool: "bridge_render", url: c.url });
     await emit.emit("enrich", { name: c.name, field: "homepage", status: "ok" });
@@ -134,7 +136,7 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
   return results;
 }
 
-export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter): Promise<EnrichedPartial[]> {
+export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
   // Bright Data Browser API has a navigation/concurrency quota per session.
   // The bridge serializes requests via mutex + recycles browser every 6 navs.
@@ -143,7 +145,7 @@ export async function enrichCandidates(candidates: Candidate[], env: Env, emit: 
   const CONCURRENCY = 2; // worker-side concurrency; bridge mutex serializes anyway, but this paces SSE events nicely
   await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY} at a time)…` });
 
-  const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit));
+  const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit, tally));
   const out: EnrichedPartial[] = [];
   for (const r of settled) {
     if (r.status === "fulfilled" && r.value) out.push(r.value);

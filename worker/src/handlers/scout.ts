@@ -4,6 +4,7 @@ import { createSseResponse } from "../stream";
 import { discoverCandidates } from "../agent/discovery";
 import { enrichCandidates } from "../agent/enrich";
 import { synthesize } from "../agent/synthesize";
+import { newCostTally, snapshot } from "../cost";
 
 function parseQuery(raw: string): ScoutQuery {
   const inIdx = raw.toLowerCase().lastIndexOf(" in ");
@@ -47,13 +48,20 @@ export async function scoutHandler(req: Request, env: Env, ctx: ExecutionContext
   const { response, emitter } = createSseResponse();
 
   ctx.waitUntil((async () => {
+    const tally = newCostTally();
+    const emitCost = async (phase: string) => {
+      await emitter.emit("cost", { phase, ...snapshot(tally) });
+    };
     try {
       await emitter.emit("progress", { message: `Parsed query — niche="${q.niche}", city="${q.city}".` });
-      const candidates = await discoverCandidates(q, env, emitter);
-      const enriched = await enrichCandidates(candidates, env, emitter);
-      const operators = await synthesize(q, enriched, env, emitter);
+      const candidates = await discoverCandidates(q, env, emitter, tally);
+      await emitCost("discovery");
+      const enriched = await enrichCandidates(candidates, env, emitter, tally);
+      await emitCost("enrichment");
+      const operators = await synthesize(q, enriched, env, emitter, tally);
+      await emitCost("synthesis");
       await emitter.emit("result", { operators });
-      await emitter.emit("done", {});
+      await emitter.emit("done", { cost: snapshot(tally) });
     } catch (err) {
       await emitter.emit("error", { message: (err as Error).message, recoverable: false });
     } finally {
