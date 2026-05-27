@@ -1,1 +1,242 @@
 @import "tailwindcss";
+
+/* ─── Design tokens ──────────────────────────────────────────────────────────
+   Three palettes — cream (default editorial), ink (dark mode), blueprint
+   (technical/blueprint-paper). All semantically named in CSS vars so component
+   styles stay theme-agnostic. Body[data-palette] selectors swap them.
+*/
+:root,
+body[data-palette="cream"] {
+  --font-serif: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans:  "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:  "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --paper:      #F5F0E4;
+  --paper-2:    #EFE9DA;
+  --paper-3:    #E9E2CF;
+  --ink:        #1A1814;
+  --ink-deep:   #15130F;
+  --ink-90:     #26221C;
+  --ink-80:     #3A3530;
+  --ink-70:     #4F4942;
+  --ink-60:     #6B645B;
+  --ink-50:     #857E73;
+  --ink-40:     #A39C90;
+  --ink-30:     #BFB8AC;
+  --ink-25:     #CCC5B8;
+  --ink-20:     #D2CBBE;
+  --ink-15:     #DBD4C7;
+  --ink-10:     #E2DCCF;
+  --ink-08:     #E6E0D2;
+  --rust:        #A8351F;
+  --rust-dk:     #7A2415;
+  --rust-tint:   #F4E1DA;
+  --rust-bright: #D14E33;
+  --moss:        #3E6B2C;
+  --moss-dk:     #2A4A1E;
+  --moss-tint:   #DCE5CC;
+  --moss-bright: #7BC04A;
+  --ochre:       #C68A2E;
+  --ochre-dk:    #8B5E1E;
+  --ochre-tint:  #F2E5C9;
+  --ochre-bright:#E8B85B;
+  --sky:         #3D7099;
+  --sky-dk:      #2A5074;
+  --sky-tint:    #DCE6EF;
+}
+
+body[data-palette="ink"] {
+  --paper:      #161513;
+  --paper-2:    #1D1C19;
+  --paper-3:    #252320;
+  --ink:        #F2EDDF;
+  --ink-deep:   #0D0C0A;
+  --ink-90:     #E8E1D0;
+  --ink-80:     #D0C9B7;
+  --ink-70:     #B5AE9C;
+  --ink-60:     #938C7B;
+  --ink-50:     #75705F;
+  --ink-40:     #5E594C;
+  --ink-30:     #46423A;
+  --ink-25:     #3D3A33;
+  --ink-20:     #34322C;
+  --ink-15:     #2C2A25;
+  --ink-10:     #262420;
+  --ink-08:     #22201C;
+  --rust:        #D87459;
+  --rust-dk:     #A8492F;
+  --rust-tint:   #3A1F18;
+  --rust-bright: #FF9A7A;
+  --moss:        #8FBE5F;
+  --moss-dk:     #B5D88E;
+  --moss-tint:   #1F2B17;
+  --moss-bright: #A8E670;
+  --ochre:       #E0B770;
+  --ochre-dk:    #F0CE8E;
+  --ochre-tint:  #2B2316;
+  --ochre-bright:#FFD27A;
+  --sky:         #7AAACF;
+  --sky-dk:      #A4C6E0;
+  --sky-tint:    #1A2530;
+}
+
+body[data-palette="blueprint"] {
+  --paper:      #152538;
+  --paper-2:    #1A2D43;
+  --paper-3:    #21354C;
+  --ink:        #E8F0F8;
+  --ink-deep:   #0B1622;
+  --ink-90:     #D8E2EE;
+  --ink-80:     #BCC9D9;
+  --ink-70:     #9FAEC2;
+  --ink-60:     #8090A6;
+  --ink-50:     #647489;
+  --ink-40:     #4F5E72;
+  --ink-30:     #3B4A5E;
+  --ink-25:     #344357;
+  --ink-20:     #2D3C50;
+  --ink-15:     #283749;
+  --ink-10:     #243345;
+  --ink-08:     #223141;
+  --rust:        #F08F6A;
+  --rust-dk:     #FFAB87;
+  --rust-tint:   #3A2118;
+  --rust-bright: #FF9F7A;
+  --moss:        #7CC95B;
+  --moss-dk:     #A4E082;
+  --moss-tint:   #1B2D1C;
+  --moss-bright: #A4E082;
+  --ochre:       #F0C672;
+  --ochre-dk:    #FFDC95;
+  --ochre-tint:  #2A2316;
+  --ochre-bright:#FFDC95;
+  --sky:         #7AB4E6;
+  --sky-dk:      #A4CCEC;
+  --sky-tint:   #1B2E45;
+}
+
+/* Tailwind v4 theme tokens — exposes the palette as utility classes:
+   bg-paper, text-ink, border-ink-15, etc. */
+@theme {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-ink: var(--ink);
+  --color-ink-deep: var(--ink-deep);
+  --color-ink-90: var(--ink-90);
+  --color-ink-80: var(--ink-80);
+  --color-ink-70: var(--ink-70);
+  --color-ink-60: var(--ink-60);
+  --color-ink-50: var(--ink-50);
+  --color-ink-40: var(--ink-40);
+  --color-ink-30: var(--ink-30);
+  --color-ink-25: var(--ink-25);
+  --color-ink-20: var(--ink-20);
+  --color-ink-15: var(--ink-15);
+  --color-ink-10: var(--ink-10);
+  --color-ink-08: var(--ink-08);
+  --color-rust: var(--rust);
+  --color-rust-dk: var(--rust-dk);
+  --color-rust-tint: var(--rust-tint);
+  --color-rust-bright: var(--rust-bright);
+  --color-moss: var(--moss);
+  --color-moss-dk: var(--moss-dk);
+  --color-moss-tint: var(--moss-tint);
+  --color-moss-bright: var(--moss-bright);
+  --color-ochre: var(--ochre);
+  --color-ochre-dk: var(--ochre-dk);
+  --color-ochre-tint: var(--ochre-tint);
+  --color-ochre-bright: var(--ochre-bright);
+  --color-sky-paper: var(--sky);
+  --color-sky-dk: var(--sky-dk);
+  --color-sky-tint: var(--sky-tint);
+
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01", "ss02";
+}
+
+/* paper grain texture — subtle warmth across the whole canvas */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.32;
+  background-image:
+    radial-gradient(circle at 20% 30%, var(--ink-10) 0.5px, transparent 1px),
+    radial-gradient(circle at 65% 70%, var(--ink-10) 0.5px, transparent 1px),
+    radial-gradient(circle at 80% 20%, var(--ink-08) 0.4px, transparent 0.9px);
+  background-size: 7px 7px, 11px 11px, 5px 5px;
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--ochre-tint); color: var(--ink); }
+
+/* ─── Leaflet tile recolor — paper-friendly desaturation ───────────────── */
+.leaflet-tile {
+  filter: saturate(0.55) contrast(0.95) brightness(1.02);
+}
+body[data-palette="ink"] .leaflet-tile,
+body[data-palette="blueprint"] .leaflet-tile {
+  filter: invert(0.92) hue-rotate(180deg) saturate(0.4) brightness(0.85);
+}
+.leaflet-container {
+  background: var(--paper) !important;
+  font-family: var(--font-sans) !important;
+}
+.leaflet-control-zoom a {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--ink-20) !important;
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+}
+.leaflet-control-zoom a:hover { background: var(--paper-2) !important; }
+.leaflet-control-attribution {
+  background: color-mix(in oklab, var(--paper) 80%, transparent) !important;
+  color: var(--ink-60) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 9px !important;
+  letter-spacing: 0.04em;
+  padding: 2px 6px !important;
+}
+.leaflet-control-attribution a { color: var(--ink-70) !important; }
+
+/* ─── Numbered map pins (used in Step 7) ────────────────────────────────── */
+.lts-pin { background: transparent; border: 0; display: flex; flex-direction: column; align-items: center; }
+.lts-pin-box {
+  width: 26px; height: 22px;
+  background: var(--ink); color: var(--paper);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; border-radius: 2px;
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--ink) 45%, transparent);
+}
+.lts-pin-stem { width: 1.2px; height: 12px; background: var(--ink); margin-top: -1px; }
+.lts-pin::after {
+  content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); margin-top: -3px;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--paper) 90%, transparent);
+}
+
+.leaflet-tooltip {
+  background: var(--paper) !important;
+  border: 1px solid var(--ink-25) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--ink) 20%, transparent) !important;
+  border-radius: 2px !important;
+  padding: 6px 9px !important;
+  font-family: var(--font-sans) !important;
+}

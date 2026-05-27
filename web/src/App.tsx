@@ -206,36 +206,62 @@ export function App() {
   }
 
   return (
-    <div class="min-h-screen bg-slate-50 text-slate-900">
-      <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto max-w-6xl px-6 py-5">
+    <div class="min-h-screen bg-paper text-ink">
+      {/* Top utility bar — sticky cost meter + nav (live indicator, edition, BD/LLM, links) */}
+      <div class="sticky top-0 z-50 border-b border-ink-15 backdrop-blur" style={{ background: "color-mix(in oklab, var(--paper) 88%, transparent)" }}>
+        <div class="mx-auto max-w-6xl px-6 py-2 flex flex-wrap items-center gap-4 text-[11px] font-mono text-ink-70">
+          <span class="inline-flex items-center gap-1.5">
+            <span class="inline-block h-1.5 w-1.5 rounded-full bg-moss" style={{ boxShadow: "0 0 0 3px color-mix(in oklab, var(--moss) 25%, transparent)" }} />
+            <span class="font-semibold text-ink-80">live</span>
+          </span>
+          <span class="text-ink-50">edition 2026.05 · field manual for the long tail</span>
+          <span class="flex-1" />
+          {cost && (
+            <>
+              <span title="Bright Data Scraping Browser nav cost"><span class="text-ink-40">BD</span> <span class="text-ink">${cost.bd_usd.toFixed(4)}</span> <span class="text-ink-40">({cost.bd_renders} renders)</span></span>
+              <span class="text-ink-25">·</span>
+              <span title="DeepSeek token cost"><span class="text-ink-40">LLM</span> <span class="text-ink">${cost.llm_usd.toFixed(4)}</span> <span class="text-ink-40">({(cost.llm_input_tokens / 1000).toFixed(1)}k tok)</span></span>
+              <span class="text-ink-25">·</span>
+              <span><span class="text-ink-40">Σ</span> <span class="text-ink font-bold">${cost.total_usd.toFixed(4)}</span></span>
+              <span class="text-ink-25">·</span>
+            </>
+          )}
+          <a href="/about" class="text-ink-70 hover:text-ink border-b border-dotted border-ink-30">field manual</a>
+          <a href="/docs" class="text-ink-70 hover:text-ink border-b border-dotted border-ink-30">api</a>
+        </div>
+      </div>
+
+      <header class="border-b border-ink-15">
+        <div class="mx-auto max-w-6xl px-6 pt-10 pb-6">
           <div class="flex items-baseline justify-between gap-4">
-            <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
-            <div class="flex items-center gap-3 text-xs">
-              <a class="text-blue-700 underline" href="/docs">API docs</a>
-              <span class="text-slate-300">·</span>
-              <a class="text-blue-700 underline" href="/about">How it works →</a>
+            <h1 class="text-2xl font-serif font-semibold tracking-tight">
+              <span class="italic font-medium">longtail</span><span class="font-bold">scout</span><span class="ml-1 font-mono text-[10px] font-normal text-ink-40 align-baseline">.com</span>
+            </h1>
+            <div class="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-50 flex items-center gap-2.5">
+              <span>vol. 1</span>
+              <span class="inline-block h-3 w-px bg-ink-25" />
+              <span>est. may 2026</span>
             </div>
           </div>
-          <p class="text-sm text-slate-600">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
+          <p class="mt-3 text-sm text-ink-70 max-w-2xl">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
         </div>
       </header>
 
       <main class="mx-auto max-w-6xl px-6 py-8 space-y-6">
         <Onboarding />
         {askKey && (
-          <form onSubmit={submitKey} class="rounded-lg border border-amber-300 bg-amber-50 p-6 shadow-sm">
-            <label class="block text-sm font-medium text-amber-900 mb-2">Demo password required</label>
-            <p class="text-xs text-amber-800 mb-3">This is a gated demo (Bright Data + DeepSeek API calls cost real money). Hackathon judges: the password is in the lablab.ai submission description.</p>
+          <form onSubmit={submitKey} class="rounded-lg border border-ochre/40 bg-ochre-tint p-6 shadow-sm">
+            <label class="block text-sm font-medium text-ochre-dk mb-2">Demo password required</label>
+            <p class="text-xs text-ochre-dk/80 mb-3">This is a gated demo (Bright Data + DeepSeek API calls cost real money). Hackathon judges: the password is in the lablab.ai submission description.</p>
             <div class="flex gap-2">
               <input
                 id="demo-key-input"
                 type="password"
                 autocomplete="current-password"
-                class="flex-1 rounded border border-amber-300 px-3 py-2 focus:border-amber-500 focus:outline-none"
+                class="flex-1 rounded border border-ochre/40 bg-paper px-3 py-2 focus:border-ochre-dk focus:outline-none"
                 placeholder="enter password"
               />
-              <button type="submit" class="rounded bg-amber-700 px-4 py-2 text-white hover:bg-amber-800">Unlock</button>
+              <button type="submit" class="rounded bg-ochre-dk px-4 py-2 text-paper hover:bg-ink">Unlock</button>
             </div>
           </form>
         )}
@@ -243,21 +269,11 @@ export function App() {
         <DemandProbe query={query} />
         <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
         {sampleMode && (
-          <div class="rounded border border-violet-200 bg-violet-50 px-4 py-2 text-xs text-violet-900">
+          <div class="rounded border border-sky-paper/40 bg-sky-tint px-4 py-2 text-xs text-ink-80">
             <span class="font-medium">Sample mode active</span> — replaying a cached result for guaranteed-fast demo (140ms response, no real BD/LLM spend). Remove <code>?sample=1</code> from the URL to run a live scout.
           </div>
         )}
-        {cost && (
-          <div class="sticky top-2 z-30 flex flex-wrap items-center gap-3 rounded border border-slate-200 bg-white/95 backdrop-blur px-4 py-2 text-xs text-slate-600 shadow-sm">
-            <span class="font-medium text-slate-700">{status === "running" ? "Live cost meter:" : "Final cost:"}</span>
-            <span title="Bright Data Scraping Browser nav cost">BD ${cost.bd_usd.toFixed(4)} <span class="text-slate-400">({cost.bd_renders} renders)</span></span>
-            <span class="text-slate-300">·</span>
-            <span title="DeepSeek token cost">LLM ${cost.llm_usd.toFixed(4)} <span class="text-slate-400">({cost.llm_input_tokens.toLocaleString()} in / {cost.llm_output_tokens.toLocaleString()} out)</span></span>
-            <span class="text-slate-300">·</span>
-            <span class="font-medium text-slate-900">Total ${cost.total_usd.toFixed(4)}</span>
-          </div>
-        )}
-        {error && <div class="rounded border border-red-300 bg-red-50 p-4 text-red-800">Error: {error}</div>}
+        {error && <div class="rounded border border-rust/40 bg-rust-tint p-4 text-rust-dk">Error: {error}</div>}
         {(status === "running" || trace.length > 0) && (
           <AgentTrace entries={trace} running={status === "running"} />
         )}
@@ -271,24 +287,27 @@ export function App() {
             <ApolloCompare operators={operators} query={query} />
             <SocialShare operators={operators} query={query} />
             <div class="flex items-center gap-2">
-              <span class="text-xs text-slate-500 mr-2">View:</span>
+              <span class="text-xs text-ink-50 mr-2 font-mono uppercase tracking-wider">view:</span>
               <button
-                class={`rounded px-3 py-1 text-xs ${view === "table" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                class={`rounded px-3 py-1 text-xs font-mono uppercase tracking-wider ${view === "table" ? "bg-ink text-paper" : "border border-ink-25 bg-paper-2 text-ink-70 hover:bg-paper-3"}`}
                 onClick={() => setView("table")}
               >Table</button>
               <button
-                class={`rounded px-3 py-1 text-xs ${view === "map" ? "bg-slate-900 text-white" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                class={`rounded px-3 py-1 text-xs font-mono uppercase tracking-wider ${view === "map" ? "bg-ink text-paper" : "border border-ink-25 bg-paper-2 text-ink-70 hover:bg-paper-3"}`}
                 onClick={() => setView("map")}
               >Map</button>
-              <span class="ml-auto text-xs text-slate-500">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
+              <span class="ml-auto text-xs text-ink-50">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
             </div>
             {view === "table" ? <ResultTable operators={operators} initialOpenId={initialOpenId} query={query} /> : <MapView operators={operators} query={query} />}
           </>
         )}
       </main>
 
-      <footer class="mx-auto max-w-6xl px-6 py-12 text-xs text-slate-500">
-        Built for the Bright Data Web Data UNLOCKED hackathon, May 2026.
+      <footer class="border-t border-ink-15 mt-12">
+        <div class="mx-auto max-w-6xl px-6 py-10 font-mono text-[11px] text-ink-50 uppercase tracking-wider flex flex-wrap items-center justify-between gap-3">
+          <span>longtailscout.com · made in Houston · MIT licensed</span>
+          <span>Built for the Bright Data Web Data UNLOCKED hackathon, May 2026</span>
+        </div>
       </footer>
     </div>
   );
