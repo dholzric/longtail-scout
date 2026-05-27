@@ -11,6 +11,8 @@ routes = [
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
+# Serve index.html for any non-asset path so client-side routes (/about, /docs) load the SPA.
+not_found_handling = "single-page-application"
 
 [[kv_namespaces]]
 binding = "CACHE"

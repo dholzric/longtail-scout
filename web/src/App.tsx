@@ -8,7 +8,9 @@ import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
 import { ApolloCompare } from "./components/ApolloCompare";
 import { CityBreakdown } from "./components/CityBreakdown";
+import { SocialShare } from "./components/SocialShare";
 import { AboutPage } from "./components/AboutPage";
+import { ApiDocsPage } from "./components/ApiDocsPage";
 import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
 import { Onboarding } from "./components/Onboarding";
@@ -23,6 +25,9 @@ export function App() {
   // match /api/*, so we just look at window.location.pathname.
   if (typeof window !== "undefined" && /^\/(about|how-it-works)\/?$/.test(window.location.pathname)) {
     return <AboutPage />;
+  }
+  if (typeof window !== "undefined" && /^\/(docs|api-docs|api-reference)\/?$/.test(window.location.pathname)) {
+    return <ApiDocsPage />;
   }
   const [query, setQuery] = useState("roofing contractors in Houston");
   const [status, setStatus] = useState<Status>("idle");
@@ -183,6 +188,12 @@ export function App() {
     }
     if (ev.event === "done") {
       setStatus("done");
+      // Scroll the wedge summary into view so the demo "lands" on the result panel,
+      // not on the scrolled-up form. Defers to next frame so the DOM has updated.
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-section="wedge-summary"]');
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
       return;
     }
     if (ev.event === "error") {
@@ -199,7 +210,11 @@ export function App() {
         <div class="mx-auto max-w-6xl px-6 py-5">
           <div class="flex items-baseline justify-between gap-4">
             <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
-            <a class="text-xs text-blue-700 underline" href="/about">How it works →</a>
+            <div class="flex items-center gap-3 text-xs">
+              <a class="text-blue-700 underline" href="/docs">API docs</a>
+              <span class="text-slate-300">·</span>
+              <a class="text-blue-700 underline" href="/about">How it works →</a>
+            </div>
           </div>
           <p class="text-sm text-slate-600">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
         </div>
@@ -249,9 +264,10 @@ export function App() {
         )}
         {operators.length > 0 && (
           <>
-            <WedgeSummary operators={operators} niche={query} />
+            <div data-section="wedge-summary"><WedgeSummary operators={operators} niche={query} /></div>
             <CityBreakdown operators={operators} />
             <ApolloCompare operators={operators} query={query} />
+            <SocialShare operators={operators} query={query} />
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500 mr-2">View:</span>
               <button
