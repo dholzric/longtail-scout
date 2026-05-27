@@ -184,6 +184,7 @@ export function App() {
           </form>
         )}
         <QueryForm value={query} onChange={setQuery} onRun={run} onShare={copyShareUrl} disabled={status === "running"} />
+        <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
         {cost && (
           <div class="flex items-center gap-3 rounded border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-sm">
             <span class="font-medium text-slate-700">Live cost meter:</span>

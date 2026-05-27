@@ -6,6 +6,7 @@ import { enrichCandidates } from "../agent/enrich";
 import { synthesize } from "../agent/synthesize";
 import { newCostTally, snapshot } from "../cost";
 import { findSample } from "../samples";
+import { recordRunInWatchlist } from "./watchlist";
 
 // Top-3 cities per US state for multi-city expansion. Picked by population + commercial-density;
 // adjust for verticals where coastal/Sun-Belt operators concentrate elsewhere.
@@ -154,6 +155,11 @@ export async function scoutHandler(req: Request, env: Env, ctx: ExecutionContext
       allOperators.sort((a, b) => (b.confidence - a.confidence) || (a.rank - b.rank));
       // Re-assign global rank
       allOperators.forEach((op, i) => { op.rank = i + 1; });
+      // Watchlist diff — if this query is on the user's watchlist, compare URLs vs last run and emit "new since last run" count.
+      try {
+        const watch = await recordRunInWatchlist(env.CACHE, pq.raw, allOperators.map(o => o.url));
+        if (watch) await emitter.emit("progress", { message: `Watchlist hit: ${watch.new_count} new operator(s) since last run${watch.previous_count !== null ? ` (was ${watch.previous_count}).` : "."}` });
+      } catch { /* best-effort */ }
       await emitter.emit("result", { operators: allOperators });
       await emitter.emit("done", { cost: snapshot(tally), multi_city: pq.multi_city });
     } catch (err) {

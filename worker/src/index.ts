@@ -1,5 +1,6 @@
 import { smokeHandler } from "./handlers/smoke";
 import { scoutHandler } from "./handlers/scout";
+import { watchlistHandler } from "./handlers/watchlist";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -25,6 +26,7 @@ export default {
     if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
     if (url.pathname === "/api/smoke") return smokeHandler(env);
     if (url.pathname === "/api/scout") return scoutHandler(req, env, ctx);
+    if (url.pathname.startsWith("/api/watchlist")) return watchlistHandler(req, env);
     if (env.ASSETS) return env.ASSETS.fetch(req);
     return new Response("Not Found", { status: 404 });
   }
