@@ -1,3 +1,5 @@
+import { smokeHandler } from "./handlers/smoke";
+
 export interface Env {
   CACHE: KVNamespace;
   ASSETS?: Fetcher;
@@ -14,11 +16,8 @@ export interface Env {
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === "/api/health") {
-      return Response.json({ ok: true, ts: Date.now() });
-    }
-    return new Response("LongTail Scout - Worker is up", {
-      headers: { "content-type": "text/plain" }
-    });
+    if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
+    if (url.pathname === "/api/smoke") return smokeHandler(env);
+    return new Response("LongTail Scout - Worker is up", { headers: { "content-type": "text/plain" } });
   }
 };
