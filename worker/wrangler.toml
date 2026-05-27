@@ -1,0 +1,9 @@
+name = "longtail-scout"
+main = "src/index.ts"
+compatibility_date = "2026-05-27"
+compatibility_flags = ["nodejs_compat"]
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "64e28df0a8b64be9bad2f5a390aab1a0"
+preview_id = "44076d76467b4abe807c3c82cf7aea50"

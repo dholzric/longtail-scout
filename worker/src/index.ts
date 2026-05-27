@@ -1,0 +1,23 @@
+export interface Env {
+  CACHE: KVNamespace;
+  ASSETS?: Fetcher;
+  AIMLAPI_KEY?: string;
+  GLM_API_KEY?: string;
+  BRIGHTDATA_API_KEY: string;
+  BRIGHTDATA_SERP_ZONE: string;
+  BRIGHTDATA_WEB_UNLOCKER_ZONE: string;
+  BRIGHTDATA_SCRAPER_ZONE: string;
+  DEMAND_API_BASE: string;
+}
+
+export default {
+  async fetch(req: Request, env: Env): Promise<Response> {
+    const url = new URL(req.url);
+    if (url.pathname === "/api/health") {
+      return Response.json({ ok: true, ts: Date.now() });
+    }
+    return new Response("LongTail Scout - Worker is up", {
+      headers: { "content-type": "text/plain" }
+    });
+  }
+};
