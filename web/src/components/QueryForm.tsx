@@ -4,6 +4,7 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   onRun: () => void;
+  onShare?: () => void;
   disabled: boolean;
 }
 
@@ -54,11 +55,19 @@ function getSpeechRec(): SpeechRec | null {
   return new Ctor() as SpeechRec;
 }
 
-export function QueryForm({ value, onChange, onRun, disabled }: Props) {
+export function QueryForm({ value, onChange, onRun, onShare, disabled }: Props) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
+  const [shared, setShared] = useState(false);
   const recRef = useRef<SpeechRec | null>(null);
+
+  function handleShare() {
+    if (!onShare) return;
+    onShare();
+    setShared(true);
+    setTimeout(() => setShared(false), 1500);
+  }
 
   useEffect(() => {
     setSupported(getSpeechRec() !== null);
@@ -140,6 +149,17 @@ export function QueryForm({ value, onChange, onRun, disabled }: Props) {
           {disabled ? "Running…" : "Run"}
         </button>
       </div>
+      {onShare && value.trim().length > 0 && (
+        <div class="mt-2 text-xs">
+          <button
+            class="text-slate-500 hover:text-slate-700 underline decoration-dotted"
+            onClick={handleShare}
+            title="Copy a shareable URL that auto-fills this query (and auto-runs)"
+          >
+            {shared ? "✓ Copied share URL" : "Copy share URL"}
+          </button>
+        </div>
+      )}
       <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
         <span class="text-slate-400">Try:</span>
         {PRESETS.map(p => (

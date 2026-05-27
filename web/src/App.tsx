@@ -23,21 +23,49 @@ export function App() {
   const [view, setView] = useState<ViewMode>("table");
   const [cost, setCost] = useState<CostSnapshot | null>(null);
 
-  // Pull saved key on first mount + from URL ?key=
+  // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
     const url = new URL(window.location.href);
     const fromUrl = url.searchParams.get("key");
     if (fromUrl) {
       localStorage.setItem(STORAGE_KEY, fromUrl);
       setDemoKey(fromUrl);
-      // Clean the URL so password doesn't stay in the bar
       url.searchParams.delete("key");
       window.history.replaceState(null, "", url.toString());
-      return;
+    } else {
+      const saved = localStorage.getItem(STORAGE_KEY) ?? "";
+      if (saved) setDemoKey(saved);
     }
-    const saved = localStorage.getItem(STORAGE_KEY) ?? "";
-    if (saved) setDemoKey(saved);
+    // Shareable query (?q=...) — auto-fills the input; ?run=1 also auto-runs.
+    const qParam = url.searchParams.get("q");
+    const autoRun = url.searchParams.get("run") === "1";
+    if (qParam) {
+      setQuery(qParam);
+      if (autoRun) {
+        // Defer to next tick so demoKey state has time to settle.
+        setTimeout(() => {
+          const ev = new Event("auto-run-from-url");
+          window.dispatchEvent(ev);
+        }, 50);
+      }
+    }
   }, []);
+
+  // Listen for the auto-run signal dispatched after URL parsing.
+  useEffect(() => {
+    const handler = () => { void run(); };
+    window.addEventListener("auto-run-from-url", handler);
+    return () => window.removeEventListener("auto-run-from-url", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, demoKey]);
+
+  function copyShareUrl() {
+    const url = new URL(window.location.href);
+    url.searchParams.set("q", query);
+    url.searchParams.set("run", "1");
+    url.searchParams.delete("key"); // never include password
+    navigator.clipboard?.writeText(url.toString()).catch(() => {});
+  }
 
   async function run() {
     if (!demoKey) {
@@ -145,7 +173,7 @@ export function App() {
             </div>
           </form>
         )}
-        <QueryForm value={query} onChange={setQuery} onRun={run} disabled={status === "running"} />
+        <QueryForm value={query} onChange={setQuery} onRun={run} onShare={copyShareUrl} disabled={status === "running"} />
         {cost && (
           <div class="flex items-center gap-3 rounded border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-sm">
             <span class="font-medium text-slate-700">Live cost meter:</span>
