@@ -4,18 +4,29 @@ interface Props {
   value: string;
   onChange: (v: string) => void;
   onRun: () => void;
+  onRunWith?: (q: string) => void;
   onShare?: () => void;
   disabled: boolean;
 }
 
-const PRESETS = [
-  "roofing contractors in Houston",
-  "HVAC contractors in Houston",
-  "roofing contractors in Texas",
-  "law firms in California",
-  "MSPs in Florida",
-  "dental practices in Houston",
-  "auto body shops in Atlanta"
+interface Preset {
+  label: string;
+  query: string;
+  emoji: string;
+}
+
+// Curated demo set: each is a niche × city our index has strong coverage on, picked
+// to span verticals (services, professional, healthcare, B2B). The emoji is purely
+// for visual scanning during a judge's first 5 seconds.
+const PRESETS: Preset[] = [
+  { emoji: "🏚️", label: "Roofing · Houston", query: "roofing contractors in Houston" },
+  { emoji: "❄️", label: "HVAC · Dallas", query: "HVAC contractors in Dallas" },
+  { emoji: "🦷", label: "Dental · Houston", query: "dental practices in Houston" },
+  { emoji: "👶", label: "Childcare · Austin", query: "childcare centers in Austin" },
+  { emoji: "⚖️", label: "Law firms · CA", query: "law firms in California" },
+  { emoji: "💼", label: "MSPs · Florida", query: "MSPs in Florida" },
+  { emoji: "🔧", label: "Auto repair · Atlanta", query: "auto body shops in Atlanta" },
+  { emoji: "🏨", label: "Hotels · Miami", query: "boutique hotels in Miami" }
 ];
 
 const SAVED_KEY = "lts_saved_queries";
@@ -55,7 +66,7 @@ function getSpeechRec(): SpeechRec | null {
   return new Ctor() as SpeechRec;
 }
 
-export function QueryForm({ value, onChange, onRun, onShare, disabled }: Props) {
+export function QueryForm({ value, onChange, onRun, onRunWith, onShare, disabled }: Props) {
   const [listening, setListening] = useState(false);
   const [supported, setSupported] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
@@ -161,14 +172,20 @@ export function QueryForm({ value, onChange, onRun, onShare, disabled }: Props) 
         </div>
       )}
       <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        <span class="text-slate-400">Try:</span>
+        <span class="text-slate-400" title="Click to run instantly — covers our strongest demand-index verticals">One-click demos:</span>
         {PRESETS.map(p => (
           <button
-            class="rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-200 disabled:opacity-50"
-            onClick={() => onChange(p)}
+            class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-900 hover:text-white transition disabled:opacity-50"
+            onClick={() => {
+              onChange(p.query);
+              if (onRunWith) onRunWith(p.query);
+            }}
             disabled={disabled}
+            title={`Run "${p.query}"`}
+            type="button"
           >
-            {p}
+            <span aria-hidden="true">{p.emoji}</span>
+            <span>{p.label}</span>
           </button>
         ))}
       </div>

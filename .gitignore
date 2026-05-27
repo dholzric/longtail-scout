@@ -9,3 +9,6 @@ dist/
 coverage/
 demand-snapshot.json
 NUL
+.playwright-mcp/
+all-features-snapshot.png
+heatmap-overlay.png

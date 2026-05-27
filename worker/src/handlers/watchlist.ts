@@ -8,6 +8,11 @@ interface Watch {
   last_run_at: number | null;
   last_count: number | null;
   last_op_urls: string[]; // for diffing "new since last run"
+  /** Demand-API business count at the last cron refresh — used to surface "+N businesses since yesterday" deltas without running a full scout. */
+  last_demand_count?: number | null;
+  /** Demand-API count from the cron run BEFORE the latest one, so we can show the most recent delta. */
+  previous_demand_count?: number | null;
+  last_demand_check_at?: number | null;
 }
 
 const INDEX_KEY = "watch:index"; // JSON array of watch IDs for listing
@@ -102,6 +107,54 @@ export async function watchlistHandler(req: Request, env: Env): Promise<Response
   }
 
   return new Response("Not found", { status: 404 });
+}
+
+/**
+ * Daily cron-triggered demand-signal refresh. For each watch, pings the demand-API for
+ * the niche+city and stores the business count + delta. The watchlist UI surfaces this
+ * as "+N businesses since yesterday" without us having to run a full scout (which would
+ * cost real BD + LLM dollars per watch per day).
+ *
+ * Heuristics: parse "<niche> [filler] in <city>" and call /api/businesses?q=<niche>&city=<city>.
+ */
+function parseWatchQuery(q: string): { niche: string; city: string | null } {
+  const m = q.match(/^\s*(.+?)\s+(?:in|near|around|@)\s+(.+?)\s*$/i);
+  if (m && m[1] && m[2]) return { niche: m[1].trim(), city: m[2].trim() };
+  return { niche: q.trim(), city: null };
+}
+
+export async function refreshWatchlistDemand(env: Env): Promise<{ refreshed: number; failed: number; details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number }> }> {
+  const ids = await readIndex(env.CACHE);
+  let refreshed = 0;
+  let failed = 0;
+  const details: Array<{ id: string; query: string; prev: number | null; current: number | null; delta: number }> = [];
+  for (const id of ids) {
+    const w = await loadWatch(env.CACHE, id);
+    if (!w) continue;
+    const { niche, city } = parseWatchQuery(w.query);
+    if (!niche) { failed++; continue; }
+    const upstream = new URL("/api/businesses", env.DEMAND_API_BASE);
+    upstream.searchParams.set("q", niche);
+    if (city) upstream.searchParams.set("city", city);
+    upstream.searchParams.set("limit", "200");
+    let current: number | null = null;
+    try {
+      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-cron/1.0" } });
+      if (r.ok) {
+        const j = await r.json() as { count?: number };
+        if (typeof j.count === "number") current = j.count;
+      }
+    } catch { /* swallow — leave current null */ }
+    if (current === null) { failed++; continue; }
+    const prev = w.last_demand_count ?? null;
+    w.previous_demand_count = prev;
+    w.last_demand_count = current;
+    w.last_demand_check_at = Date.now();
+    await saveWatch(env.CACHE, w);
+    details.push({ id, query: w.query, prev, current, delta: prev !== null ? current - prev : 0 });
+    refreshed++;
+  }
+  return { refreshed, failed, details };
 }
 
 /**

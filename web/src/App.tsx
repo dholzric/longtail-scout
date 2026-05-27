@@ -6,6 +6,7 @@ import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
+import { ApolloCompare } from "./components/ApolloCompare";
 import { AboutPage } from "./components/AboutPage";
 import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
@@ -99,11 +100,14 @@ export function App() {
     navigator.clipboard?.writeText(url.toString()).catch(() => {});
   }
 
-  async function run() {
+  async function run(overrideQuery?: string) {
     if (!demoKey) {
       setAskKey(true);
       return;
     }
+    const q = (overrideQuery ?? query).trim();
+    if (!q) return;
+    if (overrideQuery && overrideQuery !== query) setQuery(overrideQuery);
     setStatus("running");
     setTrace([]);
     setOperators([]);
@@ -120,7 +124,7 @@ export function App() {
         "content-type": "application/json",
         authorization: `Bearer ${demoKey}`
       },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query: q })
     });
     if (resp.status === 401) {
       localStorage.removeItem(STORAGE_KEY);
@@ -212,7 +216,7 @@ export function App() {
             </div>
           </form>
         )}
-        <QueryForm value={query} onChange={setQuery} onRun={run} onShare={copyShareUrl} disabled={status === "running"} />
+        <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
         <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
         {sampleMode && (
           <div class="rounded border border-violet-200 bg-violet-50 px-4 py-2 text-xs text-violet-900">
@@ -239,6 +243,7 @@ export function App() {
         {operators.length > 0 && (
           <>
             <WedgeSummary operators={operators} niche={query} />
+            <ApolloCompare operators={operators} query={query} />
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-500 mr-2">View:</span>
               <button
@@ -251,7 +256,7 @@ export function App() {
               >Map</button>
               <span class="ml-auto text-xs text-slate-500">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
             </div>
-            {view === "table" ? <ResultTable operators={operators} /> : <MapView operators={operators} />}
+            {view === "table" ? <ResultTable operators={operators} /> : <MapView operators={operators} query={query} />}
           </>
         )}
       </main>

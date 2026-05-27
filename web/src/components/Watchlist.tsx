@@ -7,6 +7,9 @@ interface Watch {
   last_run_at: number | null;
   last_count: number | null;
   last_op_urls: string[];
+  last_demand_count?: number | null;
+  previous_demand_count?: number | null;
+  last_demand_check_at?: number | null;
 }
 
 interface Props {
@@ -94,15 +97,33 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
           </button>
         </div>
         {watches.length === 0 && <div class="text-xs text-slate-500 italic">No watches yet — save the current query above to start tracking.</div>}
-        {watches.map(w => (
-          <div key={w.id} class="flex items-center justify-between gap-2 rounded border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50">
-            <button class="text-left flex-1 min-w-0 truncate text-blue-700 hover:underline" onClick={() => onPickQuery(w.query)} title="Load this query into the form">
-              {w.query}
-            </button>
-            <span class="text-xs text-slate-500 whitespace-nowrap">last run {fmtRelative(w.last_run_at)}{w.last_count !== null && <> · {w.last_count} ops</>}</span>
-            <button class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeWatch(w.id)} title="Remove">×</button>
-          </div>
-        ))}
+        {watches.map(w => {
+          const delta = (w.last_demand_count ?? null) !== null && (w.previous_demand_count ?? null) !== null
+            ? (w.last_demand_count as number) - (w.previous_demand_count as number)
+            : null;
+          return (
+            <div key={w.id} class="flex items-center justify-between gap-2 rounded border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50">
+              <button class="text-left flex-1 min-w-0 truncate text-blue-700 hover:underline" onClick={() => onPickQuery(w.query)} title="Load this query into the form">
+                {w.query}
+              </button>
+              <div class="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+                {delta !== null && delta > 0 && (
+                  <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200" title={`Demand-API count rose by ${delta} since the previous daily cron refresh`}>
+                    +{delta} new
+                  </span>
+                )}
+                {delta !== null && delta === 0 && (
+                  <span class="text-slate-400" title="No change in demand-API count since the previous daily refresh">flat</span>
+                )}
+                <span>last run {fmtRelative(w.last_run_at)}{w.last_count !== null && <> · {w.last_count} ops</>}</span>
+                {(w.last_demand_check_at ?? null) !== null && (
+                  <span class="text-slate-400" title="Last time the daily cron refreshed the demand-API count for this watch">· demand checked {fmtRelative(w.last_demand_check_at ?? null)}</span>
+                )}
+              </div>
+              <button class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeWatch(w.id)} title="Remove">×</button>
+            </div>
+          );
+        })}
       </div>
     </details>
   );

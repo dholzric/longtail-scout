@@ -1,6 +1,51 @@
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import type { Operator } from "../types";
 import { OperatorNotes } from "./OperatorNotes";
+
+const SHOT_KEY = "lts_demo_key";
+
+/**
+ * Lazy homepage screenshot via BD Browser API (worker proxies + caches in KV for 30d).
+ * Only rendered when the user expands the drill-down, so we never pay per-operator on scout.
+ */
+function HomepageShot({ url }: { url: string }) {
+  const [loaded, setLoaded] = useState<boolean>(false);
+  const [errored, setErrored] = useState<boolean>(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoaded(false);
+    setErrored(false);
+    const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+    if (!key) { setErrored(true); return; }
+    const src = `/api/screenshot?url=${encodeURIComponent(url)}&w=1024&h=640&key=${encodeURIComponent(key)}`;
+    if (!cancelled) setImageSrc(src);
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (errored) return null; // hide silently rather than show error UI in the drill-down
+  return (
+    <div class="mt-3 overflow-hidden rounded border border-slate-200 bg-slate-100">
+      <div class="flex items-center justify-between px-3 py-1.5 text-xs">
+        <span class="text-slate-500">Homepage snapshot <span class="text-slate-400">· captured live via Bright Data Browser API</span></span>
+        {loaded && <span class="text-slate-400">cached 30d</span>}
+        {!loaded && <span class="text-slate-400 animate-pulse">rendering…</span>}
+      </div>
+      {imageSrc && (
+        <img
+          src={imageSrc}
+          alt={`Homepage screenshot of ${url}`}
+          class={`w-full transition-opacity ${loaded ? "opacity-100" : "opacity-0"}`}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+          style="aspect-ratio: 1024/640; background:#f1f5f9"
+        />
+      )}
+    </div>
+  );
+}
 
 function buildOutreachEmail(op: Operator): { subject: string; body: string } {
   const subject = `Quick question for ${op.name}`;
@@ -97,6 +142,8 @@ export function DrillDown({ op }: { op: Operator }) {
           <div class="mt-1 text-xs text-indigo-700/80">Multi-vertical operators are often the highest-LTV accounts — they buy multiple SaaS tools.</div>
         </div>
       )}
+
+      <HomepageShot url={op.url} />
 
       <OperatorNotes opUrl={op.url} />
 

@@ -95,6 +95,79 @@ async function renderOnce(url: string, opts: { waitMs?: number; selector?: strin
   }
 }
 
+interface ScreenshotResult {
+  url: string;
+  final_url: string;
+  status: number;
+  title: string | null;
+  /** Base64 PNG bytes (no data: prefix). */
+  image_base64: string;
+  width: number;
+  height: number;
+  fetched_at: string;
+  duration_ms: number;
+}
+
+async function screenshotOnce(url: string, opts: { width?: number; height?: number; waitMs?: number }): Promise<ScreenshotResult> {
+  const start = Date.now();
+  if (navCount >= NAV_RECYCLE && sharedBrowser) {
+    console.log(`[bridge] recycling browser after ${navCount} navs (screenshot path)`);
+    try { await sharedBrowser.close(); } catch { /* ignore */ }
+    sharedBrowser = null;
+    navCount = 0;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+  const browser = await getBrowser();
+  navCount++;
+  const width = opts.width ?? 1280;
+  const height = opts.height ?? 800;
+  const context = await browser.newContext({ viewport: { width, height } });
+  const page = await context.newPage();
+  try {
+    const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+    // Give the page a moment to finish first-paint LCP before snapping.
+    await page.waitForTimeout(Math.min(opts.waitMs ?? 1500, 8000));
+    const png = await page.screenshot({ type: "png", fullPage: false, clip: { x: 0, y: 0, width, height } });
+    const title = await page.title().catch(() => null);
+    return {
+      url,
+      final_url: page.url(),
+      status: resp?.status() ?? 0,
+      title,
+      image_base64: png.toString("base64"),
+      width,
+      height,
+      fetched_at: new Date().toISOString(),
+      duration_ms: Date.now() - start
+    };
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+async function screenshotPage(url: string, opts: { width?: number; height?: number; waitMs?: number } = {}): Promise<ScreenshotResult> {
+  return withMutex(async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await screenshotOnce(url, opts);
+      } catch (err) {
+        const msg = (err as Error).message ?? "";
+        const isSessionFault = /domain limit reached|disconnected|Target page, context or browser has been closed|Browser has been closed|Protocol error|Missing Credentials/i.test(msg);
+        if (isSessionFault && attempt === 0) {
+          console.warn(`[bridge] session fault on screenshot ${url} — recycling browser:`, msg.slice(0, 200));
+          try { await sharedBrowser?.close(); } catch { /* ignore */ }
+          sharedBrowser = null;
+          navCount = 0;
+          await new Promise(r => setTimeout(r, 5000));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw new Error("screenshotPage: exhausted retries");
+  });
+}
+
 async function renderPage(url: string, opts: { waitMs?: number; selector?: string } = {}): Promise<RenderResult> {
   return withMutex(async () => {
     // Retry once on Bright Data session-level errors (domain-limit, disconnected, etc.)
@@ -245,6 +318,17 @@ const server = http.createServer(async (req, res) => {
       if (!validated.ok) return send(res, 400, { error: validated.error });
       const selector = typeof body.selector === "string" && body.selector.length <= 256 ? body.selector : undefined;
       const result = await renderPage(validated.url, { waitMs: clampWaitMs(body.waitMs), selector });
+      return send(res, 200, result);
+    }
+
+    if (req.method === "POST" && url.pathname === "/screenshot") {
+      const body = JSON.parse(await readBody(req)) as { url?: string; width?: number; height?: number; waitMs?: number };
+      if (!body.url) return send(res, 400, { error: "missing url" });
+      const validated = validateRenderUrl(body.url);
+      if (!validated.ok) return send(res, 400, { error: validated.error });
+      const width = typeof body.width === "number" && body.width >= 320 && body.width <= 1920 ? Math.floor(body.width) : undefined;
+      const height = typeof body.height === "number" && body.height >= 240 && body.height <= 1080 ? Math.floor(body.height) : undefined;
+      const result = await screenshotPage(validated.url, { width, height, waitMs: clampWaitMs(body.waitMs) });
       return send(res, 200, result);
     }
 

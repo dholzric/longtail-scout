@@ -16,3 +16,10 @@ binding = "ASSETS"
 binding = "CACHE"
 id = "64e28df0a8b64be9bad2f5a390aab1a0"
 preview_id = "44076d76467b4abe807c3c82cf7aea50"
+
+# Daily cron — refreshes demand-API counts for every saved watch so the watchlist UI
+# can surface "+N new local businesses in your niche since yesterday" badges without
+# spending real BD/LLM dollars per watch per day.
+[triggers]
+crons = ["0 13 * * *"]
+
