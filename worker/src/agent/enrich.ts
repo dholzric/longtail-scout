@@ -103,19 +103,8 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
     await emit.emit("enrich", { name: c.name, field: "news", status: "fail", error: (err as Error).message.slice(0, 100) });
   }
 
-  let demand_signal: Operator["demand_signal"] = null;
-  try {
-    const d = await demandLookup(c.name.split(/\s+/)[0] ?? c.name, env.DEMAND_API_BASE, env.CACHE);
-    if (d) {
-      demand_signal = { score: d.results[0]?.score ?? 0, nearby_count: d.demand };
-      sources.push({ field: "demand_signal", tool: "demand_api", url: `${env.DEMAND_API_BASE}/api/research?q=${encodeURIComponent(c.name)}` });
-    }
-    await emit.emit("enrich", { name: c.name, field: "demand", status: "ok" });
-  } catch {
-    await emit.emit("enrich", { name: c.name, field: "demand", status: "fail" });
-  }
-
-  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal };
+  // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
+  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null };
 }
 
 async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {

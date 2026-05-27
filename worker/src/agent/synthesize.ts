@@ -2,6 +2,7 @@ import type { Env } from "../index";
 import type { Operator, ScoutQuery } from "../types";
 import { buildSynthesisPrompt } from "./prompts";
 import { llmCall } from "../llm/client";
+import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
 
 type EnrichmentInput = Omit<Operator, "rank" | "sales_angle">;
@@ -9,7 +10,22 @@ type EnrichmentInput = Omit<Operator, "rank" | "sales_angle">;
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
 
-  const { system, user } = buildSynthesisPrompt(q, enriched);
+  // Niche-level demand context — one lookup against the 4M-business demand index for the *niche keyword* the user typed.
+  // This is the correct interpretation of the demand API; per-operator brandability scores were misleading.
+  let nicheDemand: { count: number; rank_signal: number | null } | null = null;
+  try {
+    // Use just the niche (first 1-2 words) for the lookup
+    const nicheKey = q.niche.replace(/\b(companies|firms|operators|businesses|in|the|a|an)\b/gi, "").trim().split(/\s+/).slice(0, 2).join(" ") || q.niche;
+    const d = await demandLookup(nicheKey, env.DEMAND_API_BASE, env.CACHE);
+    if (d) {
+      nicheDemand = { count: d.demand, rank_signal: d.results[0]?.score_components?.demand ?? null };
+      await emit.emit("progress", { message: `Niche "${nicheKey}" has ${d.demand} matching businesses in the demand index.` });
+    }
+  } catch (err) {
+    await emit.emit("progress", { message: `Demand lookup failed (continuing): ${(err as Error).message.slice(0, 100)}` });
+  }
+
+  const { system, user } = buildSynthesisPrompt(q, enriched, nicheDemand);
   const { response, provider } = await llmCall(env, {
     system,
     messages: [{ role: "user", content: user }],
