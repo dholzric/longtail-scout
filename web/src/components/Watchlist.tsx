@@ -131,26 +131,69 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
           const delta = (w.last_demand_count ?? null) !== null && (w.previous_demand_count ?? null) !== null
             ? (w.last_demand_count as number) - (w.previous_demand_count as number)
             : null;
+          const subs = w.subscribers ?? [];
+          const isOpen = subForm?.watchId === w.id;
           return (
-            <div key={w.id} class="flex items-center justify-between gap-2 rounded border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50">
-              <button class="text-left flex-1 min-w-0 truncate text-blue-700 hover:underline" onClick={() => onPickQuery(w.query)} title="Load this query into the form">
-                {w.query}
-              </button>
-              <div class="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
-                {delta !== null && delta > 0 && (
-                  <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200" title={`Demand-API count rose by ${delta} since the previous daily cron refresh`}>
-                    +{delta} new
-                  </span>
-                )}
-                {delta !== null && delta === 0 && (
-                  <span class="text-slate-400" title="No change in demand-API count since the previous daily refresh">flat</span>
-                )}
-                <span>last run {fmtRelative(w.last_run_at)}{w.last_count !== null && <> · {w.last_count} ops</>}</span>
-                {(w.last_demand_check_at ?? null) !== null && (
-                  <span class="text-slate-400" title="Last time the daily cron refreshed the demand-API count for this watch">· demand checked {fmtRelative(w.last_demand_check_at ?? null)}</span>
-                )}
+            <div key={w.id} class="rounded border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50">
+              <div class="flex items-center justify-between gap-2">
+                <button class="text-left flex-1 min-w-0 truncate text-blue-700 hover:underline" onClick={() => onPickQuery(w.query)} title="Load this query into the form">
+                  {w.query}
+                </button>
+                <div class="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
+                  {delta !== null && delta > 0 && (
+                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200" title={`Demand-API count rose by ${delta} since the previous daily cron refresh`}>
+                      +{delta} new
+                    </span>
+                  )}
+                  {delta !== null && delta === 0 && (
+                    <span class="text-slate-400" title="No change in demand-API count since the previous daily refresh">flat</span>
+                  )}
+                  <span>last run {fmtRelative(w.last_run_at)}{w.last_count !== null && <> · {w.last_count} ops</>}</span>
+                  {(w.last_demand_check_at ?? null) !== null && (
+                    <span class="text-slate-400" title="Last time the daily cron refreshed the demand-API count for this watch">· demand checked {fmtRelative(w.last_demand_check_at ?? null)}</span>
+                  )}
+                  <button
+                    class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-800 hover:bg-sky-100"
+                    onClick={() => setSubForm(isOpen ? null : { watchId: w.id, email: "" })}
+                    title="Subscribe to daily email digests when this watch has +N new operators"
+                    type="button"
+                  >
+                    📧 {subs.length > 0 ? `${subs.length} subscribed` : "subscribe"}
+                  </button>
+                </div>
+                <button class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeWatch(w.id)} title="Remove">×</button>
               </div>
-              <button class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeWatch(w.id)} title="Remove">×</button>
+              {isOpen && (
+                <div class="mt-2 rounded bg-sky-50/50 border border-sky-200 px-3 py-2 text-xs space-y-2">
+                  <div class="text-sky-900">Daily 13:00 UTC cron sends an email when this watch has new businesses in our index. Add an address:</div>
+                  <form onSubmit={(e) => { e.preventDefault(); if (subForm) subscribe(w.id, subForm.email.trim().toLowerCase()); }} class="flex gap-2">
+                    <input
+                      type="email"
+                      class="flex-1 rounded border border-sky-300 px-2 py-1 text-xs focus:outline-none focus:border-sky-500"
+                      placeholder="you@example.com"
+                      value={subForm?.email ?? ""}
+                      onInput={(e) => setSubForm({ watchId: w.id, email: (e.target as HTMLInputElement).value })}
+                      autoFocus
+                    />
+                    <button class="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-800" type="submit">Add</button>
+                  </form>
+                  {subs.length > 0 && (
+                    <div class="space-y-1">
+                      <div class="text-sky-900/70 text-[10px] uppercase tracking-wide">Current subscribers</div>
+                      {subs.map((email) => (
+                        <div class="flex items-center gap-2">
+                          <span class="text-slate-700">{email}</span>
+                          <button class="text-rose-600 hover:underline text-[11px]" onClick={() => unsubscribe(w.id, email)} type="button">remove</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {subFeedback?.watchId === w.id && (
+                    <div class={subFeedback.kind === "ok" ? "text-emerald-700" : "text-rose-700"}>{subFeedback.msg}</div>
+                  )}
+                  <div class="text-[10px] text-sky-900/60">Note: while we're on Resend's sandbox sender (<code>onboarding@resend.dev</code>), only the Resend account owner's verified email will receive digests. Verify <code>longtailscout.com</code> in Resend to send to anyone.</div>
+                </div>
+              )}
             </div>
           );
         })}

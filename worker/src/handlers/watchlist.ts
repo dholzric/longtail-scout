@@ -212,7 +212,11 @@ export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: bool
             subject,
             html,
             text,
-            tags: [{ name: "kind", value: "watchlist-digest" }, { name: "watch_id", value: id.slice(0, 50) }]
+            tags: [
+              { name: "kind", value: "watchlist-digest" },
+              // Resend requires tag values to be [A-Za-z0-9_-]. Strip everything else and cap length.
+              { name: "watch_id", value: id.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 50) }
+            ]
           });
           if (res.ok) {
             emails_sent++;
