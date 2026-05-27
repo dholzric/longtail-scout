@@ -49,9 +49,10 @@ export async function sendEmail(apiKey: string, payload: ResendEmail): Promise<R
 }
 
 /**
- * Validates a Resend "from" address. Until we verify longtailscout.com in Resend's dashboard,
- * the only sender that works is onboarding@resend.dev — which can only deliver to the
- * Resend account-owner's verified email. Good enough for the hackathon demo (Dan's own
- * inbox); update to digest@longtailscout.com once domain verification ships.
+ * Sender used by every Resend send in this codebase. quiltmap.com is already verified on the
+ * Resend account so emails deliver to any recipient (not just the account-owner). Display name
+ * "LongTail Scout" — most mail clients show that, not the bare address. Verify longtailscout.com
+ * in Resend (paid plan or after deleting quiltmap.com from the same account) to swap this for
+ * digest@longtailscout.com.
  */
-export const RESEND_DEFAULT_FROM = "LongTail Scout <onboarding@resend.dev>";
+export const RESEND_DEFAULT_FROM = "LongTail Scout <longtailscout@quiltmap.com>";

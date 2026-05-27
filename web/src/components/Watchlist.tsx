@@ -191,7 +191,7 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
                   {subFeedback?.watchId === w.id && (
                     <div class={subFeedback.kind === "ok" ? "text-emerald-700" : "text-rose-700"}>{subFeedback.msg}</div>
                   )}
-                  <div class="text-[10px] text-sky-900/60">Note: while we're on Resend's sandbox sender (<code>onboarding@resend.dev</code>), only the Resend account owner's verified email will receive digests. Verify <code>longtailscout.com</code> in Resend to send to anyone.</div>
+                  <div class="text-[10px] text-sky-900/60">Sent from <code>longtailscout@quiltmap.com</code> (display name "LongTail Scout"). Replace your existing watch's email here anytime — we don't double-send.</div>
                 </div>
               )}
             </div>
