@@ -3,10 +3,11 @@ import type { Operator, ScoutQuery } from "../types";
 import { buildSynthesisPrompt } from "./prompts";
 import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
+import { recordOperator } from "../memory/store";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
-type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason">;
+type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" | "memory">;
 
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
@@ -69,11 +70,24 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
         icp_fit_reason,
         sales_angle: o.sales_angle,
         rank: o.rank,
-        geo: null
+        geo: null,
+        memory: null
       };
     }
-    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank };
+    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, memory: null };
   });
+
+  // Record each operator in the memory store + annotate with seen-count/new-vs-familiar.
+  // 1 KV read + 1 KV write per operator. Cheap; runs after synthesis (post-rank).
+  for (const op of operators) {
+    try {
+      const m = await recordOperator(env.CACHE, op.url, op.name, q.raw);
+      op.memory = m;
+    } catch (err) {
+      // Memory is best-effort; failure should not break the response.
+      await emit.emit("progress", { message: `memory annotation failed for ${op.name}: ${(err as Error).message.slice(0, 80)}` });
+    }
+  }
 
   operators.sort((a, b) => a.rank - b.rank);
   return operators;

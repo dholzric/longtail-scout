@@ -9,8 +9,21 @@ export interface Operator {
   hiring: { count: number | null; roles: string[]; source: string | null };
   recent_activity: { headline: string; date: string; source: string }[];
   demand_signal: { score: number; nearby_count: number } | null;
+  icp_fit_reason: string;
   sales_angle: string;
   rank: number;
+  geo: { lat: number; lng: number; display_name?: string } | null;
+  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
+}
+
+export interface CostSnapshot {
+  bd_renders: number;
+  llm_calls: number;
+  llm_input_tokens: number;
+  llm_output_tokens: number;
+  bd_usd: number;
+  llm_usd: number;
+  total_usd: number;
 }
 
 export type SseEvent =
@@ -19,6 +32,7 @@ export type SseEvent =
   | { event: "tool"; data: { tool: string; args: Record<string, unknown>; url: string | null } }
   | { event: "candidate"; data: { name: string; url: string } }
   | { event: "enrich"; data: { name: string; field: string; status: "ok" | "fail"; [k: string]: unknown } }
+  | { event: "cost"; data: CostSnapshot & { phase?: string } }
   | { event: "result"; data: { operators: Operator[] } }
-  | { event: "done"; data: Record<string, never> }
+  | { event: "done"; data: { cost?: CostSnapshot } }
   | { event: "error"; data: { message: string; recoverable: boolean } };

@@ -105,6 +105,16 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
                         Apollo-thin
                       </span>
                     )}
+                    {op.memory?.memory_state === "new" && (
+                      <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 ring-1 ring-blue-200" title="First time this URL has appeared in any LongTail Scout query">
+                        New
+                      </span>
+                    )}
+                    {op.memory && op.memory.seen_count > 1 && (
+                      <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600 ring-1 ring-slate-200" title={`Seen across ${op.memory.seen_count} prior queries; first seen ${new Date(op.memory.first_seen_ts).toLocaleDateString()}`}>
+                        Seen ×{op.memory.seen_count}
+                      </span>
+                    )}
                   </div>
                   <a class="text-xs text-blue-700 underline" href={op.url} target="_blank" onClick={(e) => e.stopPropagation()}>{op.url}</a>
                   {op.size_estimate && <span class="ml-2 text-xs text-slate-500">· {op.size_estimate}<CitationLink citations={op.sources} field="about" /></span>}

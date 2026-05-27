@@ -24,6 +24,8 @@ export interface Operator {
   rank: number;
   /** Optional geocoded location for the map view. */
   geo: { lat: number; lng: number; display_name?: string } | null;
+  /** Memory annotation — has this URL been surfaced by prior queries? */
+  memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
 }
 
 export interface Candidate {

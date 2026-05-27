@@ -6,7 +6,7 @@ import { geocode } from "../geocode/nominatim";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
-type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo">;
+type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo" | "memory">;
 
 function extractAbout(html: string): string | null {
   const meta = /<meta\s+name=["']description["']\s+content=["']([^"']{20,400})["']/i;
@@ -113,7 +113,8 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   }
 
   // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
-  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo };
+  // Memory annotation happens in synthesize() after ranking, so it always reflects the latest URL canonicalization.
+  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null };
 }
 
 async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {
