@@ -16,6 +16,7 @@ export interface Operator {
   memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number; cross_niche?: string[] } | null;
   confidence: number;
   city?: string;
+  tech_stack?: string[];
 }
 
 export interface CostSnapshot {

@@ -116,11 +116,10 @@ export function App() {
   }, [query, demoKey]);
 
   function copyShareUrl() {
-    const url = new URL(window.location.href);
-    url.searchParams.set("q", query);
-    url.searchParams.set("run", "1");
-    url.searchParams.delete("key"); // never include password
-    navigator.clipboard?.writeText(url.toString()).catch(() => {});
+    // Use /share so Slack/Twitter/Discord previews resolve to the OG card.
+    const u = new URL("/share", window.location.href);
+    u.searchParams.set("q", query);
+    navigator.clipboard?.writeText(u.toString()).catch(() => {});
   }
 
   async function run(overrideQuery?: string) {
@@ -313,6 +312,11 @@ export function App() {
               >Map</button>
               <span class="ml-auto text-xs text-ink-50">{operators.filter(o => o.geo).length} of {operators.length} geocoded</span>
             </div>
+            {/* Live streaming map preview — shown when operators are streaming in AND user is on the table tab.
+                Lets people see pins drop in real-time without switching tabs. Hidden in Map view (the full map already shows them) and in embed mode. */}
+            {view === "table" && !embedMode && operators.some(o => o.geo) && (
+              <MapView operators={operators} query={query} compact />
+            )}
             {view === "table" ? <ResultTable operators={operators} initialOpenId={initialOpenId} query={query} /> : <MapView operators={operators} query={query} />}
           </>
         )}

@@ -18,6 +18,9 @@ function numberedPinIcon(rank: number): L.DivIcon {
 interface Props {
   operators: Operator[];
   query?: string;
+  /** Compact mode — smaller height, simpler header, no heat-underlay legend, no SectionHeader.
+   * Used as an always-visible live preview above the result table during streaming. */
+  compact?: boolean;
 }
 
 interface BusinessRecord {
@@ -47,7 +50,7 @@ function parseQuery(q: string): { niche: string; city: string | null } {
   return { niche: q.trim(), city: null };
 }
 
-export function MapView({ operators, query }: Props) {
+export function MapView({ operators, query, compact }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const pinLayerRef = useRef<L.LayerGroup | null>(null);
@@ -164,6 +167,23 @@ export function MapView({ operators, query }: Props) {
 
   const geoCount = operators.filter(o => o.geo).length;
   const densityCount = density?.businesses.length ?? 0;
+
+  // Compact mode — minimal chrome; used as a streaming preview above the table during scout runs.
+  if (compact) {
+    return (
+      <div class="border border-ink-20 bg-paper overflow-hidden">
+        <div class="border-b border-ink-15 bg-paper-2 px-4 py-1.5 flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">
+          <span class="inline-flex items-center gap-2">
+            <span class="inline-block w-1.5 h-1.5 rounded-full bg-moss animate-pulse" />
+            live pins · {geoCount}/{operators.length}
+            {densityCount > 0 && <span class="text-ink-50">· {densityCount} demand pts</span>}
+          </span>
+          <span class="text-ink-40">switch to full map view for legend + density toggle</span>
+        </div>
+        <div ref={containerRef} style="height:240px;width:100%" />
+      </div>
+    );
+  }
 
   return (
     <section>

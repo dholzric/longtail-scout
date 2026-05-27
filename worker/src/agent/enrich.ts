@@ -4,10 +4,11 @@ import { webUnlockerCached } from "../brightdata/webUnlocker";
 import { demandLookup } from "../demand/client";
 import { geocode } from "../geocode/nominatim";
 import { parseCareersPage } from "./careers";
+import { detectTechStack } from "./techStack";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
-type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo" | "memory">;
+type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo" | "memory" | "tech_stack">;
 
 function extractAbout(html: string): string | null {
   const meta = /<meta\s+name=["']description["']\s+content=["']([^"']{20,400})["']/i;
@@ -217,7 +218,13 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
 
   // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
   // Memory annotation + confidence score happen in synthesize() after ranking.
-  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null };
+  // Tech-stack detection — zero-cost regex scan of the homepage HTML (no extra fetches).
+  // Categorizes detected SaaS / ATS / CMS / analytics / payments tools per operator.
+  const tech_stack = detectTechStack(homepageHtml);
+  if (tech_stack.length > 0) {
+    await emit.emit("enrich", { name: c.name, field: "tech_stack", status: "ok", detected: tech_stack.length });
+  }
+  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null, tech_stack };
 }
 
 async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {

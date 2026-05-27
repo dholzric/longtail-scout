@@ -30,6 +30,8 @@ export interface Operator {
   confidence: number;
   /** Origin city when the query expanded to multiple cities (state-level query). Empty for single-city queries. */
   city?: string;
+  /** Detected vendor stack from the operator's homepage HTML — ATS, field-service SaaS, CMS, analytics, etc. Empty if none detected. */
+  tech_stack?: string[];
 }
 
 export interface Candidate {

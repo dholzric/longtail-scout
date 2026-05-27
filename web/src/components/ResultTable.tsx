@@ -341,6 +341,18 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
                       </span>
                     )}
                   </div>
+                  {op.tech_stack && op.tech_stack.length > 0 && (
+                    <div class="flex flex-wrap gap-1 mt-1.5">
+                      {op.tech_stack.slice(0, 5).map((t) => (
+                        <span key={t} class="inline-flex items-center bg-paper-3 text-ink-70 px-1.5 py-0.5 font-mono text-[10px] tracking-wider" title={`Detected on homepage: ${t}`}>
+                          {t}
+                        </span>
+                      ))}
+                      {op.tech_stack.length > 5 && (
+                        <span class="inline-flex items-center text-ink-40 font-mono text-[10px]">+{op.tech_stack.length - 5} more</span>
+                      )}
+                    </div>
+                  )}
                   <div class="font-mono text-[10px] uppercase tracking-wider text-ink-50">
                     {op.size_estimate && <span>{op.size_estimate} emp · </span>}
                     rank #{op.rank}

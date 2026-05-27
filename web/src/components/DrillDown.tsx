@@ -243,6 +243,24 @@ export function DrillDown({ op }: { op: Operator }) {
             </div>
           </div>
 
+          {op.tech_stack && op.tech_stack.length > 0 && (
+            <div>
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-2">
+                tech stack detected · {op.tech_stack.length} marker{op.tech_stack.length === 1 ? "" : "s"}
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                {op.tech_stack.map((t) => (
+                  <span key={t} class="inline-flex items-center bg-paper-3 border border-ink-15 text-ink-80 px-2 py-1 text-xs">
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <div class="mt-1 text-xs text-ink-60">
+                Sniffed from the homepage HTML — what vendors this operator already runs. Useful for "avoid (already a customer of competitor)" or "pitch as migration" calls.
+              </div>
+            </div>
+          )}
+
           {op.recent_activity.length > 0 && (
             <div>
               <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60 mb-2">recent activity</div>
