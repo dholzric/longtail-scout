@@ -55,7 +55,20 @@ Rules:
 - NEVER invent facts. Only use data present in the enrichment record.
 - If hiring data is empty, do NOT say "actively hiring" or "growing team".
 - Rank by: relevance to query > evidence of recent activity (hiring count, news headlines) > size-fit (smaller = better for "long tail") > demand signal score.
-- Include AS MANY operators AS POSSIBLE from the enrichment list — aim for at least 70% of the input list in the output. Only drop ones that are obviously off-topic (different industry, gov agency, news outlet) or that have NO useful enrichment fields.
+
+**HARD REJECT — drop these from the output entirely:**
+- Aggregator/directory pages (GAF, CertainTeed, Angi, Houzz, HomeAdvisor, Thumbtack, BuildZoom, DownToBid, Modernize, Trustpilot, etc. — even if the URL hostname is for a real brand)
+- Manufacturer "find a contractor" portals (CertainTeed-approved contractors, GAF-certified, IKO Shield contractors, etc.)
+- Generic SEO content farms (fixr.com cost guides, "Best of Houston" lists, "Top 10 Roofers" review pages)
+- Manufacturers themselves (e.g., the roofing material maker is NOT a roofing contractor)
+- News articles, blog posts, "How much does X cost" pages
+
+**KEEP — what makes the cut:**
+- A single operator's own homepage (looks like Bob's Roofing Inc on its own .com, not a sub-page of a directory)
+- The URL hostname matches the operator name (Braun's Roofing → braunsroofing.com)
+- Multi-location operator's own site (one regional brand operating across cities)
+
+Include as many real operators as possible from the input. Aim for 70-90% of the legitimate ones. Be ruthless about cutting aggregators and manufacturers even if they have rich enrichment data.
 - Output strictly the JSON schema. No prose. No surrounding markdown fences.
 
 Example of a GOOD sales angle (uses concrete scraped facts):

@@ -30,7 +30,17 @@ const BLOCKED_DOMAINS = new Set([
   "businessintexas.com", "gov.texas.gov", "uh.edu", "edu",
   // Fortune-500 primes (we want long tail, not them)
   "boeing.com", "lockheedmartin.com", "raytheon.com", "northropgrumman.com",
-  "spacex.com", "blueorigin.com", "airbus.com", "honeywell.com"
+  "spacex.com", "blueorigin.com", "airbus.com", "honeywell.com",
+  // Roofing-manufacturer directories (NOT the contractors we want)
+  "gaf.com", "certainteed.com", "iko.com", "owenscorning.com", "tamko.com",
+  "malarkey.com", "atlasroofing.com", "carlislesyntec.com", "firestonebpco.com",
+  // Cost guides, lead-gen aggregators, comparison sites
+  "fixr.com", "homeadvisor.com", "angi.com", "angieslist.com",
+  "thumbtack.com", "porch.com", "houzz.com", "buildzoom.com",
+  "roofingcalculator.org", "downtobid.com", "modernize.com",
+  "googlereviews.com", "consumeraffairs.com", "trustpilot.com",
+  // Generic "near me" / "best of" SEO content farms
+  "homeguide.com", "nearby.help", "expertise.com"
 ]);
 
 const BLOCKED_URL_PATTERNS = [
