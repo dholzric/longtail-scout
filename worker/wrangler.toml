@@ -3,6 +3,11 @@ main = "src/index.ts"
 compatibility_date = "2026-05-27"
 compatibility_flags = ["nodejs_compat"]
 
+routes = [
+  { pattern = "longtailscout.com", custom_domain = true },
+  { pattern = "www.longtailscout.com", custom_domain = true }
+]
+
 [assets]
 directory = "../web/dist"
 binding = "ASSETS"
