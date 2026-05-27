@@ -138,11 +138,10 @@ export function AboutPage() {
         </section>
 
         <section>
-          <h2 class="text-xl font-semibold mb-3">Source + license</h2>
+          <h2 class="text-xl font-semibold mb-3">Origin</h2>
           <p class="text-sm leading-relaxed">
             Built for the <a class="text-blue-700 underline" href="https://lablab.ai/ai-hackathons/brightdata-ai-agents-web-data-hackathon">Bright Data "Web Data UNLOCKED" hackathon</a>,
-            May 2026 (Track 1 — GTM Intelligence). Source:
-            <a class="ml-1 text-blue-700 underline" href="https://github.com/dholzric/longtail-scout">github.com/dholzric/longtail-scout</a> (MIT).
+            May 2026 (Track 1 — GTM Intelligence). Private repo; source shared with judges for evaluation.
           </p>
         </section>
 

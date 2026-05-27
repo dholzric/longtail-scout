@@ -192,4 +192,4 @@ Deploy: `pnpm deploy` from the repo root (builds web/dist, then runs `wrangler d
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+Proprietary. All rights reserved. This codebase is shared with hackathon judges for evaluation only and is not licensed for redistribution or reuse.

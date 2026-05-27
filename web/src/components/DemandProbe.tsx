@@ -2,6 +2,9 @@ import { useEffect, useState } from "preact/hooks";
 
 interface Props {
   query: string;
+  /** Optional callback fired with the resolved count (or null on miss/error). Lets the Hero
+   * surface the same number as a stamp without doing its own fetch. */
+  onCount?: (count: number | null) => void;
 }
 
 interface ResearchResponse {
@@ -35,7 +38,7 @@ function parseNiche(q: string): string {
  * The point: prove the 7M-record corpus exists and is reachable in <500ms, not as a
  * preprocessed snapshot. Sells the moat — Apollo doesn't have this signal.
  */
-export function DemandProbe({ query }: Props) {
+export function DemandProbe({ query, onCount }: Props) {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errored, setErrored] = useState<boolean>(false);
@@ -44,6 +47,7 @@ export function DemandProbe({ query }: Props) {
     const niche = parseNiche(query);
     if (!niche || niche.length < 3 || niche.length > 80) {
       setCount(null);
+      onCount?.(null);
       return;
     }
     let cancelled = false;
@@ -52,29 +56,31 @@ export function DemandProbe({ query }: Props) {
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`/api/demand-research?q=${encodeURIComponent(niche)}`);
-        if (!res.ok) { if (!cancelled) setErrored(true); return; }
+        if (!res.ok) { if (!cancelled) { setErrored(true); onCount?.(null); } return; }
         const j = await res.json() as ResearchResponse;
-        if (!cancelled) setCount(typeof j.demand === "number" ? j.demand : null);
+        const c = typeof j.demand === "number" ? j.demand : null;
+        if (!cancelled) { setCount(c); onCount?.(c); }
       } catch {
-        if (!cancelled) setErrored(true);
+        if (!cancelled) { setErrored(true); onCount?.(null); }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }, 500); // debounce
     return () => { cancelled = true; clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   if (errored) return null;
   if (count === null && !loading) return null;
   return (
-    <div class="flex items-center gap-2 rounded border border-cyan-200 bg-cyan-50/50 px-3 py-1.5 text-xs text-cyan-900">
-      <span class={`inline-block h-2 w-2 rounded-full bg-cyan-500 ${loading ? "animate-pulse" : ""}`} />
+    <div class="flex items-center gap-2 px-3 py-1.5 font-mono text-[11px] text-ink-70">
+      <span class={`inline-block h-2 w-2 rounded-full bg-moss ${loading ? "animate-pulse" : ""}`} />
       {loading || count === null ? (
-        <span class="text-cyan-700">probing demand index for matching businesses…</span>
+        <span class="text-ink-50">probing demand index for matching businesses…</span>
       ) : (
         <span>
-          <strong>{count.toLocaleString()}</strong> businesses in our private demand index match this niche
-          <span class="ml-1 text-cyan-700/60" title="Self-hosted FastAPI on top of a ~7M-record Google Maps scrape — the same backbone that powers the heat-map underlay on the map view.">· 7M-business corpus, lat/lng + rating + reviews</span>
+          <span class="font-semibold text-ink">{count.toLocaleString()}</span>
+          <span class="text-ink-50 ml-1.5">businesses in our private 7M-record demand index match this niche</span>
         </span>
       )}
     </div>

@@ -15,6 +15,7 @@ import { SkeletonStrip } from "./components/Skeleton";
 import { Watchlist } from "./components/Watchlist";
 import { Onboarding } from "./components/Onboarding";
 import { DemandProbe } from "./components/DemandProbe";
+import { Hero } from "./components/Hero";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -41,6 +42,7 @@ export function App() {
   const [cost, setCost] = useState<CostSnapshot | null>(null);
   const [sampleMode, setSampleMode] = useState<boolean>(false);
   const [initialOpenId, setInitialOpenId] = useState<string | null>(null);
+  const [demandCount, setDemandCount] = useState<number | null>(null);
 
   // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
@@ -231,8 +233,8 @@ export function App() {
         </div>
       </div>
 
-      <header class="border-b border-ink-15">
-        <div class="mx-auto max-w-6xl px-6 pt-10 pb-6">
+      <header>
+        <div class="mx-auto max-w-6xl px-6 pt-12 pb-2">
           <div class="flex items-baseline justify-between gap-4">
             <h1 class="text-2xl font-serif font-semibold tracking-tight">
               <span class="italic font-medium">longtail</span><span class="font-bold">scout</span><span class="ml-1 font-mono text-[10px] font-normal text-ink-40 align-baseline">.com</span>
@@ -240,10 +242,11 @@ export function App() {
             <div class="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-50 flex items-center gap-2.5">
               <span>vol. 1</span>
               <span class="inline-block h-3 w-px bg-ink-25" />
+              <span>field manual for the long tail</span>
+              <span class="inline-block h-3 w-px bg-ink-25" />
               <span>est. may 2026</span>
             </div>
           </div>
-          <p class="mt-3 text-sm text-ink-70 max-w-2xl">Find net-new accounts in markets Apollo can't see. Long-tail prospect scout for vertical-SaaS GTM teams — built on Bright Data, DeepSeek, and a private ~7M-business demand-signal index.</p>
         </div>
       </header>
 
@@ -265,8 +268,9 @@ export function App() {
             </div>
           </form>
         )}
+        <Hero demandCount={demandCount} />
         <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
-        <DemandProbe query={query} />
+        <DemandProbe query={query} onCount={setDemandCount} />
         <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
         {sampleMode && (
           <div class="rounded border border-sky-paper/40 bg-sky-tint px-4 py-2 text-xs text-ink-80">
@@ -305,7 +309,7 @@ export function App() {
 
       <footer class="border-t border-ink-15 mt-12">
         <div class="mx-auto max-w-6xl px-6 py-10 font-mono text-[11px] text-ink-50 uppercase tracking-wider flex flex-wrap items-center justify-between gap-3">
-          <span>longtailscout.com · made in Houston · MIT licensed</span>
+          <span>longtailscout.com · made in Austin · all rights reserved</span>
           <span>Built for the Bright Data Web Data UNLOCKED hackathon, May 2026</span>
         </div>
       </footer>

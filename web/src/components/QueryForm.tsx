@@ -128,78 +128,114 @@ export function QueryForm({ value, onChange, onRun, onRunWith, onShare, disabled
     setListening(false);
   }
 
+  const [focused, setFocused] = useState(false);
   return (
-    <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-      <label class="block text-sm font-medium text-slate-700 mb-2">Niche × city</label>
-      <div class="flex gap-2">
-        <input
-          class="flex-1 rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-          type="text"
-          value={value}
-          onInput={(e) => onChange((e.target as HTMLInputElement).value)}
-          placeholder="roofing contractors in Houston"
-          disabled={disabled}
-        />
-        {supported && (
-          <button
-            class={`rounded border px-3 py-2 text-sm ${listening ? "border-red-500 bg-red-50 text-red-700 animate-pulse" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
-            onClick={listening ? stopListening : startListening}
-            disabled={disabled}
-            type="button"
-            title={listening ? "Stop listening" : "Voice input (Chrome/Edge)"}
-            aria-label={listening ? "Stop voice input" : "Start voice input"}
-          >
-            {listening ? "● Listening" : "🎤"}
-          </button>
-        )}
-        <button
-          class="rounded bg-slate-900 px-4 py-2 text-white disabled:bg-slate-300"
-          onClick={onRun}
-          disabled={disabled}
-        >
-          {disabled ? "Running…" : "Run"}
-        </button>
+    <div>
+      {/* Section header for §01 */}
+      <div class="mb-5">
+        <div class="flex items-center gap-3 mb-3 font-mono text-[10px] uppercase tracking-[0.16em]">
+          <span class="text-rust">§ 01</span>
+          <span class="inline-block h-px w-6 bg-ink-25" />
+          <span class="text-ink-60">the query</span>
+        </div>
+        <h2 class="font-serif text-3xl font-semibold tracking-tight text-ink leading-tight">One niche, one city.</h2>
+        <p class="mt-2 text-sm text-ink-70 max-w-3xl">The scout fires 3-4 parallel Bright Data SERPs, renders each candidate's homepage + careers + news, and ranks. Every fact below is footnoted back to the fetch that produced it.</p>
       </div>
-      {onShare && value.trim().length > 0 && (
-        <div class="mt-2 text-xs">
+
+      {/* Field-manual input card */}
+      <div
+        class="bg-paper-2 border border-ink-25 p-1 flex items-stretch gap-0 transition-shadow"
+        style={focused ? { boxShadow: "0 0 0 3px color-mix(in oklab, var(--rust) 18%, transparent)" } : {}}
+      >
+        <div class="flex items-center px-4 text-ink-60" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="7" cy="13" r="4" />
+            <circle cx="17" cy="13" r="4" />
+            <path d="M11 13 L13 13" />
+            <path d="M5 4 L7 7" /><path d="M19 4 L17 7" />
+          </svg>
+        </div>
+        <div class="flex-1 flex flex-col justify-center py-3">
+          <label class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-50">niche × city</label>
+          <input
+            class="border-0 outline-none bg-transparent pt-0.5 font-serif text-2xl font-medium text-ink tracking-tight w-full"
+            type="text"
+            value={value}
+            onInput={(e) => onChange((e.target as HTMLInputElement).value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="roofing contractors in Houston"
+            disabled={disabled}
+          />
+        </div>
+        <div class="flex items-center gap-2 px-2.5 py-2.5">
+          {supported && (
+            <button
+              class={`px-3 py-3 font-mono text-xs font-semibold transition ${listening ? "bg-rust-tint text-rust-dk animate-pulse" : "bg-transparent text-ink-60 hover:text-ink hover:bg-paper-3"}`}
+              onClick={listening ? stopListening : startListening}
+              disabled={disabled}
+              type="button"
+              title={listening ? "Stop listening" : "Voice input (Chrome/Edge)"}
+              aria-label={listening ? "Stop voice input" : "Start voice input"}
+            >
+              {listening ? "● rec" : "🎤"}
+            </button>
+          )}
           <button
-            class="text-slate-500 hover:text-slate-700 underline decoration-dotted"
+            class="inline-flex items-center gap-2 bg-ink text-paper border-0 px-5 py-3.5 font-mono text-xs font-semibold uppercase tracking-[0.12em] cursor-pointer disabled:bg-ink-40"
+            onClick={onRun}
+            disabled={disabled}
+          >
+            {disabled ? "running…" : "run scout"}
+            <span aria-hidden="true">→</span>
+          </button>
+          <span class="hidden md:inline-flex items-center gap-1 font-mono text-[10px] text-ink-50">⌘ + ⏎</span>
+        </div>
+      </div>
+
+      {/* Demo chips + share URL row */}
+      <div class="mt-4 flex items-center justify-between flex-wrap gap-3">
+        <div class="flex items-center gap-2 font-mono text-[11px] text-ink-50 flex-wrap">
+          <span class="uppercase tracking-[0.12em]">try:</span>
+          {PRESETS.map(p => (
+            <button
+              class="inline-flex items-center gap-1.5 bg-transparent border border-ink-20 px-2.5 py-1 font-sans text-[11px] text-ink-80 hover:bg-ink hover:text-paper hover:border-ink transition rounded-full whitespace-nowrap disabled:opacity-50"
+              onClick={() => {
+                onChange(p.query);
+                if (onRunWith) onRunWith(p.query);
+              }}
+              disabled={disabled}
+              title={`Run "${p.query}"`}
+              type="button"
+            >
+              <span aria-hidden="true">{p.emoji}</span>
+              <span>{p.label}</span>
+            </button>
+          ))}
+        </div>
+        {onShare && value.trim().length > 0 && (
+          <button
+            class="font-mono text-[11px] text-ink-50 hover:text-ink border-b border-dotted border-ink-30"
             onClick={handleShare}
             title="Copy a shareable URL that auto-fills this query (and auto-runs)"
           >
-            {shared ? "✓ Copied share URL" : "Copy share URL"}
+            {shared ? "✓ copied share URL" : "copy share URL"}
           </button>
-        </div>
-      )}
-      <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
-        <span class="text-slate-400" title="Click to run instantly — covers our strongest demand-index verticals">One-click demos:</span>
-        {PRESETS.map(p => (
-          <button
-            class="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-slate-700 hover:bg-slate-900 hover:text-white transition disabled:opacity-50"
-            onClick={() => {
-              onChange(p.query);
-              if (onRunWith) onRunWith(p.query);
-            }}
-            disabled={disabled}
-            title={`Run "${p.query}"`}
-            type="button"
-          >
-            <span aria-hidden="true">{p.emoji}</span>
-            <span>{p.label}</span>
-          </button>
-        ))}
+        )}
       </div>
-      {(saved.length > 0 || value.trim().length > 0) && (
-        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <span class="text-slate-400">Saved:</span>
+
+      {/* Saved queries — kept as a less-prominent strip below */}
+      {(saved.length > 0 || (value.trim().length > 0 && !PRESETS.some(p => p.query === value.trim()))) && (
+        <div class="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+          <span class="text-ink-50 uppercase tracking-[0.12em]">saved:</span>
           {saved.map(s => (
-            <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 ring-1 ring-amber-200 pl-3 pr-1 py-0.5">
-              <button class="text-amber-900 hover:underline disabled:opacity-50" onClick={() => onChange(s)} disabled={disabled}>{s}</button>
-              <button class="ml-1 rounded-full px-1 text-amber-600 hover:bg-amber-100" onClick={() => removeSaved(s)} disabled={disabled} title="Remove">×</button>
+            <span class="inline-flex items-center gap-1 rounded-full bg-ochre-tint border border-ochre/40 pl-2.5 pr-1 py-0.5">
+              <button class="font-sans text-[11px] text-ochre-dk hover:underline disabled:opacity-50" onClick={() => onChange(s)} disabled={disabled}>{s}</button>
+              <button class="ml-1 rounded-full px-1 text-ochre-dk hover:bg-ochre-tint" onClick={() => removeSaved(s)} disabled={disabled} title="Remove">×</button>
             </span>
           ))}
           {value.trim() && !saved.includes(value.trim()) && (
-            <button class="rounded border border-slate-300 px-2 py-0.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50" onClick={addSaved} disabled={disabled} title="Save this query for one-click re-run">+ Save query</button>
+            <button class="rounded border border-ink-25 bg-transparent px-2 py-0.5 text-ink-60 hover:bg-paper-3 disabled:opacity-50" onClick={addSaved} disabled={disabled} title="Save this query for one-click re-run">+ save query</button>
           )}
         </div>
       )}
