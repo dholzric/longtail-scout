@@ -8,21 +8,26 @@ export interface PromptPair {
 export function buildDiscoveryPrompt(q: ScoutQuery): PromptPair {
   const system = `You are an expert GTM researcher specializing in finding small, local, long-tail businesses that Apollo/ZoomInfo/Clay miss.
 
-Your job: given a niche x city query, generate 3-6 diverse SERP queries that will surface small operators (NOT directory aggregators, NOT big-name corporations).
+Your job: given a niche x city query, fire 3-4 diverse SERP queries IN ONE BATCH and then call finalize_candidates. Do not loop endlessly.
 
-Call the \`serp_search\` tool for each query. Aim for diverse coverage:
-- One direct query ("<niche> companies <city>")
-- One supplier/contractor angle ("<niche> suppliers <city>", "<niche> contractors <city>")
-- One hiring angle ("<niche> hiring <city>" - surfaces actively-growing operators)
-- One news/press angle ("<niche> startup <city>")
-- One adjacent vertical if appropriate (e.g., for "aerospace" -> "avionics", "RF engineering", "machine shop")
+Process:
+1. In your FIRST response, return exactly 3-4 \`serp_search\` tool calls in parallel. Pick the most distinct angles:
+   - Direct: "<niche> companies <city>"
+   - Suppliers/contractors: "<niche> suppliers <city>" OR "<niche> contractors <city>"
+   - Adjacent specialty: pick one related vertical (for aerospace: "avionics <city>" or "rocket propulsion <city>"; for solar: "EV charging installers <city>"; etc.)
+   - Press/startup: "<niche> startup <city> news"
+2. When tool results come back, IMMEDIATELY call \`finalize_candidates\` with the URLs that look like REAL operator websites.
 
-After gathering results, call \`finalize_candidates\` with the deduped list of {name, url} pairs that look like real operators.
+Filter rules — skip these in finalize_candidates:
+- Directories/aggregators: linkedin.com, crunchbase.com, builtin.com, globalspec.com, yelp.com, indeed.com, reddit.com, facebook.com, wikipedia.org
+- News aggregators: techcrunch.com, prnewswire.com, businesswire.com (unless they're the only source for a small company)
+- Fortune-500 primes: boeing.com, lockheedmartin.com, raytheon.com, nasa.gov, spacex.com, blueorigin.com
+- "List of..." or "Top 10..." review/ranking pages
 
-Rules:
-- Skip LinkedIn, Crunchbase, Wikipedia, news aggregators - we want the operator's actual website.
-- Skip Fortune-500 / publicly-traded primes - we want the long tail.
-- 30-60 candidates is the right size; we'll filter further downstream.`;
+Keep:
+- Operator's own website (e.g., venusaero.com, fanthompropulsion.com)
+- Local trade publications featuring a specific operator if it's the only source
+- 20-40 candidates is the sweet spot.`;
 
   const user = `Find long-tail operators for this query:
 

@@ -51,7 +51,7 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
   const messages: ChatCompletionMessageParam[] = [{ role: "user", content: user }];
   const rawCandidates: Candidate[] = [];
 
-  for (let turn = 0; turn < 4; turn++) {
+  for (let turn = 0; turn < 3; turn++) {
     const { response, provider } = await llmCall(env, {
       system,
       messages,
@@ -67,9 +67,10 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) break;
 
+    // Process all tool_calls in this turn in parallel.
     let finalized = false;
-    for (const tc of msg.tool_calls) {
-      if (tc.type !== "function") continue;
+    const toolResults = await Promise.all(msg.tool_calls.map(async (tc) => {
+      if (tc.type !== "function") return null;
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
 
       if (tc.function.name === "serp_search") {
@@ -81,20 +82,20 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
             rawCandidates.push({ name: r.title, url: r.link, origin_query: query });
             await emit.emit("candidate", { name: r.title, url: r.link });
           }
-          messages.push({
-            role: "tool",
+          return {
+            role: "tool" as const,
             tool_call_id: tc.id,
             content: JSON.stringify({
               count: result.results.length,
-              results: result.results.slice(0, 10).map(r => ({ title: r.title, link: r.link, snippet: r.snippet }))
+              results: result.results.slice(0, 8).map(r => ({ title: r.title, link: r.link }))
             })
-          });
+          };
         } catch (err) {
-          messages.push({
-            role: "tool",
+          return {
+            role: "tool" as const,
             tool_call_id: tc.id,
             content: `Error: ${(err as Error).message}`
-          });
+          };
         }
       } else if (tc.function.name === "finalize_candidates") {
         finalized = true;
@@ -102,15 +103,26 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         for (const c of candidates) {
           rawCandidates.push({ name: c.name, url: c.url, origin_query: "model_finalized" });
         }
-        messages.push({
-          role: "tool",
+        return {
+          role: "tool" as const,
           tool_call_id: tc.id,
           content: `accepted ${candidates.length} candidates`
-        });
+        };
       }
+      return null;
+    }));
+
+    for (const r of toolResults) {
+      if (r) messages.push(r);
     }
 
     if (finalized) break;
+
+    // Force-finalize after turn 2 if we have any candidates — don't burn another turn.
+    if (turn >= 1 && rawCandidates.length >= 20) {
+      await emit.emit("progress", { message: `Have ${rawCandidates.length} raw candidates after turn ${turn + 1} — finalizing.` });
+      break;
+    }
   }
 
   const deduped = dedupeCandidates(rawCandidates).slice(0, 25);
