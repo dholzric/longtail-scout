@@ -59,25 +59,49 @@ async function copyCsv(ops: Operator[]) {
 export function ResultTable({ operators }: { operators: Operator[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
+  const [minConfidence, setMinConfidence] = useState(0);
+  const [hiringOnly, setHiringOnly] = useState(false);
+  const [smallOnly, setSmallOnly] = useState(false);
+
+  const visible = operators.filter(op => {
+    if (op.confidence < minConfidence) return false;
+    if (hiringOnly && !(op.hiring.count && op.hiring.count > 0)) return false;
+    if (smallOnly && (op.size_estimate === "100+" || op.size_estimate === "51-100")) return false;
+    return true;
+  });
+
   return (
     <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-3">
-        <h2 class="text-base font-semibold">Results — {operators.length} operators</h2>
-        <div class="flex gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-3">
+        <h2 class="text-base font-semibold">Results — {visible.length} of {operators.length} operators</h2>
+        <div class="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+          <label class="flex items-center gap-2" title="Confidence is derived from citation count, data depth, and hostname-name match">
+            <span class="text-slate-500">Min confidence:</span>
+            <input type="range" min="0" max="100" step="5" value={minConfidence} onInput={(e) => setMinConfidence(parseInt((e.target as HTMLInputElement).value, 10))} class="w-24" />
+            <span class="font-mono w-8 text-right">{minConfidence}</span>
+          </label>
+          <label class="flex items-center gap-1">
+            <input type="checkbox" checked={hiringOnly} onChange={(e) => setHiringOnly((e.target as HTMLInputElement).checked)} />
+            <span>Hiring only</span>
+          </label>
+          <label class="flex items-center gap-1" title="Hide operators marked 51-100 or 100+ employees">
+            <input type="checkbox" checked={smallOnly} onChange={(e) => setSmallOnly((e.target as HTMLInputElement).checked)} />
+            <span>Long-tail only</span>
+          </label>
           <button
-            class="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+            class="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50"
             onClick={async () => {
-              const ok = await copyCsv(operators);
+              const ok = await copyCsv(visible);
               if (ok) { setCopied(true); setTimeout(() => setCopied(false), 1500); }
             }}
-            title="Copy CSV to clipboard (paste into Apollo, HubSpot, Salesforce import)"
+            title="Copy filtered CSV"
           >
             {copied ? "Copied ✓" : "Copy CSV"}
           </button>
           <button
-            class="rounded border border-slate-300 bg-slate-900 px-3 py-1 text-xs text-white hover:bg-slate-700"
-            onClick={() => downloadCsv(operators, "longtail-scout-export.csv")}
-            title="Download as CSV"
+            class="rounded border border-slate-300 bg-slate-900 px-3 py-1 text-white hover:bg-slate-700"
+            onClick={() => downloadCsv(visible, "longtail-scout-export.csv")}
+            title="Download filtered CSV"
           >
             Export CSV
           </button>
@@ -94,7 +118,7 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
           </tr>
         </thead>
         <tbody>
-          {operators.map(op => (
+          {visible.map(op => (
             <>
               <tr key={op.url} class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setOpen(open === op.url ? null : op.url)}>
                 <td class="px-4 py-3 align-top text-slate-500">
