@@ -10,10 +10,11 @@ interface Props {
 const PRESETS = [
   "roofing contractors in Houston",
   "HVAC contractors in Houston",
+  "roofing contractors in Texas",
+  "law firms in California",
+  "MSPs in Florida",
   "dental practices in Houston",
-  "childcare providers in Houston",
-  "auto body shops in Houston",
-  "electrician contractors in Dallas"
+  "auto body shops in Atlanta"
 ];
 
 const SAVED_KEY = "lts_saved_queries";

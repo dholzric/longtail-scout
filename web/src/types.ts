@@ -15,6 +15,7 @@ export interface Operator {
   geo: { lat: number; lng: number; display_name?: string } | null;
   memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
   confidence: number;
+  city?: string;
 }
 
 export interface CostSnapshot {
@@ -34,6 +35,7 @@ export type SseEvent =
   | { event: "candidate"; data: { name: string; url: string } }
   | { event: "enrich"; data: { name: string; field: string; status: "ok" | "fail"; [k: string]: unknown } }
   | { event: "cost"; data: CostSnapshot & { phase?: string } }
+  | { event: "operator"; data: Operator }
   | { event: "result"; data: { operators: Operator[] } }
   | { event: "done"; data: { cost?: CostSnapshot } }
   | { event: "error"; data: { message: string; recoverable: boolean } };

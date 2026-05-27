@@ -121,6 +121,11 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
                         Seen ×{op.memory.seen_count}
                       </span>
                     )}
+                    {op.city && (
+                      <span class="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-medium text-violet-700 ring-1 ring-violet-200" title="City from multi-city expansion">
+                        {op.city}
+                      </span>
+                    )}
                   </div>
                   <a class="text-xs text-blue-700 underline" href={op.url} target="_blank" onClick={(e) => e.stopPropagation()}>{op.url}</a>
                   {op.size_estimate && <span class="ml-2 text-xs text-slate-500">· {op.size_estimate}<CitationLink citations={op.sources} field="about" /></span>}

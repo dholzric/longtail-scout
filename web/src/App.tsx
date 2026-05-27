@@ -97,7 +97,13 @@ export function App() {
       setCost(ev.data);
       return;
     }
+    if (ev.event === "operator") {
+      // Progressive rendering — append each operator as the worker emits it.
+      setOperators(prev => [...prev, ev.data]);
+      return;
+    }
     if (ev.event === "result") {
+      // Final canonical list — replace whatever streamed in (handles sample mode + any de-dupe).
       setOperators(ev.data.operators);
       return;
     }
