@@ -14,6 +14,7 @@ export interface Operator {
   rank: number;
   geo: { lat: number; lng: number; display_name?: string } | null;
   memory: { memory_state: "new" | "familiar" | "frequent"; first_seen_ts: number; seen_count: number } | null;
+  confidence: number;
 }
 
 export interface CostSnapshot {

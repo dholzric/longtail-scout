@@ -113,7 +113,7 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   }
 
   // Per-operator demand signal removed (was misusing the API — see synthesize.ts for niche-level demand context).
-  // Memory annotation happens in synthesize() after ranking, so it always reflects the latest URL canonicalization.
+  // Memory annotation + confidence score happen in synthesize() after ranking.
   return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null };
 }
 

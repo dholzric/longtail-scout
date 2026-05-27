@@ -4,6 +4,7 @@ import { buildSynthesisPrompt } from "./prompts";
 import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import { recordOperator } from "../memory/store";
+import { computeConfidence } from "./confidence";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
@@ -58,7 +59,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
     const base = byName.get(o.name);
     const icp_fit_reason = (o.icp_fit_reason ?? "").trim() || "Long-tail operator, web-first";
     if (!base) {
-      return {
+      const stub: Operator = {
         name: o.name,
         url: o.url,
         sources: [],
@@ -71,10 +72,15 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
         sales_angle: o.sales_angle,
         rank: o.rank,
         geo: null,
-        memory: null
+        memory: null,
+        confidence: 0
       };
+      stub.confidence = computeConfidence(stub);
+      return stub;
     }
-    return { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, memory: null };
+    const op: Operator = { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, memory: null, confidence: 0 };
+    op.confidence = computeConfidence(op);
+    return op;
   });
 
   // Record each operator in the memory store + annotate with seen-count/new-vs-familiar.

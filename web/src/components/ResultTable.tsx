@@ -21,11 +21,12 @@ function escapeCsv(v: unknown): string {
 }
 
 function operatorsToCsv(ops: Operator[]): string {
-  const headers = ["rank", "name", "url", "size_estimate", "hiring_count", "hiring_roles", "icp_fit_reason", "draft_outreach_angle", "recent_activity"];
+  const headers = ["rank", "confidence", "name", "url", "size_estimate", "hiring_count", "hiring_roles", "icp_fit_reason", "draft_outreach_angle", "recent_activity"];
   const lines = [headers.join(",")];
   for (const op of ops) {
     lines.push([
       op.rank,
+      op.confidence,
       op.name,
       op.url,
       op.size_estimate ?? "",
@@ -96,7 +97,12 @@ export function ResultTable({ operators }: { operators: Operator[] }) {
           {operators.map(op => (
             <>
               <tr key={op.url} class="border-t border-slate-100 hover:bg-slate-50 cursor-pointer" onClick={() => setOpen(open === op.url ? null : op.url)}>
-                <td class="px-4 py-3 align-top text-slate-500">{op.rank}</td>
+                <td class="px-4 py-3 align-top text-slate-500">
+                  <div>{op.rank}</div>
+                  <div class={`mt-1 text-[10px] font-medium ${op.confidence >= 70 ? "text-emerald-700" : op.confidence >= 40 ? "text-amber-700" : "text-slate-400"}`} title={`Confidence: ${op.confidence}/100 — derived from citation count, data depth, and hostname-name match. Not rank — rank is fit-for-query.`}>
+                    {op.confidence}%
+                  </div>
+                </td>
                 <td class="px-4 py-3 align-top">
                   <div class="flex items-center gap-2">
                     <span class="font-medium">{op.name}</span>
