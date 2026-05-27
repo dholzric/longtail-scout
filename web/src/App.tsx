@@ -30,6 +30,7 @@ export function App() {
   const [askKey, setAskKey] = useState<boolean>(false);
   const [view, setView] = useState<ViewMode>("table");
   const [cost, setCost] = useState<CostSnapshot | null>(null);
+  const [sampleMode, setSampleMode] = useState<boolean>(false);
 
   // Pull saved key + shareable ?q= query on first mount.
   useEffect(() => {
@@ -109,7 +110,11 @@ export function App() {
     setError(null);
     setCost(null);
 
-    const resp = await fetch("/api/scout", {
+    // Pass through ?sample=1 if it was on the loaded URL
+    const isSample = new URL(window.location.href).searchParams.get("sample") === "1";
+    setSampleMode(isSample);
+    const scoutPath = isSample ? "/api/scout?sample=1" : "/api/scout";
+    const resp = await fetch(scoutPath, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -209,6 +214,11 @@ export function App() {
         )}
         <QueryForm value={query} onChange={setQuery} onRun={run} onShare={copyShareUrl} disabled={status === "running"} />
         <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />
+        {sampleMode && (
+          <div class="rounded border border-violet-200 bg-violet-50 px-4 py-2 text-xs text-violet-900">
+            <span class="font-medium">Sample mode active</span> — replaying a cached result for guaranteed-fast demo (140ms response, no real BD/LLM spend). Remove <code>?sample=1</code> from the URL to run a live scout.
+          </div>
+        )}
         {cost && (
           <div class="flex items-center gap-3 rounded border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600 shadow-sm">
             <span class="font-medium text-slate-700">Live cost meter:</span>

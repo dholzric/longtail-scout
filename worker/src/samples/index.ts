@@ -100,8 +100,65 @@ interface Sample {
   label: string;
 }
 
+const HVAC_HOUSTON: Operator[] = [
+  {
+    rank: 1, confidence: 91,
+    name: "Abacus Plumbing, Air Conditioning & Electrical",
+    url: "https://www.abacusplumbing.com/",
+    icp_fit_reason: "Multi-trade home services, 24/7 emergency, multi-truck fleet",
+    sales_angle: "Multi-trade operator (plumbing + HVAC + electrical) with 24/7 emergency and active hiring — fits ServiceTitan's enterprise dispatch ICP.",
+    about: "Houston's #1 plumber, AC repair, and electrician for over 20 years. Same-day service, 24/7 emergency dispatch, fully bonded.",
+    size_estimate: "100+",
+    hiring: { count: 3, roles: ["technician", "operations", "manager"], source: "https://www.abacusplumbing.com/careers" },
+    recent_activity: [{ headline: "Press", date: "", source: "https://www.abacusplumbing.com/about/" }],
+    demand_signal: null,
+    geo: { lat: 29.7521, lng: -95.5184, display_name: "Abacus Plumbing, Houston, Texas, United States" },
+    memory: { memory_state: "new", first_seen_ts: 1779870000000, seen_count: 1 },
+    sources: [
+      { field: "about", tool: "bridge_render", url: "https://www.abacusplumbing.com/" },
+      { field: "hiring", tool: "homepage_link", url: "https://www.abacusplumbing.com/careers" }
+    ]
+  },
+  {
+    rank: 2, confidence: 84,
+    name: "John Moore Services",
+    url: "https://www.johnmooreservices.com/",
+    icp_fit_reason: "Established Houston operator, hiring AC techs + electricians",
+    sales_angle: "75+ years in Houston with active AC tech + electrician hires — needs dispatch/scheduling SaaS to coordinate a multi-trade fleet.",
+    about: "John Moore Services has been Houston's home services company since 1965. Plumbing, air conditioning, electrical, and more.",
+    size_estimate: "100+",
+    hiring: { count: 2, roles: ["technician", "sales"], source: "https://www.johnmooreservices.com/careers" },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 29.8336, lng: -95.4081, display_name: "John Moore Services, Houston, Texas" },
+    memory: { memory_state: "new", first_seen_ts: 1779870100000, seen_count: 1 },
+    sources: [
+      { field: "about", tool: "bridge_render", url: "https://www.johnmooreservices.com/" },
+      { field: "hiring", tool: "homepage_link", url: "https://www.johnmooreservices.com/careers" }
+    ]
+  },
+  {
+    rank: 3, confidence: 78,
+    name: "Lex Air Conditioning & Heating",
+    url: "https://www.lexaircooling.com/",
+    icp_fit_reason: "Mid-size residential HVAC, family-owned",
+    sales_angle: "Family-owned mid-size HVAC operator in Houston — fits the HousecallPro / Jobber ICP for sub-50-truck operators wanting modern dispatch.",
+    about: "Lex Air Conditioning & Heating is Houston's family-owned HVAC specialist. Service, repair, install — residential and light commercial.",
+    size_estimate: "11-50",
+    hiring: { count: null, roles: [], source: null },
+    recent_activity: [],
+    demand_signal: null,
+    geo: { lat: 29.7197, lng: -95.6178, display_name: "Lex Air Conditioning, Houston, Texas" },
+    memory: { memory_state: "new", first_seen_ts: 1779870200000, seen_count: 1 },
+    sources: [
+      { field: "about", tool: "bridge_render", url: "https://www.lexaircooling.com/" }
+    ]
+  }
+];
+
 const SAMPLES: Sample[] = [
-  { matches: /roof/i, operators: ROOFING_HOUSTON, label: "roofing-houston" }
+  { matches: /roof/i, operators: ROOFING_HOUSTON, label: "roofing-houston" },
+  { matches: /hvac|heating|cooling|air[\s-]?conditioning/i, operators: HVAC_HOUSTON, label: "hvac-houston" }
 ];
 
 export function findSample(rawQuery: string): Sample | null {

@@ -35,11 +35,12 @@ export function WedgeSummary({ operators, niche }: Props) {
         </div>
         <div class="min-w-0">
           <div class="text-sm font-semibold text-emerald-900">Why these wouldn't be in Apollo</div>
-          <div class="mt-1 text-sm text-emerald-900/80">
-            All <strong>{operators.length}</strong> operators surfaced from their own websites, not LinkedIn-graph data.
-            {apolloThin === operators.length && operators.length > 0 && (
-              <> Every row is <strong>Apollo-thin</strong> — primary signal is the operator's own domain.</>
-            )}
+          <div class="mt-1 flex items-baseline gap-4 text-sm text-emerald-900/80">
+            <span class="inline-flex items-center gap-2">
+              <span class="rounded-full bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-rose-200">Apollo: ≈ 0</span>
+              <span class="rounded-full bg-emerald-200 px-2 py-0.5 text-xs font-medium text-emerald-900 ring-1 ring-emerald-300">LongTail Scout: {operators.length}</span>
+            </span>
+            <span class="text-emerald-900/70">All operators surfaced from their own websites, not LinkedIn-graph data.</span>
           </div>
           <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-emerald-900/70">
             <span><strong>{totalCitations}</strong> Bright Data citations across the table</span>
