@@ -1,4 +1,5 @@
 import type { ScoutQuery } from "../types";
+import { detectVertical, type VerticalPack } from "./verticals";
 
 export interface PromptPair {
   system: string;
@@ -6,6 +7,11 @@ export interface PromptPair {
 }
 
 export function buildDiscoveryPrompt(q: ScoutQuery): PromptPair {
+  const pack = detectVertical(q.niche);
+  const verticalNote = pack.id === "generic"
+    ? ""
+    : `\n\nVERTICAL HINT — query matched the \`${pack.label}\` pack. The buyer for this list is a vertical-SaaS GTM team like ${pack.buyer_examples.slice(0, 3).join(", ")}. Additional discovery angles to consider: ${pack.serp_angles.join(", ")}. The operators we want look like small/mid local operators with their own website, NOT manufacturers, directories, or franchise corporate sites.`;
+
   const system = `You are an expert GTM researcher specializing in finding small, local, long-tail businesses that Apollo/ZoomInfo/Clay miss.
 
 Your job: given a niche x city query, fire 3-4 diverse SERP queries IN ONE BATCH and then call finalize_candidates. Do not loop endlessly.
@@ -15,7 +21,7 @@ Process:
    - Direct: "<niche> companies <city>"
    - Suppliers/contractors: "<niche> suppliers <city>" OR "<niche> contractors <city>"
    - Adjacent specialty: pick one related vertical (for aerospace: "avionics <city>" or "rocket propulsion <city>"; for solar: "EV charging installers <city>"; etc.)
-   - Press/startup: "<niche> startup <city> news"
+   - Press/startup: "<niche> startup <city> news"${verticalNote}
 2. When tool results come back, IMMEDIATELY call \`finalize_candidates\` with the URLs that look like REAL operator websites.
 
 CRITICAL — what to PUT in finalize_candidates:
@@ -45,7 +51,21 @@ Generate diverse SERP queries, call serp_search for each, then call finalize_can
 }
 
 export function buildSynthesisPrompt(q: ScoutQuery, enriched: unknown[], nicheDemand: { count: number; rank_signal: number | null } | null = null): PromptPair {
-  const system = `You are a GTM analyst ranking long-tail business operators for a vertical-SaaS buyer (e.g. for a "roofing contractors" query the buyer is roofing-SaaS like AccuLynx / JobNimbus / Roofr; for "HVAC contractors" the buyer is ServiceTitan / HousecallPro; etc.).
+  const pack: VerticalPack = detectVertical(q.niche);
+  const verticalBlock = pack.id === "generic"
+    ? ""
+    : `\n\nVERTICAL PACK — \`${pack.label}\`. The buyer for this list is a vertical-SaaS GTM team like **${pack.buyer_examples.slice(0, 4).join(", ")}**.
+
+Signal hints to weight when generating the ICP fit + sales angle:
+${pack.signal_hints.map(s => `  - ${s}`).join("\n")}
+
+Good ICP-fit phrasings for this vertical:
+${pack.icp_examples.map(s => `  - "${s}"`).join("\n")}
+
+Good sales-angle examples for this vertical (use as patterns, not as facts):
+${pack.sales_angle_examples.map(s => `  - "${s}"`).join("\n")}`;
+
+  const system = `You are a GTM analyst ranking long-tail business operators for a vertical-SaaS buyer (e.g. for a "roofing contractors" query the buyer is roofing-SaaS like AccuLynx / JobNimbus / Roofr; for "HVAC contractors" the buyer is ServiceTitan / HousecallPro; etc.).${verticalBlock}
 
 For each operator, output THREE fields beyond name/url/rank:
 
