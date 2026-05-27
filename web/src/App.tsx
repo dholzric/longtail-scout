@@ -10,7 +10,7 @@ type Status = "idle" | "running" | "done" | "error";
 const STORAGE_KEY = "lts_demo_key";
 
 export function App() {
-  const [query, setQuery] = useState("aerospace and space-tech companies in Houston");
+  const [query, setQuery] = useState("roofing contractors in Houston");
   const [status, setStatus] = useState<Status>("idle");
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
@@ -108,7 +108,7 @@ export function App() {
       <header class="border-b border-slate-200 bg-white">
         <div class="mx-auto max-w-6xl px-6 py-5">
           <h1 class="text-2xl font-semibold tracking-tight">LongTail Scout</h1>
-          <p class="text-sm text-slate-600">Apollo for the long tail — built on Bright Data, OpenRouter, and a private demand-signal index.</p>
+          <p class="text-sm text-slate-600">Apollo for the long tail — built on Bright Data, DeepSeek, and a private 7M-business demand-signal index.</p>
         </div>
       </header>
 

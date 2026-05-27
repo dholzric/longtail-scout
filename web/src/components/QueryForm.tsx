@@ -6,9 +6,10 @@ interface Props {
 }
 
 const PRESETS = [
-  "aerospace and space-tech companies in Houston",
-  "solar installers in Texas",
-  "AI consulting firms in San Francisco"
+  "roofing contractors in Houston",
+  "HVAC contractors in Houston",
+  "auto body shops in Houston",
+  "childcare providers in Houston"
 ];
 
 export function QueryForm({ value, onChange, onRun, disabled }: Props) {
@@ -21,7 +22,7 @@ export function QueryForm({ value, onChange, onRun, disabled }: Props) {
           type="text"
           value={value}
           onInput={(e) => onChange((e.target as HTMLInputElement).value)}
-          placeholder="aerospace companies in Houston"
+          placeholder="roofing contractors in Houston"
           disabled={disabled}
         />
         <button

@@ -2,17 +2,19 @@
 
 **Apollo for the long tail** — an AI agent that finds small, local, niche businesses that Apollo, ZoomInfo, and Clay can't see. Type a niche × city query; get a ranked, cited list of operators with hiring signals and a generated sales angle.
 
+> **Demo storyline:** type `roofing contractors in Houston` → in 90 seconds, get 8 small-to-mid roofing operators with hiring signals scraped from their careers pages and a per-row sales angle aimed at roofing-SaaS buyers (AccuLynx, JobNimbus, Roofr). These are the operators Apollo doesn't see because they're not on LinkedIn.
+
 **Live demo:** https://longtailscout.com (gated — password in lablab.ai submission description)
 **Source:** https://github.com/dholzric/longtail-scout
 **Built for:** [Bright Data "Web Data UNLOCKED" hackathon](https://lablab.ai/ai-hackathons/brightdata-ai-agents-web-data-hackathon), May 2026, Track 1 — GTM Intelligence.
 
 ```
-You type:     "aerospace and space-tech companies in Houston"
-You get:      ~10 ranked operators (Venus Aerospace, Ad Astra Rocket, Windhover Labs,
-              FanThom Propulsion, …) with hiring signals, size estimates, recent
-              activity, demand scores, and a one-sentence per-row sales angle.
-              Every fact is citation-linked back to the Bright Data fetch that
-              produced it.
+You type:     "roofing contractors in Houston"
+You get:      ~8 ranked operators with hiring signals, size estimates, recent
+              activity headlines, a niche-size demand context (~82K matching
+              roofing businesses in our 7M-record index), and a one-sentence
+              per-row sales angle. Every fact is citation-linked back to the
+              Bright Data fetch that produced it.
 ```
 
 ## How it uses Bright Data
@@ -69,7 +71,7 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
               │ DeepSeek (primary)│  │ bridge.lts.. │  │ demand.lts...    │
               │  → AI/ML API     │   │ Playwright   │  │ CF Tunnel →      │
               │  → Z.AI GLM-4.6  │   │ + cheerio    │  │ 192.168.1.29:8080│
-              │  → OpenRouter    │   │ + Bright Data│  │ 3.97M-business   │
+              │  → OpenRouter    │   │ + Bright Data│  │ ~7M-business   │
               │ fallback chain   │   │ Browser API  │  │ demand-signal DB │
               └──────────────────┘   │ via WSS/CDP  │  └──────────────────┘
                                      └──────────────┘
@@ -86,7 +88,7 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 | LLM | OpenAI-compatible client w/ 4-provider fallback (DeepSeek → AI/ML API → GLM coding-plan → OpenRouter) |
 | **Bright Data** | **Scraping Browser** zone via Playwright (`playwright-core`) WSS connection on the bridge |
 | Bridge service | Node.js + Playwright + cheerio, ~200 lines |
-| Demand signal | Private 3.97M-business demand-signal API, exposed via existing CF Tunnel |
+| Demand signal | Private ~7M-business demand-signal API, exposed via existing CF Tunnel |
 
 ## Why this beats Apollo for long-tail
 
@@ -95,9 +97,9 @@ Apollo, ZoomInfo, Clay are built around the LinkedIn-employee-profile graph. Tha
 - Operate in long-tail verticals (aerospace contractors, regional HVAC, niche manufacturing)
 - Are small enough to be missed by web crawlers but big enough to have real budget
 
-LongTail Scout sidesteps the LinkedIn graph entirely. It uses Bright Data to crawl the actual operator websites + Google + news in real time, then a private 3.97M-business demand-signal index (curated independently of LinkedIn) for the "is there a real market here?" question.
+LongTail Scout sidesteps the LinkedIn graph entirely. It uses Bright Data to crawl the actual operator websites + Google + news in real time, then a private ~7M-business demand-signal index (curated independently of LinkedIn) for the "is there a real market here?" question.
 
-Demo query that shows it: **"aerospace and space-tech companies in Houston"** — surfaces Venus Aerospace, Ad Astra Rocket, FanThom Propulsion, Windhover Labs, and similar regional operators that Apollo's account list doesn't include.
+Demo query that shows it: **"roofing contractors in Houston"** — surfaces the small + mid roofing contractors that Apollo/ZoomInfo/Clay can't see, with hiring signals scraped from their actual careers pages. Roofing has ~82,000 matching businesses in the demand index (out of ~7M total).
 
 ## Run it yourself
 
