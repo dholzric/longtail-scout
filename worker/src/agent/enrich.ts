@@ -1,6 +1,7 @@
 import type { Env } from "../index";
 import type { Candidate, Citation, Operator } from "../types";
 import { webUnlockerCached } from "../brightdata/webUnlocker";
+import { serpSearchCached } from "../brightdata/serp";
 import { demandLookup } from "../demand/client";
 import type { SseEmitter } from "../stream";
 
@@ -54,13 +55,12 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
   const about = extractAbout(homepageHtml);
   const size_estimate = estimateSize(homepageHtml);
 
-  // Lightweight on-page heuristics (no extra BD calls — keeps us under session limits)
+  // Hiring — first try on-page heuristic (free), then do a targeted SERP for "<name> careers" to find the careers page
   const hiring: Operator["hiring"] = { count: null, roles: [], source: null };
-  const text = homepageHtml.toLowerCase();
-  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings/i.test(text)) {
-    hiring.roles = extractRoles(text);
+  const homeText = homepageHtml.toLowerCase();
+  if (/we[\s']?re hiring|now hiring|join our team|careers|open positions|job openings/i.test(homeText)) {
+    hiring.roles = extractRoles(homeText);
     hiring.count = hiring.roles.length || null;
-    // Try to find a careers link on the homepage
     const careersMatch = /href=["']([^"']*(?:careers?|jobs)[^"']*)["']/i.exec(homepageHtml);
     if (careersMatch) {
       try {
@@ -70,10 +70,38 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter): Promise<Enri
       } catch { /* skip bad URL */ }
     }
   }
-  await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
+  // Augment with a SERP for "<name> careers" to catch external ATS pages
+  try {
+    const careersSerp = await serpSearchCached(`"${c.name}" careers OR hiring`, bridge, env.CACHE, { num: 5 });
+    const hit = careersSerp.results.find(r => /career|jobs|hiring|greenhouse|lever|workday|ashby/i.test(r.link + r.title));
+    if (hit) {
+      hiring.source = hiring.source ?? hit.link;
+      sources.push({ field: "hiring", tool: "bridge_serp", url: hit.link });
+      // titles in SERP often contain role names — augment roles list
+      const roles = new Set(hiring.roles);
+      for (const r of careersSerp.results.slice(0, 3)) {
+        for (const role of extractRoles(r.title)) roles.add(role);
+      }
+      hiring.roles = [...roles];
+      hiring.count = hiring.roles.length || hiring.count;
+    }
+    await emit.emit("enrich", { name: c.name, field: "hiring", status: "ok", roles: hiring.roles.length });
+  } catch (err) {
+    await emit.emit("enrich", { name: c.name, field: "hiring", status: "fail", error: (err as Error).message.slice(0, 100) });
+  }
 
+  // Recent activity SERP — "<name> news" → top 3 headlines
   const recent_activity: Operator["recent_activity"] = [];
-  // No news SERP — judges' demo loop can't afford the BD call budget.
+  try {
+    const newsSerp = await serpSearchCached(`"${c.name}" news 2026`, bridge, env.CACHE, { num: 5 });
+    for (const r of newsSerp.results.slice(0, 3)) {
+      recent_activity.push({ headline: r.title, date: "", source: r.link });
+      sources.push({ field: "recent_activity", tool: "bridge_serp", url: r.link });
+    }
+    await emit.emit("enrich", { name: c.name, field: "news", status: "ok", count: recent_activity.length });
+  } catch (err) {
+    await emit.emit("enrich", { name: c.name, field: "news", status: "fail", error: (err as Error).message.slice(0, 100) });
+  }
 
   let demand_signal: Operator["demand_signal"] = null;
   try {
@@ -113,9 +141,10 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
   // Bright Data Browser API has a navigation/concurrency quota per session.
-  // Cap concurrency low and cap total candidates so we stay under it.
-  const capped = candidates.slice(0, 8);
-  const CONCURRENCY = 2;
+  // The bridge serializes requests via mutex + recycles browser every 6 navs.
+  // Cap candidates so total BD calls (3 per candidate: homepage + careers SERP + news SERP) fit within the demo time window.
+  const capped = candidates.slice(0, 6);
+  const CONCURRENCY = 2; // worker-side concurrency; bridge mutex serializes anyway, but this paces SSE events nicely
   await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY} at a time)…` });
 
   const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit));
