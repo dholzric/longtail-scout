@@ -8,6 +8,7 @@ import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
 import { AboutPage } from "./components/AboutPage";
 import { SkeletonStrip } from "./components/Skeleton";
+import { Watchlist } from "./components/Watchlist";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
