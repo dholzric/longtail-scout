@@ -4,7 +4,7 @@
 
 **Who this is built for:** the GTM teams at vertical SaaS companies — **AccuLynx**, **JobNimbus**, **Roofr** (roofing); **ServiceTitan**, **HousecallPro**, **Jobber** (HVAC / home services); **Brightwheel**, **Procare** (childcare); and the hundred others whose SDRs spend their weeks manually scraping local-trade websites because Apollo's data is database-thin for the long tail.
 
-> **Demo storyline:** type `roofing contractors in Houston` → in 90 seconds, get 8 small-to-mid roofing operators with the kind of evidence an AccuLynx or Roofr SDR would build in a week of manual LinkedIn scraping. These are the operators Apollo doesn't have because they're not on LinkedIn.
+> **Demo storyline:** type `roofing contractors in Houston` → in 2-4 minutes, get 15-25 small-to-mid roofing operators with the kind of evidence an AccuLynx or Roofr SDR would build in a week of manual LinkedIn scraping. These are the operators Apollo doesn't have because they're not on LinkedIn. (Sample mode at `?sample=1` returns cached results in 140ms for instant demos.)
 
 **Live demo:** https://longtailscout.com (gated — password in lablab.ai submission description)
 **Source:** https://github.com/dholzric/longtail-scout

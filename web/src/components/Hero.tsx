@@ -37,7 +37,7 @@ export function Hero({ demandCount }: Props) {
               forgot to crawl.
             </h2>
             <p class="mt-5 text-lg leading-relaxed text-ink-70 max-w-[44ch]">
-              A live prospect scout for vertical-SaaS GTM teams. Type a niche × city; in ~90 seconds get a ranked, cited list of small operators whose primary signal is their <em>own website</em>, not LinkedIn.
+              A live prospect scout for vertical-SaaS GTM teams. Type a niche × city and get back a ranked, citation-linked list of small operators whose primary signal is their <em>own website</em>, not LinkedIn. A live scout takes 2-4 minutes and costs ~$0.20; or hit <code class="font-mono text-base">?sample=1</code> for cached samples at zero spend.
             </p>
           </div>
 
@@ -55,9 +55,9 @@ export function Hero({ demandCount }: Props) {
               ))}
             </ol>
             <div class="mt-3 pt-2 border-t border-ink-15 flex items-center justify-between font-mono text-[10px] text-ink-50 uppercase tracking-wider">
-              <span>~5-8 BD renders</span>
-              <span>~$0.07 / scout</span>
-              <span>~90s</span>
+              <span>15-30 BD renders</span>
+              <span>~$0.20 / scout</span>
+              <span>2-4 min</span>
             </div>
           </aside>
         </div>

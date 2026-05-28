@@ -55,7 +55,7 @@ interface ToolDefinition {
 const TOOLS: ToolDefinition[] = [
   {
     name: "scout",
-    description: "Run a long-tail prospect scout for a niche × city. Returns a ranked, citation-linked list of small operators whose primary signal is their own website (not LinkedIn). 'sample' mode returns cached results in ~140ms with zero BD/LLM cost; 'live' mode burns real credits and takes 30-90s.",
+    description: "Run a long-tail prospect scout for a niche × city. Returns a ranked, citation-linked list of small operators whose primary signal is their own website (not LinkedIn). 'sample' mode returns cached results in ~140ms with zero BD/LLM cost; 'live' mode burns real credits (~$0.20) and takes 2-4 min.",
     inputSchema: {
       type: "object",
       properties: {
