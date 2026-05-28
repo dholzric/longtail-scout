@@ -47,11 +47,11 @@ export async function lookalikesHandler(req: Request, env: Env): Promise<Respons
   const seedUrl = (url.searchParams.get("url") ?? "").trim();
   if (!seedUrl) return Response.json({ error: "missing url" }, { status: 400 });
 
-  // Same auth gate as the rest of /api/* — keep lookalike data behind the demo password.
+  // Header-only auth — no ?key= acceptance (query-string secrets leak via logs / history / Referer).
+  // See scout.ts checkAuth for context.
   if (env.DEMO_PASSWORD) {
     const auth = req.headers.get("authorization") ?? "";
-    const keyParam = url.searchParams.get("key") ?? "";
-    if (auth !== `Bearer ${env.DEMO_PASSWORD}` && keyParam !== env.DEMO_PASSWORD) {
+    if (auth !== `Bearer ${env.DEMO_PASSWORD}`) {
       return new Response("unauthorized", { status: 401 });
     }
   }

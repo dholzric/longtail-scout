@@ -27,9 +27,13 @@ export interface Env {
   BRIDGE_BASE: string;
   BRIDGE_AUTH_TOKEN?: string;
   RESEND_API_KEY?: string;
-  /** When set, discovery prefers SerpAPI's JSON SERP over BD's google.com rendering — ~5× faster. */
+  /** Optional 4th-tier SERP fallback. Try order is: Brave → DDG → BD bridge → SerpAPI.
+   *  SerpAPI is last because it's pay-per-call ($50/mo minimum) while the first three are
+   *  free / already-paid. Keep this key if you have it as a hedge for the 1% of niches that
+   *  return nothing through Brave/DDG/BD. */
   SERPAPI_KEY?: string;
-  /** When set, Brave Search API becomes the primary SERP tier (free 2k/mo, ~1-2s, JSON). */
+  /** Primary SERP tier — Brave Search API (free 2k/mo, ~1-2s, JSON). With Brave set, discovery
+   *  hits it first; the cascading fallbacks only fire if Brave returns no organic results. */
   BRAVE_API_KEY?: string;
 }
 

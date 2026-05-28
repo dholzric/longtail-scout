@@ -17,9 +17,10 @@ Bright Data's Browser API (the only zone type provisionable on the LongTail Scou
 ```bash
 cd /path/to/longtail-scout-bridge
 cp .env.example .env
-# Edit .env if you want to set BRIDGE_AUTH_TOKEN (recommended) or change port
-pnpm install   # or npm install
-pnpm start
+# Edit .env — BRIDGE_AUTH_TOKEN is REQUIRED in production (server refuses to start
+# with NODE_ENV=production unless it's set). Generate with: openssl rand -hex 32
+npm ci         # bridge ships package-lock.json — use npm here, not pnpm
+npm start
 ```
 
 Expected log:
@@ -59,7 +60,11 @@ This gives the Worker a callable URL: `https://bridge.longtailscout.com/render`.
 
 ## Auth
 
-If `BRIDGE_AUTH_TOKEN` is set, all non-`/health` requests require `Authorization: Bearer <token>`. The Worker passes this from its `BRIDGE_AUTH_TOKEN` secret.
+`BRIDGE_AUTH_TOKEN` is **required when `NODE_ENV=production`** — the server refuses to start otherwise. The bridge sits behind a public CF Tunnel, so an empty token would expose Bright Data render endpoints to anyone on the internet (and burn our BD credits).
+
+In production: all non-`/health` requests require `Authorization: Bearer <token>`. The Worker passes this from its own `BRIDGE_AUTH_TOKEN` secret.
+
+In local dev (no `NODE_ENV`): empty `BRIDGE_AUTH_TOKEN` is allowed but logs a warning.
 
 ## Why playwright-core (not playwright)
 

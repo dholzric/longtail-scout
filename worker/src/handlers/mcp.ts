@@ -203,8 +203,15 @@ export async function mcpHandler(req: Request, env: Env): Promise<Response> {
   return Response.json(isBatch ? responses : responses[0]);
 }
 
-async function handleMethod(r: JsonRpcRequest, env: Env, _req: Request): Promise<JsonRpcResponse> {
+async function handleMethod(r: JsonRpcRequest, env: Env, req: Request): Promise<JsonRpcResponse> {
   const id = r.id ?? null;
+  // Derive origin from the inbound request rather than hard-coding the production hostname.
+  // Lets the MCP server run correctly on preview/staging deployments AND on the production
+  // Worker — same code, no env var, no drift. Falls back to the prod host if the request URL
+  // is unparseable (shouldn't happen on Workers but keeps us safe).
+  let origin: string;
+  try { origin = new URL(req.url).origin; }
+  catch { origin = "https://longtailscout.com"; }
   try {
     switch (r.method) {
       case "initialize":
@@ -216,7 +223,7 @@ async function handleMethod(r: JsonRpcRequest, env: Env, _req: Request): Promise
       case "tools/list":
         return makeResponse(id, { tools: TOOLS });
       case "tools/call":
-        return await callTool(id, r.params, env);
+        return await callTool(id, r.params, env, origin);
       case "notifications/initialized":
       case "notifications/cancelled":
         // No-op; per spec these don't expect a response.
@@ -231,25 +238,25 @@ async function handleMethod(r: JsonRpcRequest, env: Env, _req: Request): Promise
   }
 }
 
-async function callTool(id: number | string | null, params: any, env: Env): Promise<JsonRpcResponse> {
+async function callTool(id: number | string | null, params: any, env: Env, origin: string): Promise<JsonRpcResponse> {
   const name = params?.name;
   const args = params?.arguments ?? {};
   if (!name) return makeError(id, -32602, "missing tool name");
 
   switch (name) {
-    case "scout":              return makeResponse(id, await toolScout(args, env));
+    case "scout":              return makeResponse(id, await toolScout(args, env, origin));
     case "find_businesses":    return makeResponse(id, await toolFindBusinesses(args, env));
     case "demand_count":       return makeResponse(id, await toolDemandCount(args, env));
-    case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env));
-    case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env));
-    case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env));
+    case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env, origin));
+    case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env, origin));
+    case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
 
 // ─── Tool implementations ────────────────────────────────────────────────────
 
-async function toolScout(args: any, env: Env) {
+async function toolScout(args: any, env: Env, origin: string) {
   const query = String(args?.query ?? "").trim();
   if (!query) return textContent("ERROR: missing query");
   const mode = args?.mode === "live" ? "live" : "sample";
@@ -272,10 +279,9 @@ async function toolScout(args: any, env: Env) {
   // Live mode — burn credits. We call our own /api/scout SSE endpoint server-side and
   // collect the final operators. This routes through every part of the agent pipeline.
   try {
-    const baseUrl = "https://longtailscout.com";
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const resp = await fetch(`${baseUrl}/api/scout`, {
+    const resp = await fetch(`${origin}/api/scout`, {
       method: "POST",
       headers,
       body: JSON.stringify({ query })
@@ -386,7 +392,7 @@ async function toolDemandCount(args: any, env: Env) {
   }
 }
 
-async function toolScreenshot(args: any, env: Env) {
+async function toolScreenshot(args: any, env: Env, origin: string) {
   const url = String(args?.url ?? "").trim();
   if (!url) return textContent("ERROR: missing url");
   const width = Math.min(Math.max(Number(args?.width ?? 1024), 320), 1920);
@@ -394,7 +400,7 @@ async function toolScreenshot(args: any, env: Env) {
   try {
     const headers: Record<string, string> = {};
     if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`https://longtailscout.com/api/screenshot?url=${encodeURIComponent(url)}&w=${width}&h=${height}`, { headers });
+    const r = await fetch(`${origin}/api/screenshot?url=${encodeURIComponent(url)}&w=${width}&h=${height}`, { headers });
     if (!r.ok) return textContent(`screenshot failed: HTTP ${r.status}`);
     const ab = await r.arrayBuffer();
     const bytes = new Uint8Array(ab);
@@ -410,13 +416,13 @@ async function toolScreenshot(args: any, env: Env) {
   }
 }
 
-async function toolNicheRecon(args: any, env: Env) {
+async function toolNicheRecon(args: any, env: Env, origin: string) {
   const desc = String(args?.product_description ?? "").trim();
   if (!desc || desc.length < 10) return textContent("ERROR: product_description required (10-800 chars)");
   try {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch("https://longtailscout.com/api/niche-recon", {
+    const r = await fetch(`${origin}/api/niche-recon`, {
       method: "POST",
       headers,
       body: JSON.stringify({ product_description: desc })
@@ -432,13 +438,13 @@ async function toolNicheRecon(args: any, env: Env) {
   }
 }
 
-async function toolDraftEmail(args: any, env: Env) {
+async function toolDraftEmail(args: any, env: Env, origin: string) {
   const operator = args?.operator;
   if (!operator?.name || !operator?.url) return textContent("ERROR: operator.name and operator.url required");
   try {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch("https://longtailscout.com/api/draft-email", {
+    const r = await fetch(`${origin}/api/draft-email`, {
       method: "POST",
       headers,
       body: JSON.stringify({ operator, buyer: args?.buyer })

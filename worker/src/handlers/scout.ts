@@ -161,14 +161,13 @@ function parseQuery(raw: string): ParsedQuery {
 function checkAuth(req: Request, env: Env): boolean {
   const expected = env.DEMO_PASSWORD;
   if (!expected) return true; // gate disabled if password unset
-  // Authorization: Bearer <pw>
+  // Header-only auth — we deliberately don't accept ?key= here. Query-string secrets leak via
+  // logs, browser history, Referer, and screen-recordings. Slides that show a scout call should
+  // use the BYOK panel or a curl example with -H. The frontend captures ?key= on first load
+  // into localStorage (then strips it from the URL) so shared bookmarks still bootstrap.
   const auth = req.headers.get("authorization") ?? "";
   if (auth === `Bearer ${expected}`) return true;
-  // x-demo-key header
   if (req.headers.get("x-demo-key") === expected) return true;
-  // ?key=<pw> query param (handy for demo URLs in slides)
-  const url = new URL(req.url);
-  if (url.searchParams.get("key") === expected) return true;
   return false;
 }
 
@@ -258,17 +257,31 @@ export async function scoutHandler(req: Request, env: Env, ctx: ExecutionContext
         await emitter.emit("progress", { message: `Parsed query — niche="${q.niche}", city="${q.city}".` });
       }
 
-      // Iterate every (niche × city) combination. Single-niche/single-city = 1 iteration; full
-      // compound query can be up to 4 niches × 3 cities = 12 sub-scouts. Operators from each
-      // are merged + deduped by URL at the end.
+      // Budget guard: cap total (niche × city) sub-scouts at MAX_SUB_SCOUTS. Without this, a
+      // compound query like "roofing OR HVAC OR plumbing OR electrical contractors in Texas"
+      // would expand to 4 × 3 = 12 sub-scouts on a shared demo password — ~$2.40 per click for
+      // anyone who has the password. We trim cities first (multi-niche is more demo-worthy than
+      // multi-city for the same niche; trimming cities preserves the variety of verticals).
+      const MAX_SUB_SCOUTS = 6;
+      let cities = pq.cities;
+      const niches = pq.niches;
+      let totalIterations = niches.length * cities.length;
+      if (totalIterations > MAX_SUB_SCOUTS) {
+        const maxCities = Math.max(1, Math.floor(MAX_SUB_SCOUTS / niches.length));
+        cities = cities.slice(0, maxCities);
+        const before = totalIterations;
+        totalIterations = niches.length * cities.length;
+        await emitter.emit("progress", { message: `Budget guard: capped from ${before} → ${totalIterations} sub-scouts (max ${MAX_SUB_SCOUTS}). Trimmed cities to ${cities.join(", ")}.` });
+      }
+
+      // Iterate every (niche × city) combination. Operators from each are merged + deduped by URL.
       const allOperators: Awaited<ReturnType<typeof synthesize>> = [];
       const seenUrls = new Set<string>();
-      const totalIterations = pq.niches.length * pq.cities.length;
       let iter = 0;
-      for (const subNiche of pq.niches) {
-        for (let ci = 0; ci < pq.cities.length; ci++) {
+      for (const subNiche of niches) {
+        for (let ci = 0; ci < cities.length; ci++) {
           iter++;
-          const city = pq.cities[ci]!;
+          const city = cities[ci]!;
           const subQuery: ScoutQuery = { niche: subNiche, city, raw: pq.raw };
           if (totalIterations > 1) {
             await emitter.emit("progress", { message: `Sub-scout ${iter}/${totalIterations}: "${subNiche}"${city ? ` in ${city}` : ""}` });

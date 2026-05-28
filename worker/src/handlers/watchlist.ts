@@ -91,11 +91,12 @@ async function saveWatch(kv: KVNamespace, w: Watch): Promise<void> {
 function checkAuth(req: Request, env: Env): boolean {
   const expected = env.DEMO_PASSWORD;
   if (!expected) return true;
+  // Header-only — see scout.ts checkAuth for the rationale (no ?key= leakage paths).
+  // The public token-authenticated unsub endpoint above is the only way for an email
+  // recipient to authenticate without the demo password.
   const auth = req.headers.get("authorization") ?? "";
   if (auth === `Bearer ${expected}`) return true;
   if (req.headers.get("x-demo-key") === expected) return true;
-  const url = new URL(req.url);
-  if (url.searchParams.get("key") === expected) return true;
   return false;
 }
 
