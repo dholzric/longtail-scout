@@ -2,6 +2,8 @@ import { useEffect, useState } from "preact/hooks";
 
 interface Props {
   query: string;
+  /** Demo password from App state. Required since /api/demand-research is gated. */
+  demoKey: string;
   /** Optional callback fired with the resolved count (or null on miss/error). Lets the Hero
    * surface the same number as a stamp without doing its own fetch. */
   onCount?: (count: number | null) => void;
@@ -38,7 +40,7 @@ function parseNiche(q: string): string {
  * The point: prove the 7M-record corpus exists and is reachable in <500ms, not as a
  * preprocessed snapshot. Sells the moat — Apollo doesn't have this signal.
  */
-export function DemandProbe({ query, onCount }: Props) {
+export function DemandProbe({ query, demoKey, onCount }: Props) {
   const [count, setCount] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errored, setErrored] = useState<boolean>(false);
@@ -50,12 +52,20 @@ export function DemandProbe({ query, onCount }: Props) {
       onCount?.(null);
       return;
     }
+    // No demo key means we can't authenticate — skip the probe rather than hit 401.
+    if (!demoKey) {
+      setCount(null);
+      onCount?.(null);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     setErrored(false);
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/demand-research?q=${encodeURIComponent(niche)}`);
+        const res = await fetch(`/api/demand-research?q=${encodeURIComponent(niche)}`, {
+          headers: { authorization: `Bearer ${demoKey}` }
+        });
         if (!res.ok) { if (!cancelled) { setErrored(true); onCount?.(null); } return; }
         const j = await res.json() as ResearchResponse;
         const c = typeof j.demand === "number" ? j.demand : null;
@@ -68,7 +78,7 @@ export function DemandProbe({ query, onCount }: Props) {
     }, 500); // debounce
     return () => { cancelled = true; clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, demoKey]);
 
   if (errored) return null;
   if (count === null && !loading) return null;

@@ -120,6 +120,17 @@ const TOOLS: ToolDefinition[] = [
       },
       required: ["operator"]
     }
+  },
+  {
+    name: "niche_recon",
+    description: "Reverse the GTM funnel: given a product description, suggest the top long-tail verticals to hunt in. An LLM expands the description into ~6 candidate verticals, then we cross-reference each against the 7M-business demand index. Ranks by demand density × Apollo-thinness (share of businesses whose only URL is a booking-platform / Google profile / Facebook page — i.e. they don't have their own domain for Apollo to enrich from). Returns top 5 niches with demand counts, thinness %, sample cities, and a one-click `suggested_query` you can pipe into the scout tool. Use this when a GTM team isn't sure which verticals their product fits. Takes 30-60s (LLM + demand index calls).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        product_description: { type: "string", description: "1-3 sentences about your product — what it does, who it's for. 10-800 chars." }
+      },
+      required: ["product_description"]
+    }
   }
 ];
 
@@ -231,6 +242,7 @@ async function callTool(id: number | string | null, params: any, env: Env): Prom
     case "demand_count":       return makeResponse(id, await toolDemandCount(args, env));
     case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env));
     case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env));
+    case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -395,6 +407,28 @@ async function toolScreenshot(args: any, env: Env) {
     return imageContent(btoa(binary), "image/png");
   } catch (err) {
     return textContent(`screenshot error: ${(err as Error).message}`);
+  }
+}
+
+async function toolNicheRecon(args: any, env: Env) {
+  const desc = String(args?.product_description ?? "").trim();
+  if (!desc || desc.length < 10) return textContent("ERROR: product_description required (10-800 chars)");
+  try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch("https://longtailscout.com/api/niche-recon", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ product_description: desc })
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`niche-recon failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    const j = await r.json();
+    return jsonContent(j);
+  } catch (err) {
+    return textContent(`niche-recon error: ${(err as Error).message}`);
   }
 }
 

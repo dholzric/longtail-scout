@@ -31,6 +31,8 @@ function isGeoFromDemandIndex(op: Operator): boolean {
 interface Props {
   operators: Operator[];
   query?: string;
+  /** Demo password from App state. Required since /api/businesses is gated. */
+  demoKey?: string;
   /** Compact mode — smaller height, simpler header, no heat-underlay legend, no SectionHeader.
    * Used as an always-visible live preview above the result table during streaming. */
   compact?: boolean;
@@ -63,7 +65,7 @@ function parseQuery(q: string): { niche: string; city: string | null } {
   return { niche: q.trim(), city: null };
 }
 
-export function MapView({ operators, query, compact }: Props) {
+export function MapView({ operators, query, demoKey, compact }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const pinLayerRef = useRef<L.LayerGroup | null>(null);
@@ -94,6 +96,7 @@ export function MapView({ operators, query, compact }: Props) {
   // Fetch density data when the query changes
   useEffect(() => {
     if (!query) { setDensity(null); return; }
+    if (!demoKey) { setDensity(null); return; } // can't auth → skip the underlay
     const { niche, city } = parseQuery(query);
     if (!niche) { setDensity(null); return; }
     let cancelled = false;
@@ -102,7 +105,9 @@ export function MapView({ operators, query, compact }: Props) {
     url.searchParams.set("q", niche);
     if (city) url.searchParams.set("city", city);
     url.searchParams.set("limit", "200");
-    fetch(url.toString())
+    fetch(url.toString(), {
+      headers: { authorization: `Bearer ${demoKey}` }
+    })
       .then(r => r.ok ? r.json() : null)
       .then((j: BusinessesResponse | null) => {
         if (cancelled) return;
@@ -111,7 +116,7 @@ export function MapView({ operators, query, compact }: Props) {
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoadingHeat(false); });
     return () => { cancelled = true; };
-  }, [query]);
+  }, [query, demoKey]);
 
   // Render the heat underlay
   useEffect(() => {

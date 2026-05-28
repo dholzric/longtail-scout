@@ -5,10 +5,21 @@ import * as cheerio from "cheerio";
 const BD_WS = process.env.BRIGHTDATA_BROWSER_WSS;
 const PORT = Number(process.env.BRIDGE_PORT ?? 8081);
 const AUTH = process.env.BRIDGE_AUTH_TOKEN ?? "";
+const IS_PROD = (process.env.NODE_ENV ?? "").toLowerCase() === "production";
 
 if (!BD_WS) {
   console.error("Missing BRIGHTDATA_BROWSER_WSS env var");
   process.exit(1);
+}
+
+// Production guard: refuse to start without a bearer token. The bridge sits behind a public
+// tunnel, so an empty token would let anyone burn our Bright Data credits via /render or /serp.
+if (IS_PROD && !AUTH) {
+  console.error("FATAL: BRIDGE_AUTH_TOKEN must be set in production. Generate with: openssl rand -hex 32");
+  process.exit(1);
+}
+if (!AUTH) {
+  console.warn("[bridge] WARNING: BRIDGE_AUTH_TOKEN is empty — accepting all requests. OK for local dev; never deploy this way.");
 }
 
 let sharedBrowser: Browser | null = null;

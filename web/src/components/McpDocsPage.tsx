@@ -32,6 +32,7 @@ export function McpDocsPage() {
             <ToolRow name="demand_count" desc="Single integer — how many businesses match this niche in the index, nationally. Faster than find_businesses." />
             <ToolRow name="operator_screenshot" desc="Capture a live homepage screenshot via Bright Data Browser API. Returns base64 PNG. Cached 30 days." />
             <ToolRow name="draft_email" desc="AI-personalized cold email for one operator. References their about + hiring + recent activity. ~$0.0002/call." />
+            <ToolRow name="niche_recon" desc="Reverse the GTM funnel — paste a product description, get the top 5 long-tail verticals ranked by demand-density × Apollo-thinness. The killer demo move." />
           </ul>
         </section>
 

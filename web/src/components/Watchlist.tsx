@@ -1,5 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
 
+/** Mirrors RedactedWatch from worker/src/handlers/watchlist.ts. The API never returns the
+ *  actual subscriber emails or webhook URL — they're PII / production secrets that would
+ *  leak across users on a shared demo password. We get counts + flags only. */
 interface Watch {
   id: string;
   query: string;
@@ -10,8 +13,8 @@ interface Watch {
   last_demand_count?: number | null;
   previous_demand_count?: number | null;
   last_demand_check_at?: number | null;
-  subscribers?: string[];
-  webhook_url?: string;
+  subscriber_count: number;
+  webhook_configured: boolean;
 }
 
 interface Props {
@@ -53,8 +56,8 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
     setTimeout(() => setSubFeedback(null), 3000);
   }
 
-  async function unsubscribe(watchId: string, email: string) {
-    if (!demoKey) return;
+  async function unsubscribeSelf(watchId: string, email: string) {
+    if (!demoKey || !email) return;
     await fetch(`/api/watchlist/${encodeURIComponent(watchId)}/subscribe?email=${encodeURIComponent(email)}`, {
       method: "DELETE",
       headers: { authorization: `Bearer ${demoKey}` }
@@ -149,7 +152,7 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
           const delta = (w.last_demand_count ?? null) !== null && (w.previous_demand_count ?? null) !== null
             ? (w.last_demand_count as number) - (w.previous_demand_count as number)
             : null;
-          const subs = w.subscribers ?? [];
+          const subCount = w.subscriber_count ?? 0;
           const isOpen = subForm?.watchId === w.id;
           return (
             <div key={w.id} class="rounded border border-slate-100 px-3 py-2 text-sm hover:bg-slate-50">
@@ -176,7 +179,7 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
                     title="Subscribe to daily email digests when this watch has +N new operators"
                     type="button"
                   >
-                    📧 {subs.length > 0 ? `${subs.length} subscribed` : "subscribe"}
+                    📧 {subCount > 0 ? `${subCount} subscribed` : "subscribe"}
                   </button>
                 </div>
                 <button class="rounded px-2 py-0.5 text-xs text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => removeWatch(w.id)} title="Remove">×</button>
@@ -195,22 +198,28 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
                     />
                     <button class="rounded bg-sky-700 px-3 py-1 text-xs text-white hover:bg-sky-800" type="submit">Add</button>
                   </form>
-                  {subs.length > 0 && (
+                  {subCount > 0 && (
                     <div class="space-y-1">
-                      <div class="text-sky-900/70 text-[10px] uppercase tracking-wide">Current subscribers</div>
-                      {subs.map((email) => (
-                        <div class="flex items-center gap-2">
-                          <span class="text-slate-700">{email}</span>
-                          <button class="text-rose-600 hover:underline text-[11px]" onClick={() => unsubscribe(w.id, email)} type="button">remove</button>
-                        </div>
-                      ))}
+                      <div class="text-sky-900/70 text-[10px] uppercase tracking-wide">Subscribers</div>
+                      <div class="text-slate-600">
+                        {subCount} {subCount === 1 ? "address" : "addresses"} subscribed (hidden — emails are PII).
+                      </div>
+                      <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target as HTMLFormElement); const em = String(fd.get("unsub_email") ?? "").trim().toLowerCase(); if (em) unsubscribeSelf(w.id, em); (e.target as HTMLFormElement).reset(); }} class="flex gap-2">
+                        <input
+                          name="unsub_email"
+                          type="email"
+                          class="flex-1 rounded border border-rose-200 px-2 py-1 text-xs focus:outline-none focus:border-rose-500"
+                          placeholder="enter your address to unsubscribe"
+                        />
+                        <button class="rounded bg-rose-600 px-2 py-1 text-xs text-white hover:bg-rose-700" type="submit">remove</button>
+                      </form>
                     </div>
                   )}
                   {subFeedback?.watchId === w.id && (
                     <div class={subFeedback.kind === "ok" ? "text-emerald-700" : "text-rose-700"}>{subFeedback.msg}</div>
                   )}
-                  <WebhookInput watchId={w.id} current={w.webhook_url} onSave={(url) => setWebhook(w.id, url)} />
-                  <div class="text-[10px] text-sky-900/60">Sent from <code>longtailscout@quiltmap.com</code> (display name "LongTail Scout"). Replace your existing watch's email here anytime — we don't double-send.</div>
+                  <WebhookInput watchId={w.id} configured={w.webhook_configured} onSave={(url) => setWebhook(w.id, url)} />
+                  <div class="text-[10px] text-sky-900/60">Sent from <code>longtailscout@quiltmap.com</code> (display name "LongTail Scout"). Each email has a personal unsubscribe link.</div>
                 </div>
               )}
             </div>
@@ -221,25 +230,29 @@ export function Watchlist({ demoKey, currentQuery, onPickQuery }: Props) {
   );
 }
 
-/** Optional Slack / Discord webhook URL field for the per-watch cron payload. */
-function WebhookInput({ watchId, current, onSave }: { watchId: string; current?: string; onSave: (url: string) => void }) {
-  const [val, setVal] = useState(current ?? "");
-  useEffect(() => { setVal(current ?? ""); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [current, watchId]);
+/** Optional Slack / Discord webhook URL field. The configured URL is never returned by the API
+ *  (it would be a production secret leak on a shared demo password), so the input always starts
+ *  empty even if a webhook is set; submitting a new value overwrites server-side. */
+function WebhookInput({ watchId, configured, onSave }: { watchId: string; configured: boolean; onSave: (url: string) => void }) {
+  const [val, setVal] = useState("");
+  useEffect(() => { setVal(""); /* reset on watch change */ }, [watchId]);
   return (
     <div class="border-t border-sky-200 pt-2 mt-2 space-y-1">
-      <div class="font-mono text-[10px] uppercase tracking-[0.12em] text-sky-900/70">Slack / Discord webhook (optional)</div>
+      <div class="font-mono text-[10px] uppercase tracking-[0.12em] text-sky-900/70">
+        Slack / Discord webhook {configured && <span class="text-emerald-700 normal-case">· currently configured (URL hidden)</span>}
+      </div>
       <div class="flex gap-1.5">
         <input
           type="url"
           class="flex-1 bg-paper border border-sky-300 px-2 py-1 text-xs focus:outline-none focus:border-sky-700"
-          placeholder="https://hooks.slack.com/services/... or https://discord.com/api/webhooks/..."
+          placeholder={configured ? "paste a new URL to replace, or click × to clear" : "https://hooks.slack.com/services/... or https://discord.com/api/webhooks/..."}
           value={val}
           onInput={(e) => setVal((e.target as HTMLInputElement).value)}
         />
-        <button class="rounded bg-sky-dk text-paper px-3 py-1 text-xs hover:bg-ink" type="button" onClick={() => onSave(val.trim())}>save</button>
-        {current && <button class="rounded bg-paper text-rust-dk border border-rust/40 px-2 py-1 text-xs hover:bg-rust-tint" type="button" onClick={() => onSave("")} title="Clear webhook">×</button>}
+        <button class="rounded bg-sky-dk text-paper px-3 py-1 text-xs hover:bg-ink disabled:opacity-50" type="button" onClick={() => onSave(val.trim())} disabled={!val.trim()}>save</button>
+        {configured && <button class="rounded bg-paper text-rust-dk border border-rust/40 px-2 py-1 text-xs hover:bg-rust-tint" type="button" onClick={() => onSave("")} title="Clear webhook">×</button>}
       </div>
-      <div class="text-[10px] text-sky-900/60">Fired by the daily cron when delta &gt; 0. Slack incoming-webhook or Discord webhook URL only.</div>
+      <div class="text-[10px] text-sky-900/60">Fired by the daily cron when delta &gt; 0. Slack incoming-webhook or Discord webhook URL only. We never echo the saved URL back.</div>
     </div>
   );
 }

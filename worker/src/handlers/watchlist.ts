@@ -14,10 +14,54 @@ interface Watch {
   /** Demand-API count from the cron run BEFORE the latest one, so we can show the most recent delta. */
   previous_demand_count?: number | null;
   last_demand_check_at?: number | null;
-  /** Email subscribers — receive a daily digest from the cron when delta > 0. */
+  /** Email subscribers — receive a daily digest from the cron when delta > 0.
+   *  Never exposed in LIST responses — see redactWatch(). */
   subscribers?: string[];
-  /** Optional Slack / Discord-compatible incoming webhook URL — cron POSTs delta payload when > 0. */
+  /** Optional Slack / Discord-compatible incoming webhook URL — cron POSTs delta payload when > 0.
+   *  Never exposed in LIST responses — see redactWatch(). */
   webhook_url?: string;
+}
+
+/** Public-facing watch shape — subscribers and webhook URL are PII / sensitive secrets.
+ *  Since the demo password is shared with every judge, anyone listing watches must NOT see
+ *  other people's email addresses or production Slack/Discord URLs. We expose counts + flags
+ *  only. The real values stay server-side and are only ever used by the cron. */
+interface RedactedWatch extends Omit<Watch, "subscribers" | "webhook_url"> {
+  /** Replaces the `subscribers: string[]` field. We show a count, never the addresses. */
+  subscriber_count: number;
+  /** Replaces the `webhook_url: string` field. True if one is configured. */
+  webhook_configured: boolean;
+}
+
+function redactWatch(w: Watch): RedactedWatch {
+  const { subscribers, webhook_url, ...rest } = w;
+  return {
+    ...rest,
+    subscriber_count: (subscribers ?? []).length,
+    webhook_configured: typeof webhook_url === "string" && webhook_url.length > 0
+  };
+}
+
+/** Sign a (watch_id, email) tuple with HMAC-SHA256 keyed on DEMO_PASSWORD. The first 16 hex
+ *  chars are enough entropy (~64 bits) to make brute-force enumeration impractical while
+ *  keeping email URLs short enough to render cleanly. */
+async function signUnsub(id: string, email: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(`${id}|${email.toLowerCase()}`));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+async function verifyUnsub(id: string, email: string, token: string, secret: string): Promise<boolean> {
+  if (!token || token.length !== 16) return false;
+  const expected = await signUnsub(id, email, secret);
+  // Constant-time compare so we don't leak the prefix on mismatch.
+  if (expected.length !== token.length) return false;
+  let ok = 0;
+  for (let i = 0; i < expected.length; i++) ok |= expected.charCodeAt(i) ^ token.charCodeAt(i);
+  return ok === 0;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,6 +100,16 @@ function checkAuth(req: Request, env: Env): boolean {
 }
 
 export async function watchlistHandler(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+  const path = url.pathname; // /api/watchlist or /api/watchlist/:id
+
+  // PUBLIC: GET/POST /api/watchlist/unsubscribe — token-authenticated, no demo password required.
+  // CAN-SPAM compliance: the digest email link must work for the recipient without forcing them
+  // to know the demo password. HMAC token in the URL proves we sent the email to that address.
+  if (/\/api\/watchlist\/unsubscribe\/?$/.test(path)) {
+    return handleUnsubscribeByToken(req, env);
+  }
+
   if (!checkAuth(req, env)) {
     return new Response(JSON.stringify({ error: "auth required" }), {
       status: 401,
@@ -63,16 +117,15 @@ export async function watchlistHandler(req: Request, env: Env): Promise<Response
     });
   }
 
-  const url = new URL(req.url);
-  const path = url.pathname; // /api/watchlist or /api/watchlist/:id
-
-  // LIST: GET /api/watchlist
+  // LIST: GET /api/watchlist — returns redacted watches (no subscriber emails, no webhook URLs).
+  // Demo password is shared with all judges; exposing per-user PII to every authorized visitor
+  // would let a malicious user enumerate everyone else's emails / production webhook URLs.
   if (req.method === "GET" && /\/api\/watchlist\/?$/.test(path)) {
     const ids = await readIndex(env.CACHE);
-    const watches: Watch[] = [];
+    const watches: RedactedWatch[] = [];
     for (const id of ids) {
       const w = await loadWatch(env.CACHE, id);
-      if (w) watches.push(w);
+      if (w) watches.push(redactWatch(w));
     }
     watches.sort((a, b) => (b.last_run_at ?? b.created_at) - (a.last_run_at ?? a.created_at));
     return Response.json({ watches });
@@ -175,6 +228,51 @@ export async function watchlistHandler(req: Request, env: Env): Promise<Response
   return new Response("Not found", { status: 404 });
 }
 
+/** Public unsubscribe endpoint — authorizes via HMAC token in the URL instead of the demo
+ *  password, so the unsubscribe link in digest emails works for recipients who don't have
+ *  the password. Both GET (followed from email link, returns a friendly HTML page) and POST
+ *  (called by the SPA when it detects ?unsub= in the URL) are accepted. */
+async function handleUnsubscribeByToken(req: Request, env: Env): Promise<Response> {
+  const url = new URL(req.url);
+  const id = (url.searchParams.get("id") ?? "").trim();
+  const email = (url.searchParams.get("email") ?? "").trim().toLowerCase();
+  const token = (url.searchParams.get("token") ?? "").trim();
+  const secret = env.DEMO_PASSWORD ?? "";
+  if (!id || !email || !token || !secret) {
+    return unsubResponse(req, false, "missing id, email, or token");
+  }
+  if (!EMAIL_RE.test(email)) return unsubResponse(req, false, "invalid email");
+  if (!(await verifyUnsub(id, email, token, secret))) {
+    return unsubResponse(req, false, "invalid token (link may be expired or tampered)");
+  }
+  const watch = await loadWatch(env.CACHE, id);
+  if (!watch) return unsubResponse(req, false, "watch not found");
+  const subs = new Set(watch.subscribers ?? []);
+  const wasSubscribed = subs.has(email);
+  subs.delete(email);
+  watch.subscribers = Array.from(subs);
+  await saveWatch(env.CACHE, watch);
+  return unsubResponse(req, true, wasSubscribed ? `unsubscribed ${email} from "${watch.query}"` : `${email} was not subscribed to "${watch.query}"`);
+}
+
+function unsubResponse(req: Request, ok: boolean, message: string): Response {
+  // GET → friendly HTML page (the user clicked an email link). POST → JSON (the SPA called it).
+  const wantsJson = req.method !== "GET" || (req.headers.get("accept") ?? "").includes("application/json");
+  if (wantsJson) {
+    return Response.json({ ok, message }, { status: ok ? 200 : 400 });
+  }
+  const safe = message.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>LongTail Scout — Unsubscribe</title>
+<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:520px;margin:60px auto;padding:24px;color:#1a1814}
+h1{font-size:22px;margin:0 0 8px}.box{padding:18px;border-radius:8px;${ok ? "background:#dce5cc;border:1px solid #3e6b2c" : "background:#f4e1da;border:1px solid #a8351f"}}
+.muted{color:#6b645b;font-size:13px;margin-top:12px}a{color:#1a1814}</style></head><body>
+<h1>${ok ? "Unsubscribed ✓" : "Couldn't unsubscribe"}</h1>
+<div class="box">${safe}</div>
+<p class="muted">You can resubscribe anytime from the watchlist on <a href="https://longtailscout.com">longtailscout.com</a>.</p>
+</body></html>`;
+  return new Response(html, { status: ok ? 200 : 400, headers: { "content-type": "text/html; charset=utf-8" } });
+}
+
 /**
  * Daily cron-triggered demand-signal refresh. For each watch, pings the demand-API for
  * the niche+city and stores the business count + delta. The watchlist UI surfaces this
@@ -232,9 +330,14 @@ export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: bool
       if (!env.RESEND_API_KEY) {
         email_error = "RESEND_API_KEY not configured";
         emails_failed++;
+      } else if (!env.DEMO_PASSWORD) {
+        email_error = "DEMO_PASSWORD not configured (used as HMAC secret for unsub tokens)";
+        emails_failed++;
       } else {
-        const { subject, html, text } = buildDigestEmail(w, current, prev, delta);
+        // Per-recipient render so each subscriber's unsubscribe link only unsubscribes them.
         for (const to of subscribers) {
+          const token = await signUnsub(w.id, to, env.DEMO_PASSWORD);
+          const { subject, html, text } = buildDigestEmail(w, current, prev, delta, to, token);
           const res = await sendEmail(env.RESEND_API_KEY, {
             from: RESEND_DEFAULT_FROM,
             to,
@@ -310,14 +413,16 @@ function buildWebhookPayload(watch: Watch, current: number, prev: number | null,
   };
 }
 
-function buildDigestEmail(watch: Watch, current: number, prev: number | null, delta: number): { subject: string; html: string; text: string } {
+function buildDigestEmail(watch: Watch, current: number, prev: number | null, delta: number, recipientEmail: string, unsubToken: string): { subject: string; html: string; text: string } {
   const niche = watch.query;
   const deltaText = delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : "no change";
   const subject = delta > 0
     ? `LongTail Scout: +${delta} new businesses in "${niche}" since yesterday`
     : `LongTail Scout: ${niche} — daily refresh (${deltaText})`;
   const runUrl = `https://longtailscout.com/?q=${encodeURIComponent(niche)}&run=1`;
-  const unsubUrl = `https://longtailscout.com/?unsub=${encodeURIComponent(watch.id)}`;
+  // Authenticated unsubscribe — the SPA reads the same params on page load and POSTs to
+  // /api/watchlist/unsubscribe. Hitting the URL directly (GET) returns a friendly confirmation page.
+  const unsubUrl = `https://longtailscout.com/api/watchlist/unsubscribe?id=${encodeURIComponent(watch.id)}&email=${encodeURIComponent(recipientEmail)}&token=${unsubToken}`;
 
   const text = [
     `LongTail Scout — daily watchlist digest`,

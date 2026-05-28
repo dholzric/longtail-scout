@@ -83,6 +83,33 @@ export function App() {
     // Operator permalink (?op=<id>) — ResultTable will auto-expand the matching row.
     const opParam = url.searchParams.get("op");
     if (opParam) setInitialOpenId(opParam);
+
+    // Email unsubscribe link — ?id=<watch>&email=<addr>&token=<hmac> on a redirect from the
+    // digest email. The worker also serves a friendly HTML page at the same path, but if the
+    // recipient lands here from a misformatted client we still complete the unsub via API.
+    const unsubId = url.searchParams.get("unsub") || url.searchParams.get("id");
+    const unsubEmail = url.searchParams.get("email");
+    const unsubToken = url.searchParams.get("token");
+    if (unsubId && unsubEmail && unsubToken) {
+      const u = new URL("/api/watchlist/unsubscribe", window.location.origin);
+      u.searchParams.set("id", unsubId);
+      u.searchParams.set("email", unsubEmail);
+      u.searchParams.set("token", unsubToken);
+      fetch(u.toString(), { method: "POST", headers: { accept: "application/json" } })
+        .then(r => r.json())
+        .then((j: { ok?: boolean; message?: string }) => {
+          alert(j.ok ? `Unsubscribed: ${j.message ?? "ok"}` : `Could not unsubscribe: ${j.message ?? "unknown error"}`);
+        })
+        .catch(() => alert("Unsubscribe request failed — try clicking the link in the email directly."))
+        .finally(() => {
+          // Clean the URL so a refresh doesn't re-fire.
+          url.searchParams.delete("unsub");
+          url.searchParams.delete("id");
+          url.searchParams.delete("email");
+          url.searchParams.delete("token");
+          window.history.replaceState(null, "", url.toString());
+        });
+    }
   }, []);
 
   // Listen for the auto-run signal dispatched after URL parsing.
@@ -281,7 +308,7 @@ export function App() {
         {!embedMode && <Hero demandCount={demandCount} />}
         <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
         {!embedMode && <NicheRecon demoKey={demoKey} disabled={status === "running"} onPickQuery={(q) => { setQuery(q); void run(q); }} />}
-        <DemandProbe query={query} onCount={setDemandCount} />
+        <DemandProbe query={query} demoKey={demoKey} onCount={setDemandCount} />
         {showByok && <ByokPanel />}
         {!embedMode && <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />}
         {!embedMode && <RecentRuns onPickQuery={setQuery} />}
@@ -317,9 +344,9 @@ export function App() {
             {/* Live streaming map preview — shown when operators are streaming in AND user is on the table tab.
                 Lets people see pins drop in real-time without switching tabs. Hidden in Map view (the full map already shows them) and in embed mode. */}
             {view === "table" && !embedMode && operators.some(o => o.geo) && (
-              <MapView operators={operators} query={query} compact />
+              <MapView operators={operators} query={query} demoKey={demoKey} compact />
             )}
-            {view === "table" ? <ResultTable operators={operators} initialOpenId={initialOpenId} query={query} /> : <MapView operators={operators} query={query} />}
+            {view === "table" ? <ResultTable operators={operators} initialOpenId={initialOpenId} query={query} /> : <MapView operators={operators} query={query} demoKey={demoKey} />}
           </>
         )}
       </main>
