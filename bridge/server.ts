@@ -1,6 +1,7 @@
 import http from "node:http";
 import { chromium, type Browser } from "playwright-core";
 import * as cheerio from "cheerio";
+import { validateRenderUrl } from "./validateUrl";
 
 const BD_WS = process.env.BRIGHTDATA_BROWSER_WSS;
 const PORT = Number(process.env.BRIDGE_PORT ?? 8081);
@@ -275,25 +276,8 @@ function readBody(req: http.IncomingMessage): Promise<string> {
   });
 }
 
-const PRIVATE_HOSTNAME_RE = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|fe80:|fc00:|fd00:|::1$|metadata\.google\.internal)/i;
-
-function validateRenderUrl(input: string): { ok: true; url: string } | { ok: false; error: string } {
-  if (typeof input !== "string") return { ok: false, error: "url must be a string" };
-  if (input.length > 4096) return { ok: false, error: "url too long" };
-  let parsed: URL;
-  try {
-    parsed = new URL(input);
-  } catch {
-    return { ok: false, error: "url is not a valid URL" };
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return { ok: false, error: "url must be http or https" };
-  }
-  if (PRIVATE_HOSTNAME_RE.test(parsed.hostname)) {
-    return { ok: false, error: "private/loopback hostnames are not allowed" };
-  }
-  return { ok: true, url: parsed.toString() };
-}
+// SSRF guard lives in ./validateUrl.ts (pure + unit-tested by worker/tests/bridgeSsrf.test.ts)
+// so the bridge and worker SSRF rules can't silently drift apart again.
 
 function clampWaitMs(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return undefined;
