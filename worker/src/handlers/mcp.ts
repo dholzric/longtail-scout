@@ -123,6 +123,18 @@ const TOOLS: ToolDefinition[] = [
     }
   },
   {
+    name: "find_contacts",
+    description: "Discover a reachable email, phone, and named contact for an operator by walking its contact/about pages via Bright Data. Returns the operator's own-domain inbox first (the highest-value address), with the pages fetched as citations. Cost-capped and cached 7 days.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "Operator homepage URL." },
+        name: { type: "string", description: "Operator business name, optional." }
+      },
+      required: ["url"]
+    }
+  },
+  {
     name: "linkedin_check",
     description: "Apollo-blind verification: run a `site:linkedin.com/company` search through Bright Data and report whether an operator has a LinkedIn company page. A confirmed absence is hard proof the operator is invisible to LinkedIn-graph tools (Apollo/ZoomInfo/Clay) — the core LongTail Scout thesis. Cached 30 days.",
     inputSchema: {
@@ -265,6 +277,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env, origin));
     case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env, origin));
     case "linkedin_check":     return makeResponse(id, await toolLinkedInCheck(args, env, origin));
+    case "find_contacts":      return makeResponse(id, await toolFindContacts(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -450,6 +463,25 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolFindContacts(args: any, env: Env, origin: string) {
+  const url = String(args?.url ?? "").trim();
+  if (!url) return textContent("ERROR: missing url");
+  const params = new URLSearchParams({ url });
+  if (args?.name) params.set("name", String(args.name).trim());
+  try {
+    const headers: Record<string, string> = {};
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/contact-discovery?${params.toString()}`, { headers });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`find-contacts failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    return jsonContent(await r.json());
+  } catch (err) {
+    return textContent(`find-contacts error: ${(err as Error).message}`);
   }
 }
 

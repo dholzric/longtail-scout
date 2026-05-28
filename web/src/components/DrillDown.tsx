@@ -192,6 +192,15 @@ interface Lookalike {
   last_query: string;
 }
 
+interface ContactDiscovery {
+  emails: { email: string; same_domain: boolean }[];
+  phone: string | null;
+  contact: { name: string; role: string } | null;
+  sources: { field: string; tool: string; url: string }[];
+  pages_fetched: number;
+  error?: string;
+}
+
 export function DrillDown({ op }: { op: Operator }) {
   const [copied, setCopied] = useState<string>("");
   const [ai, setAi] = useState<AiDraft | null>(null);
@@ -200,6 +209,27 @@ export function DrillDown({ op }: { op: Operator }) {
   const [lookalikes, setLookalikes] = useState<Lookalike[] | null>(null);
   const [lookalikesLoading, setLookalikesLoading] = useState<boolean>(false);
   const [lookalikesNote, setLookalikesNote] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<ContactDiscovery | null>(null);
+  const [contactsLoading, setContactsLoading] = useState<boolean>(false);
+  const [contactsNote, setContactsNote] = useState<string | null>(null);
+
+  async function discoverContacts() {
+    setContactsLoading(true);
+    setContactsNote(null);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+      const params = new URLSearchParams({ url: op.url, name: op.name, key });
+      const r = await fetch(`/api/contact-discovery?${params.toString()}`);
+      const j = await r.json() as ContactDiscovery;
+      setContacts(j);
+      if (j.error) setContactsNote(j.error);
+      else if (j.emails.length === 0 && !j.phone) setContactsNote(`No new contacts found across ${j.pages_fetched} page(s).`);
+    } catch (err) {
+      setContactsNote((err as Error).message);
+    } finally {
+      setContactsLoading(false);
+    }
+  }
 
   async function findLookalikes() {
     setLookalikesLoading(true);
@@ -428,6 +458,53 @@ export function DrillDown({ op }: { op: Operator }) {
               <div class="mt-1 text-xs text-ink-60">Multi-vertical operators are often the highest-LTV accounts — they buy multiple SaaS tools.</div>
             </div>
           )}
+
+          {/* Contact discovery — walks contact/about pages via Bright Data for a real inbox */}
+          <div class="border border-ink-15 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">discover contacts</div>
+              <button
+                class="border border-ink-25 bg-paper-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 disabled:opacity-50"
+                onClick={discoverContacts}
+                disabled={contactsLoading}
+                type="button"
+                title="Fetch the operator's contact/about pages via Bright Data and extract a reachable email + phone"
+              >
+                {contactsLoading ? "fetching via BD…" : contacts ? "re-scan" : "find via Bright Data"}
+              </button>
+            </div>
+            <div class="text-xs text-ink-60">Walks the contact/about pages via the Bright Data Browser to surface a real inbox an SDR can email — beyond the homepage.</div>
+            {contactsNote && <div class="mt-2 text-xs text-rust-dk italic">{contactsNote}</div>}
+            {contacts && (contacts.emails.length > 0 || contacts.phone || contacts.contact) && (
+              <div class="mt-2.5 space-y-1.5">
+                {contacts.emails.map((e) => (
+                  <div key={e.email} class="flex items-center gap-2 text-sm">
+                    <a href={`mailto:${e.email}`} class="text-ink-80 hover:text-rust font-mono text-[13px] break-all">{e.email}</a>
+                    {e.same_domain && <span class="font-mono text-[9px] uppercase tracking-wider bg-moss-tint/50 text-moss-dk px-1.5 py-0.5" title="Own-domain inbox — the highest-value address">own domain</span>}
+                  </div>
+                ))}
+                {contacts.phone && (
+                  <div class="text-sm">
+                    <a href={`tel:${contacts.phone.replace(/[^\d+]/g, "")}`} class="text-ink-80 hover:text-rust font-mono inline-flex items-center gap-1.5"><span aria-hidden="true">📞</span>{contacts.phone}</a>
+                  </div>
+                )}
+                {contacts.contact && (
+                  <div class="text-sm text-ink-80 inline-flex items-center gap-1.5"><span aria-hidden="true">👤</span><strong class="text-ink">{contacts.contact.name}</strong><span class="text-ink-60 text-xs">· {contacts.contact.role}</span></div>
+                )}
+                {contacts.sources.length > 0 && (
+                  <div class="pt-1 font-mono text-[10px] text-ink-50">
+                    {contacts.pages_fetched} page{contacts.pages_fetched === 1 ? "" : "s"} fetched via Bright Data:{" "}
+                    {contacts.sources.map((s, i) => (
+                      <span key={i}>
+                        {i > 0 ? " · " : ""}
+                        <a class="underline decoration-dotted hover:text-ink" href={s.url} target="_blank" rel="noreferrer">{(() => { try { return new URL(s.url).pathname || "/"; } catch { return s.url; } })()}</a>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Lookalikes — finds operators in the memory layer with overlapping query_history */}
           <div class="border border-ink-15 px-3 py-2.5">
