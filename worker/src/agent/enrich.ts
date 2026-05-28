@@ -5,10 +5,45 @@ import { demandLookup } from "../demand/client";
 import { geocode } from "../geocode/nominatim";
 import { parseCareersPage } from "./careers";
 import { detectTechStack } from "./techStack";
+import { extractContactInfo } from "./contact";
+import { extractDomain } from "./dedupe";
+
+/** Mark a hostname as "no operator content" so future scouts skip it. 7-day TTL. */
+async function negativeCachePut(kv: KVNamespace, hostname: string, reason: string): Promise<void> {
+  try {
+    await kv.put(`negcache:host:${hostname}`, JSON.stringify({ reason, ts: Date.now() }), { expirationTtl: 7 * 86400 });
+  } catch { /* best-effort */ }
+}
+
+async function negativeCacheCheck(kv: KVNamespace, hostname: string): Promise<{ reason: string; ts: number } | null> {
+  try {
+    return await kv.get(`negcache:host:${hostname}`, "json") as { reason: string; ts: number } | null;
+  } catch { return null; }
+}
+
+/** Heuristic: does this HTML look like a real operator's site (vs an aggregator / parked / 404)?
+ *  Returns null if it looks fine, or a short reason string if it should be neg-cached. */
+function isEmptyShell(html: string, url: string): string | null {
+  if (!html || html.length < 500) return "html too short";
+  const text = html.toLowerCase();
+  // Parked / for-sale domains
+  if (/buy this domain|domain (?:is )?for sale|parked (?:domain|by)|domain expired/i.test(text)) return "parked domain";
+  // Generic aggregator/listing markers in absence of about-page signals
+  const isAggregator = /\b(?:browse (?:by )?location|top \d+ |best \d+ |compare quotes|find a contractor|leads? near you)\b/i.test(text);
+  const hasOperatorSignals = /\b(?:about us|our team|our crew|family[\s-]?owned|locally[\s-]?owned|family[\s-]?run|founded in|since \d{4}|established|serving \w+ since|our story|contact us|free estimate|schedule|book online|get a quote|request service)\b/i.test(text);
+  if (isAggregator && !hasOperatorSignals) return "aggregator-shaped";
+  // Pure-redirect / framework-only pages — no meaningful body text
+  const visibleChars = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().length;
+  if (visibleChars < 200) return "no visible content";
+  // 404-like patterns
+  if (/\b(?:page not found|404 error|nothing here|this page (?:doesn't|does not) exist)\b/i.test(text) && visibleChars < 1500) return "404-like page";
+  void url; // reserved for future per-URL heuristics
+  return null;
+}
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
-type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo" | "memory" | "tech_stack">;
+type EnrichedPartial = Pick<Operator, "name" | "url" | "sources" | "about" | "size_estimate" | "hiring" | "recent_activity" | "demand_signal" | "geo" | "memory" | "tech_stack" | "phone" | "contact">;
 
 function extractAbout(html: string): string | null {
   const meta = /<meta\s+name=["']description["']\s+content=["']([^"']{20,400})["']/i;
@@ -98,12 +133,32 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   const bridge = { base: env.BRIDGE_BASE, token: env.BRIDGE_AUTH_TOKEN };
   const sources: Citation[] = [];
 
+  // Negative cache — skip hostnames we've already proven to be aggregator-shaped / parked / dead.
+  // Saves a BD render per stale candidate.
+  const candidateHost = extractDomain(c.url);
+  const negHit = await negativeCacheCheck(env.CACHE, candidateHost);
+  if (negHit) {
+    await emit.emit("enrich", { name: c.name, field: "homepage", status: "skip", reason: `negcache: ${negHit.reason}` });
+    return null;
+  }
+
   let homepageHtml = "";
   try {
     const page = await webUnlockerCached(c.url, bridge, env.CACHE);
-    if (tally) tally.bd_renders += 1;
+    // Only charge a BD render when the bridge actually served the page. Cheap-path plain fetches
+    // are free — see webUnlocker.ts.
+    if (tally && page.source !== "plain") tally.bd_renders += 1;
     homepageHtml = page.html;
-    sources.push({ field: "about", tool: "bridge_render", url: c.url });
+    // After-the-fact check: if this homepage looks like an empty shell, remember that for next time.
+    const shellReason = isEmptyShell(homepageHtml, c.url);
+    if (shellReason) {
+      await negativeCachePut(env.CACHE, candidateHost, shellReason);
+      await emit.emit("enrich", { name: c.name, field: "homepage", status: "skip", reason: `looks like ${shellReason} — neg-cached for 7d` });
+      return null;
+    }
+    // Snippet for the hover-preview: about meta or first sentence of body, capped to 240 chars
+    const aboutSnippet = extractAbout(homepageHtml);
+    sources.push({ field: "about", tool: "bridge_render", url: c.url, snippet: aboutSnippet ? aboutSnippet.slice(0, 240) : undefined });
     await emit.emit("enrich", { name: c.name, field: "homepage", status: "ok" });
   } catch (err) {
     await emit.emit("enrich", { name: c.name, field: "homepage", status: "fail", error: (err as Error).message });
@@ -134,7 +189,7 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
     // a careers link — bounded, cached, only fires when we have signal worth verifying.
     try {
       const careersPage = await webUnlockerCached(careersUrl, bridge, env.CACHE);
-      if (tally) tally.bd_renders += 1;
+      if (tally && careersPage.source !== "plain") tally.bd_renders += 1;
       const parsed = parseCareersPage(careersPage.html);
       hiring.source = careersUrl;
       sources.push({ field: "hiring", tool: `careers_page:${parsed.pattern}`, url: careersUrl });
@@ -224,7 +279,14 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
   if (tech_stack.length > 0) {
     await emit.emit("enrich", { name: c.name, field: "tech_stack", status: "ok", detected: tech_stack.length });
   }
-  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null, tech_stack };
+
+  // Contact info — phone (tel: link or US-format regex) + owner/founder name.
+  const contactInfo = extractContactInfo(homepageHtml);
+  if (contactInfo.phone || contactInfo.contact) {
+    await emit.emit("enrich", { name: c.name, field: "contact", status: "ok", has_phone: !!contactInfo.phone, has_owner: !!contactInfo.contact });
+  }
+
+  return { name: c.name, url: c.url, sources, about, size_estimate, hiring, recent_activity, demand_signal: null, geo, memory: null, tech_stack, phone: contactInfo.phone, contact: contactInfo.contact };
 }
 
 async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => Promise<R>): Promise<PromiseSettledResult<R>[]> {

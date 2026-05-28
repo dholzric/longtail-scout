@@ -2,6 +2,8 @@ export interface Citation {
   field: string;
   tool: string;
   url: string;
+  /** Optional short snippet from the source page — used for hover previews so users see proof in-context. */
+  snippet?: string;
 }
 
 export interface Operator {
@@ -32,6 +34,10 @@ export interface Operator {
   city?: string;
   /** Detected vendor stack from the operator's homepage HTML — ATS, field-service SaaS, CMS, analytics, etc. Empty if none detected. */
   tech_stack?: string[];
+  /** Phone number parsed from homepage (tel: link or plain-text US format). */
+  phone?: string | null;
+  /** Owner / founder / CEO if parseable from homepage HTML. */
+  contact?: { name: string; role: string } | null;
 }
 
 export interface Candidate {

@@ -1,4 +1,4 @@
-export interface Citation { field: string; tool: string; url: string }
+export interface Citation { field: string; tool: string; url: string; snippet?: string }
 
 export interface Operator {
   name: string;
@@ -17,6 +17,8 @@ export interface Operator {
   confidence: number;
   city?: string;
   tech_stack?: string[];
+  phone?: string | null;
+  contact?: { name: string; role: string } | null;
 }
 
 export interface CostSnapshot {

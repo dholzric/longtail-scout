@@ -99,11 +99,43 @@ interface AiDraft {
   cost: number;
 }
 
+interface Lookalike {
+  url: string;
+  name: string;
+  similarity: number;
+  shared_queries: string[];
+  seen_count: number;
+  last_query: string;
+}
+
 export function DrillDown({ op }: { op: Operator }) {
   const [copied, setCopied] = useState<string>("");
   const [ai, setAi] = useState<AiDraft | null>(null);
   const [aiLoading, setAiLoading] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [lookalikes, setLookalikes] = useState<Lookalike[] | null>(null);
+  const [lookalikesLoading, setLookalikesLoading] = useState<boolean>(false);
+  const [lookalikesNote, setLookalikesNote] = useState<string | null>(null);
+
+  async function findLookalikes() {
+    setLookalikesLoading(true);
+    setLookalikesNote(null);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem("lts_demo_key") : null) ?? "";
+      const r = await fetch(`/api/lookalikes?url=${encodeURIComponent(op.url)}&key=${encodeURIComponent(key)}`);
+      if (!r.ok) {
+        setLookalikesNote(`HTTP ${r.status}`);
+        return;
+      }
+      const j = await r.json() as { lookalikes: Lookalike[]; note?: string };
+      setLookalikes(j.lookalikes);
+      if (j.note) setLookalikesNote(j.note);
+    } catch (err) {
+      setLookalikesNote((err as Error).message);
+    } finally {
+      setLookalikesLoading(false);
+    }
+  }
 
   async function flash(label: string, text: string) {
     if (await copyText(text)) {
@@ -202,6 +234,22 @@ export function DrillDown({ op }: { op: Operator }) {
         {op.city && <><span>·</span><span>{op.city}</span></>}
         {op.geo?.display_name && <><span>·</span><span class="truncate max-w-md" title={op.geo.display_name}>{op.geo.display_name.slice(0, 60)}</span></>}
       </div>
+      {/* Contact strip — phone + owner if extracted from homepage */}
+      {(op.phone || op.contact) && (
+        <div class="mt-2 flex flex-wrap items-center gap-3 text-sm">
+          {op.phone && (
+            <a href={`tel:${op.phone.replace(/[^\d+]/g, "")}`} class="inline-flex items-center gap-1.5 text-ink-80 hover:text-rust font-mono" title="Direct dial — extracted from homepage">
+              <span aria-hidden="true">📞</span>{op.phone}
+            </a>
+          )}
+          {op.contact && (
+            <span class="inline-flex items-center gap-1.5 text-ink-80">
+              <span aria-hidden="true">👤</span>
+              <span><strong class="text-ink">{op.contact.name}</strong> <span class="text-ink-60 text-xs">· {op.contact.role}</span></span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div class="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] gap-6">
@@ -292,6 +340,39 @@ export function DrillDown({ op }: { op: Operator }) {
             </div>
           )}
 
+          {/* Lookalikes — finds operators in the memory layer with overlapping query_history */}
+          <div class="border border-ink-15 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">find lookalikes</div>
+              <button
+                class="border border-ink-25 bg-paper-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-70 hover:bg-paper-3"
+                onClick={findLookalikes}
+                disabled={lookalikesLoading}
+                type="button"
+              >
+                {lookalikesLoading ? "scanning…" : lookalikes ? "rescan" : "scan memory"}
+              </button>
+            </div>
+            <div class="text-xs text-ink-60">Operators in our memory layer whose query_history overlaps with this one. Higher similarity = same buyer-fit signal.</div>
+            {lookalikesNote && <div class="mt-2 text-xs text-rust-dk italic">{lookalikesNote}</div>}
+            {lookalikes && lookalikes.length > 0 && (
+              <ol class="m-0 mt-2 p-0 list-none space-y-1">
+                {lookalikes.map((l, i) => (
+                  <li key={l.url} class="flex items-center gap-2 text-xs">
+                    <span class="font-mono text-[10px] text-ink-40 w-4 shrink-0">{i + 1}</span>
+                    <a class="text-ink-80 hover:text-ink underline decoration-dotted truncate flex-1" href={l.url} target="_blank" rel="noreferrer">{l.name}</a>
+                    <span class="font-mono text-[10px] text-moss-dk shrink-0" title={`Jaccard similarity over query_history\nShared: ${l.shared_queries.join(", ")}`}>
+                      {(l.similarity * 100).toFixed(0)}%
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {lookalikes && lookalikes.length === 0 && !lookalikesNote && (
+              <div class="mt-2 text-xs text-ink-50 italic">No overlapping operators yet. As more scouts run, the memory layer grows.</div>
+            )}
+          </div>
+
           <HomepageShot url={op.url} />
           <OperatorNotes opUrl={op.url} />
         </div>
@@ -343,10 +424,17 @@ export function DrillDown({ op }: { op: Operator }) {
             </div>
             <ol class="m-0 p-0 list-none">
               {op.sources.map((s, i) => (
-                <li key={i} class={`flex items-center gap-2 px-3 py-1.5 text-xs ${i > 0 ? "border-t border-dashed border-ink-15" : ""}`}>
-                  <span class="font-mono text-[10px] text-ink-50 w-4 shrink-0">{i + 1}</span>
-                  <span class="font-mono text-[10px] uppercase text-ink-60 w-24 shrink-0">{s.field}</span>
-                  <a class="text-ink-80 hover:text-ink underline decoration-dotted truncate flex-1" href={s.url} target="_blank" rel="noreferrer" title={s.url}>{s.tool}</a>
+                <li key={i} class={`px-3 py-1.5 text-xs ${i > 0 ? "border-t border-dashed border-ink-15" : ""}`}>
+                  <div class="flex items-center gap-2">
+                    <span class="font-mono text-[10px] text-ink-50 w-4 shrink-0">{i + 1}</span>
+                    <span class="font-mono text-[10px] uppercase text-ink-60 w-24 shrink-0">{s.field}</span>
+                    <a class="text-ink-80 hover:text-ink underline decoration-dotted truncate flex-1" href={s.url} target="_blank" rel="noreferrer" title={s.url}>{s.tool}</a>
+                  </div>
+                  {s.snippet && (
+                    <div class="ml-[4.5rem] mt-1 italic text-ink-60 text-[11px] leading-snug" title="Snippet captured during the BD fetch — proof the citation isn't LLM hallucination">
+                      "{s.snippet.length > 200 ? s.snippet.slice(0, 200) + "…" : s.snippet}"
+                    </div>
+                  )}
                 </li>
               ))}
             </ol>

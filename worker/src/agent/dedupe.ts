@@ -59,6 +59,44 @@ export function extractDomain(url: string): string {
   }
 }
 
+/** Tracking / referral params we strip during canonicalization. */
+const NOISE_PARAMS = new Set([
+  "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+  "fbclid", "gclid", "msclkid", "ref", "ref_src", "referrer", "_ga", "_gl",
+  "mc_cid", "mc_eid", "yclid", "campaign_id", "source", "trk", "trk_q"
+]);
+
+/**
+ * Normalize an operator URL so equivalents dedupe AND so we render the homepage during enrichment,
+ * not a deep landing-path SERP hit. Strips UTM/clid query params, lowercases hostname, collapses to
+ * the root path (`/`). If the input URL is already deep into a useful path (e.g. /locations/houston),
+ * keep that path — only collapse the obvious "noise" paths.
+ */
+export function canonicalizeUrl(rawUrl: string): string {
+  try {
+    const u = new URL(rawUrl);
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+    u.protocol = "https:";
+    u.port = "";
+    u.hash = "";
+    // Strip noise params
+    const keepParams = new URLSearchParams();
+    for (const [k, v] of u.searchParams) {
+      if (!NOISE_PARAMS.has(k.toLowerCase())) keepParams.append(k, v);
+    }
+    u.search = keepParams.toString() ? `?${keepParams.toString()}` : "";
+    // Collapse trailing slash + index.html on the path
+    let path = u.pathname;
+    path = path.replace(/\/index\.html?$/i, "/");
+    path = path.replace(/\/+$/, "");
+    if (!path) path = "/";
+    u.pathname = path;
+    return u.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
 function registrableRoot(domain: string): string {
   const parts = domain.split(".");
   if (parts.length <= 2) return domain;
@@ -72,7 +110,10 @@ export function dedupeCandidates(candidates: Candidate[]): Candidate[] {
     const root = registrableRoot(domain);
     if (BLOCKED_DOMAINS.has(root)) continue;
     if (BLOCKED_URL_PATTERNS.some(p => p.test(c.url))) continue;
-    if (!seen.has(root)) seen.set(root, c);
+    // Canonicalize the URL we keep, so enrichment renders the homepage rather than a deep
+    // landing-path SERP hit. Preserves any first-class /locations/<city> path, strips noise.
+    const canonical = canonicalizeUrl(c.url);
+    if (!seen.has(root)) seen.set(root, { ...c, url: canonical });
   }
   return [...seen.values()];
 }
