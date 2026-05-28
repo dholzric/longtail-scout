@@ -86,7 +86,7 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         const query = String(args.query ?? "");
         await emit.emit("tool", { tool: "serp", args: { query }, url: null });
         try {
-          const result = await serpSearchCached(query, { bridge, serpApiKey: env.SERPAPI_KEY }, env.CACHE, { num: 25 });
+          const result = await serpSearchCached(query, { bridge, braveApiKey: env.BRAVE_API_KEY, serpApiKey: env.SERPAPI_KEY }, env.CACHE, { num: 25 });
           // Only charge a BD render when the bridge actually served the SERP (SerpAPI / DDG paths are flat-fee or free).
           if (tally && result.source === "bridge") tally.bd_renders += 1;
           // Per-SERP visibility — surface result count AND source so we can see which tier handled the query.

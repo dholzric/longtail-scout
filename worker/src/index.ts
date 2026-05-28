@@ -28,6 +28,8 @@ export interface Env {
   RESEND_API_KEY?: string;
   /** When set, discovery prefers SerpAPI's JSON SERP over BD's google.com rendering — ~5× faster. */
   SERPAPI_KEY?: string;
+  /** When set, Brave Search API becomes the primary SERP tier (free 2k/mo, ~1-2s, JSON). */
+  BRAVE_API_KEY?: string;
 }
 
 export default {

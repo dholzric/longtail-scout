@@ -2,6 +2,7 @@ import { cachedFetch } from "../cache";
 import { bridgeSerp, type BridgeAuth } from "../bridge/client";
 import { serpApiSearch } from "./serpApi";
 import { ddgSearch } from "./ddgFallback";
+import { braveSearch } from "./braveSearch";
 
 export interface SerpResult {
   title: string;
@@ -13,22 +14,25 @@ export interface SerpResult {
 export interface SerpResponse {
   query: string;
   results: SerpResult[];
-  /** Which provider served this response — surfaced in the trace so we can see at a glance whether SerpAPI or BD or DDG handled each query. */
-  source?: "serpapi" | "bridge" | "ddg" | "none";
+  /** Which provider served this response — surfaced in the trace so we can see at a glance which tier handled each query. */
+  source?: "brave" | "serpapi" | "bridge" | "ddg" | "none";
 }
 
 interface SerpEnv {
   bridge: BridgeAuth;
+  braveApiKey?: string;
   serpApiKey?: string;
 }
 
 /**
- * Three-tier SERP path. Order: DDG (free, plain fetch, ~1-2s) → BD bridge (rendered google.com,
- * ~10-15s, ~$0.005/render) → SerpAPI (paid JSON, only when SERPAPI_KEY is set).
+ * Four-tier SERP path. Order optimized for speed × cost × reliability:
+ *   Tier 1 — Brave Search API (2k/mo free, ~1-2s, structured JSON)
+ *   Tier 2 — DuckDuckGo HTML (free, no auth, ~1-2s, regex parse) — robustness backstop
+ *   Tier 3 — Bright Data bridge (rendered google.com, ~10-15s, ~$0.005/render) — best quality, slowest
+ *   Tier 4 — SerpAPI ($50/mo flat) — last-resort when SERPAPI_KEY is set
  *
- * DDG-primary trade-off: slightly weaker SERP quality than google.com, but for our use case
- * (long-tail SMB websites) page 1 looks essentially the same. The 5-10× speedup vs BD-rendered
- * google.com pays back at every scout. BD stays as the robustness fallback when DDG returns 0.
+ * Each tier kicks in only when the previous returned 0 usable results. Cached at the
+ * serpSearchCached layer (KV, 1d TTL) so repeat queries skip the network entirely.
  */
 export async function serpSearch(
   query: string,
@@ -37,14 +41,19 @@ export async function serpSearch(
 ): Promise<SerpResponse> {
   const num = opts.num ?? 20;
 
-  // Tier 1 — DuckDuckGo HTML (free, fast, no auth)
+  // Tier 1 — Brave Search API (free 2k/mo, JSON, ~1-2s, no scraping)
+  if (env.braveApiKey) {
+    const r = await braveSearch(query, env.braveApiKey, { num });
+    if (r.results.length > 0) return { ...r, source: "brave" };
+  }
+
+  // Tier 2 — DuckDuckGo HTML (free, no auth, robustness backstop when Brave returns 0 or rate-limits)
   try {
     const ddg = await ddgSearch(query, { num });
     if (ddg.results.length > 0) return { ...ddg, source: "ddg" };
-  } catch { /* tier 2 fallback */ }
+  } catch { /* fall through */ }
 
-  // Tier 2 — Bright Data Scraping Browser via the bridge (slower, paid, but excellent against
-  // bot-protected SERPs and recovers when DDG returned 0)
+  // Tier 3 — Bright Data Scraping Browser via the bridge (~10-15s, paid, but rendered google.com — best quality)
   try {
     const data = await bridgeSerp(query, { num }, env.bridge);
     if (data.results.length > 0) {
@@ -59,9 +68,9 @@ export async function serpSearch(
         }))
       };
     }
-  } catch { /* tier 3 fallback */ }
+  } catch { /* fall through */ }
 
-  // Tier 3 — SerpAPI when configured (last-resort paid fallback)
+  // Tier 4 — SerpAPI (last-resort paid fallback, only when SERPAPI_KEY is set)
   if (env.serpApiKey) {
     const r = await serpApiSearch(query, env.serpApiKey, { num });
     if (r.results.length > 0) return { ...r, source: "serpapi" };
