@@ -38,22 +38,30 @@ function looksBlocked(status: number, html: string): boolean {
 }
 
 /**
- * Try a plain fetch first (free) with realistic browser headers. Falls back to the Bright Data
- * Scraping Browser bridge if the response is blocked / empty / JS-shell. About 60% of US-SMB
- * homepages serve their content as plain HTML without bot protection — saves ~$0.003 per render.
+ * Plain HTTP fetch with realistic browser headers. Optional BD-bridge fallback.
+ *
+ * DESIGN NOTE (this was the slowness culprit): when this function fell back to bridge inside
+ * enrichOne, the bridge mutex serialized ALL candidates' homepage fetches. Worse, Promise.race
+ * budgets in the pool didn't actually cancel the in-flight bridge fetches — they kept running
+ * in the background after their candidate was budget-cut, hogging Workers CPU and connection
+ * slots that downstream synthesize then had to wait for.
+ *
+ * Enrichment now passes `bridge: undefined` so we plain-fetch only. ~60% of US-SMB homepages
+ * serve plain HTML; the remaining ~40% that need JS rendering are skipped, losing some
+ * operators but enrichment becomes naturally bounded by the 3s plain-fetch timeout. Result:
+ * 25 candidates enrich in ~5-15s total instead of multiple minutes.
+ *
+ * Other callers (e.g. screenshot endpoint) can still pass a bridge to enable the BD fallback.
  */
 export async function webUnlocker(
   url: string,
-  bridge: BridgeAuth
+  bridge?: BridgeAuth
 ): Promise<UnlockedPage> {
   try {
     const resp = await fetch(url, {
       method: "GET",
       headers: PLAIN_HEADERS,
       redirect: "follow",
-      // Hard timeout — was 8s, dropped to 3s after a Houston scout showed plain-fetch
-      // hanging for 30+ seconds on certain sites before falling to BD. Better to fast-fail
-      // and either fall through to BD or drop the candidate via the per-candidate budget.
       signal: AbortSignal.timeout(3000)
     });
     if (resp.ok) {
@@ -62,16 +70,20 @@ export async function webUnlocker(
         return { url, status: resp.status, html, fetched_at: new Date().toISOString(), source: "plain" };
       }
     }
-  } catch { /* fall through to BD */ }
+  } catch { /* fall through to BD if available */ }
 
-  // Fallback — Bright Data Scraping Browser handles bot protection + JS rendering
+  // BD bridge fallback — only if a bridge was passed. Callers that don't want the
+  // ~12s bridge mutex queue can omit it and we'll throw on plain-fetch failure instead.
+  if (!bridge) {
+    throw new Error(`webUnlocker: plain fetch failed for ${url} and no bridge fallback provided`);
+  }
   const r = await bridgeRender(url, {}, bridge);
   return { url: r.url, status: r.status, html: r.html, fetched_at: r.fetched_at, source: "bridge" };
 }
 
 export async function webUnlockerCached(
   url: string,
-  bridge: BridgeAuth,
+  bridge: BridgeAuth | undefined,
   kv: KVNamespace
 ): Promise<UnlockedPage> {
   return cachedFetch(

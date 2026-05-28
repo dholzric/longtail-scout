@@ -145,7 +145,8 @@ function extractRoles(text: string): string[] {
 }
 
 async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial | null> {
-  const bridge = { base: env.BRIDGE_BASE, token: env.BRIDGE_AUTH_TOKEN };
+  // Bridge intentionally unused — see webUnlockerCached(_, undefined, _) calls below. Plain-fetch
+  // only for enrichment. SERP discovery still uses the bridge via env directly (see discovery.ts).
   const sources: Citation[] = [];
 
   // Negative cache — skip hostnames we've already proven to be aggregator-shaped / parked / dead.
@@ -159,7 +160,11 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
 
   let homepageHtml = "";
   try {
-    const page = await webUnlockerCached(c.url, bridge, env.CACHE);
+    // Plain-fetch ONLY — no BD-bridge fallback inside enrichment. The bridge mutex was the
+    // dominant bottleneck (queueing 30+ candidates serially) AND background bridge calls weren't
+    // cancellable after a pool budget cut, polluting downstream synthesize. We accept losing
+    // ~40% of candidates (JS-shell sites) in exchange for predictable ~5-15s enrichment.
+    const page = await webUnlockerCached(c.url, undefined, env.CACHE);
     // Only charge a BD render when the bridge actually served the page. Cheap-path plain fetches
     // are free — see webUnlocker.ts.
     if (tally && page.source !== "plain") tally.bd_renders += 1;
@@ -211,7 +216,8 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
     // Fetch + parse the actual careers page. One additional BD render per candidate that has
     // a careers link — bounded, cached, only fires when we have signal worth verifying.
     try {
-      const careersPage = await webUnlockerCached(careersUrl, bridge, env.CACHE);
+      // Plain-fetch only (same reasoning as homepage above — bridge fallback poisons the runtime)
+      const careersPage = await webUnlockerCached(careersUrl, undefined, env.CACHE);
       if (tally && careersPage.source !== "plain") tally.bd_renders += 1;
       const parsed = parseCareersPage(careersPage.html);
       hiring.source = careersUrl;
@@ -334,32 +340,14 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
-  // Per-candidate hard budget. Without this, one slow BD-fallback candidate (homepage takes 30+s
-  // through the bridge mutex) blocks a pool slot for tens of seconds. With it, the slot frees up
-  // and the next plain-path candidate gets to start. The dropped candidate is lost from the
-  // result set but the scout doesn't grind to a halt — much better aggregate throughput.
-  const CANDIDATE_BUDGET_MS = 25_000;
+  // Plain-fetch-only enrichment means each candidate is bounded by the 3s plain-fetch timeout
+  // (plus ~1s for careers page if linked). No bridge serialization, no zombie background work.
+  // Pool concurrency of 20 lets all candidates fetch in parallel; total wall-clock ≈ 5-15s.
   const capped = candidates.slice(0, 30);
-  const CONCURRENCY = 12;
-  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY}-way parallel · ${CANDIDATE_BUDGET_MS / 1000}s budget each)…` });
+  const CONCURRENCY = 20;
+  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY}-way parallel · plain-fetch only)…` });
 
-  // Wrap each enrichOne in a deadline race. If a candidate exceeds the budget, return null and
-  // let it fall out of the result set.
-  const settled = await pool(capped, CONCURRENCY, async (c) => {
-    const start = Date.now();
-    const result = await Promise.race([
-      enrichOne(c, env, emit, tally),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), CANDIDATE_BUDGET_MS))
-    ]);
-    const elapsedMs = Date.now() - start;
-    if (result === null && elapsedMs >= CANDIDATE_BUDGET_MS) {
-      await emit.emit("enrich", { name: c.name, field: "budget", status: "fail", note: `exceeded ${CANDIDATE_BUDGET_MS / 1000}s budget — dropped` });
-    } else if (elapsedMs > 8000) {
-      // Visibility only — slow candidates we did complete.
-      await emit.emit("enrich", { name: c.name, field: "timing", status: "ok", elapsed_ms: elapsedMs });
-    }
-    return result;
-  });
+  const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit, tally));
   const out: EnrichedPartial[] = [];
   for (const r of settled) {
     if (r.status === "fulfilled" && r.value) out.push(r.value);

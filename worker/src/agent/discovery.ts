@@ -76,10 +76,15 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) break;
 
-    // Process all tool_calls in this turn in parallel.
+    // Process tool_calls in parallel, but stagger the start of each one by 350ms. Brave Search
+    // API's free tier rate-limits at 1 req/sec — if we fire 4 SERP queries simultaneously, 3 of
+    // them get 429'd and silently fall through to slower tiers. A 350ms stagger keeps each one
+    // under the limit AND we still parallelize within Promise.all (each fetch overlaps with the
+    // tail of the previous one).
     let finalized = false;
-    const toolResults = await Promise.all(msg.tool_calls.map(async (tc) => {
+    const toolResults = await Promise.all(msg.tool_calls.map(async (tc, idx) => {
       if (tc.type !== "function") return null;
+      if (idx > 0) await new Promise(r => setTimeout(r, idx * 350));
       const args = JSON.parse(tc.function.arguments) as Record<string, unknown>;
 
       if (tc.function.name === "serp_search") {
