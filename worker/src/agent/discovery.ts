@@ -85,6 +85,8 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         try {
           const result = await serpSearchCached(query, bridge, env.CACHE, { num: 25 });
           if (tally) tally.bd_renders += 1; // each SERP = one Bright Data Browser render
+          // Per-SERP visibility — surface result count so 0-result trips are debuggable in the trace.
+          await emit.emit("progress", { message: `SERP "${query}" → ${result.results.length} raw hit${result.results.length === 1 ? "" : "s"}` });
           for (const r of result.results) {
             rawCandidates.push({ name: r.title, url: r.link, origin_query: query });
             await emit.emit("candidate", { name: r.title, url: r.link });
@@ -140,6 +142,15 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
   // Was 25 — letting more candidates through so we don't pre-truncate before synthesis can rank.
   // Synthesis is the right place to filter, not discovery.
   const deduped = dedupeCandidates(rawCandidates).slice(0, 60);
-  await emit.emit("progress", { message: `Discovered ${deduped.length} candidates after dedupe.` });
+  await emit.emit("progress", { message: `Discovery total: ${rawCandidates.length} raw SERP hits → ${deduped.length} candidates after dedupe + blocklist.` });
+  // Loud warning when discovery yielded nothing — usually means BD's google.com rendering is
+  // returning a captcha or every result was an aggregator the blocklist eats.
+  if (deduped.length === 0) {
+    if (rawCandidates.length === 0) {
+      await emit.emit("progress", { message: `⚠ No SERP results returned. Bright Data google.com rendering may be throttled — try again in 60s, or try ?sample=1 for a cached demo.` });
+    } else {
+      await emit.emit("progress", { message: `⚠ All ${rawCandidates.length} SERP hits were filtered as aggregators / manufacturers / directories. Either widen the dedupe blocklist or this niche genuinely has no long-tail operators on page 1.` });
+    }
+  }
   return deduped;
 }

@@ -10,6 +10,44 @@ import { recordRunInWatchlist } from "./watchlist";
 import { envWithByok } from "../llm/client";
 import { recordRecentRun } from "./recentRuns";
 
+/** Top ~80 US cities + common 2-word names. Used by the bare-adjacency parser so "Electrician Chicago"
+ *  or "Roofing San Francisco" splits correctly even when the user omits " in ". Case-insensitive. */
+const US_CITIES = new Set<string>([
+  // 50 most populous US cities (rough order)
+  "new york", "los angeles", "chicago", "houston", "phoenix", "philadelphia", "san antonio",
+  "san diego", "dallas", "san jose", "austin", "jacksonville", "fort worth", "columbus",
+  "charlotte", "indianapolis", "san francisco", "seattle", "denver", "washington", "boston",
+  "el paso", "nashville", "detroit", "oklahoma city", "portland", "las vegas", "memphis",
+  "louisville", "baltimore", "milwaukee", "albuquerque", "tucson", "fresno", "sacramento",
+  "kansas city", "mesa", "atlanta", "omaha", "colorado springs", "raleigh", "miami",
+  "long beach", "virginia beach", "oakland", "minneapolis", "tulsa", "arlington",
+  "tampa", "new orleans",
+  // additional metros people search
+  "brooklyn", "queens", "the bronx", "manhattan", "staten island",
+  "pittsburgh", "cincinnati", "cleveland", "buffalo", "rochester", "syracuse", "albany",
+  "orlando", "st petersburg", "fort lauderdale", "jacksonville", "tallahassee",
+  "savannah", "augusta", "macon",
+  "charlotte", "durham", "greensboro", "winston salem",
+  "richmond", "norfolk", "newport news", "virginia beach",
+  "providence", "hartford", "new haven",
+  "salt lake city", "boise", "spokane", "tacoma",
+  "honolulu", "anchorage",
+  "scottsdale", "tempe", "chandler", "glendale",
+  "irvine", "anaheim", "santa ana", "riverside", "san bernardino", "bakersfield", "stockton",
+  "santa clara", "santa monica", "berkeley", "palo alto",
+  "boulder", "fort collins",
+  "ann arbor", "grand rapids",
+  "lexington", "louisville",
+  "des moines", "madison", "madison", "milwaukee", "green bay",
+  "wichita", "topeka",
+  "little rock", "jackson", "biloxi",
+  "shreveport", "baton rouge",
+  "lubbock", "el paso", "amarillo", "corpus christi",
+  "knoxville", "chattanooga", "memphis",
+  "asheville", "fayetteville",
+  "alexandria"
+]);
+
 // Top-3 cities per US state for multi-city expansion. Picked by population + commercial-density;
 // adjust for verticals where coastal/Sun-Belt operators concentrate elsewhere.
 const STATE_CITIES: Record<string, string[]> = {
@@ -57,20 +95,67 @@ function splitNiches(niche: string): string[] {
   return parts.slice(0, 4);
 }
 
+/**
+ * Try every parsing strategy and return the first that produces a sensible niche+city split.
+ * Strategies, in order:
+ *   1. " in <place>" — "roofing contractors in Houston"
+ *   2. " near <place>" / " around <place>" / " @ <place>"
+ *   3. ", <place>" — "roofing, Chicago"
+ *   4. " <place>" trailing token (1 or 2 words) that matches our known-US-cities set — "Electrician Chicago"
+ *   5. " <state>" trailing token that matches a state key — "roofing Texas"
+ *   6. Fallback: whole input is the niche, no city
+ */
 function parseQuery(raw: string): ParsedQuery {
-  const inIdx = raw.toLowerCase().lastIndexOf(" in ");
-  if (inIdx <= 0) {
-    const niches = splitNiches(raw);
-    return { niche: raw, niches, cities: [""], raw, multi_city: false, multi_niche: niches.length > 1 };
+  const trimmed = raw.trim();
+  const lower = trimmed.toLowerCase();
+
+  function build(niche: string, placeRaw: string): ParsedQuery {
+    const niches = splitNiches(niche);
+    const placeKey = placeRaw.toLowerCase().replace(/[.,]$/, "").trim();
+    if (placeKey && STATE_CITIES[placeKey]) {
+      return { niche, niches, cities: STATE_CITIES[placeKey]!, raw, multi_city: true, multi_niche: niches.length > 1 };
+    }
+    return { niche, niches, cities: [placeRaw], raw, multi_city: false, multi_niche: niches.length > 1 };
   }
-  const niche = raw.slice(0, inIdx).trim();
-  const niches = splitNiches(niche);
-  const placeRaw = raw.slice(inIdx + 4).trim();
-  const placeKey = placeRaw.toLowerCase().replace(/[.,]$/, "");
-  if (STATE_CITIES[placeKey]) {
-    return { niche, niches, cities: STATE_CITIES[placeKey]!, raw, multi_city: true, multi_niche: niches.length > 1 };
+
+  // (1) " in " split — strongest signal
+  const inIdx = lower.lastIndexOf(" in ");
+  if (inIdx > 0) {
+    return build(trimmed.slice(0, inIdx).trim(), trimmed.slice(inIdx + 4).trim());
   }
-  return { niche, niches, cities: [placeRaw], raw, multi_city: false, multi_niche: niches.length > 1 };
+
+  // (2) " near " / " around " / " @ "
+  const nearMatch = trimmed.match(/^(.+?)\s+(?:near|around|@)\s+(.+)$/i);
+  if (nearMatch && nearMatch[1] && nearMatch[2]) {
+    return build(nearMatch[1].trim(), nearMatch[2].trim());
+  }
+
+  // (3) Comma split — "roofing, Chicago"
+  const commaIdx = trimmed.lastIndexOf(",");
+  if (commaIdx > 0 && commaIdx < trimmed.length - 1) {
+    const tail = trimmed.slice(commaIdx + 1).trim();
+    if (tail.length > 0 && tail.length < 40) {
+      return build(trimmed.slice(0, commaIdx).trim(), tail);
+    }
+  }
+
+  // (4)+(5) Bare-adjacency — peel off a trailing US city or state token (try 2 words first, then 1)
+  const words = trimmed.split(/\s+/);
+  if (words.length >= 2) {
+    for (const peel of [2, 1]) {
+      if (words.length <= peel) continue;
+      const tailRaw = words.slice(-peel).join(" ");
+      const tailLower = tailRaw.toLowerCase().replace(/[.,]$/, "");
+      if (US_CITIES.has(tailLower) || STATE_CITIES[tailLower]) {
+        const head = words.slice(0, -peel).join(" ").trim();
+        if (head.length > 0) return build(head, tailRaw);
+      }
+    }
+  }
+
+  // Fallback: no city detected
+  const niches = splitNiches(trimmed);
+  return { niche: trimmed, niches, cities: [""], raw, multi_city: false, multi_niche: niches.length > 1 };
 }
 
 function checkAuth(req: Request, env: Env): boolean {
