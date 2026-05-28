@@ -37,19 +37,28 @@ export interface Env {
   BRAVE_API_KEY?: string;
 }
 
+/**
+ * Auth gate for operator-triggered endpoints (smoke + cron triggers). These each hit a
+ * real-cost upstream (Bright Data SERP / demand API / LLM), so anonymous traffic must not be
+ * able to drain credits with curl loops. Unlike the user-facing /api/scout gate, these accept
+ * a ?key= query param too because they're invoked from curl / the dashboard, where a bearer
+ * header is awkward. Returns true when the request is authorized (or when no password is set).
+ */
+function operatorAuthorized(req: Request, url: URL, env: Env): boolean {
+  const expected = env.DEMO_PASSWORD;
+  if (!expected) return true; // gate disabled if password unset
+  const auth = req.headers.get("authorization") ?? "";
+  const keyParam = url.searchParams.get("key") ?? "";
+  return auth === `Bearer ${expected}` || keyParam === expected;
+}
+
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
     if (url.pathname === "/api/smoke") {
-      // SECURITY: smoke hits Bright Data SERP (real $$$) — gate behind the demo password
-      // so anonymous traffic can't drain credits with curl loops.
-      const expected = env.DEMO_PASSWORD;
-      const auth = req.headers.get("authorization") ?? "";
-      const keyParam = url.searchParams.get("key") ?? "";
-      if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
-        return new Response("unauthorized", { status: 401 });
-      }
+      // SECURITY: smoke hits Bright Data SERP (real $$$) — gate behind the demo password.
+      if (!operatorAuthorized(req, url, env)) return new Response("unauthorized", { status: 401 });
       return smokeHandler(env);
     }
     if (url.pathname === "/api/scout") return scoutHandler(req, env, ctx);
@@ -62,12 +71,7 @@ export default {
     if (url.pathname === "/api/recent-runs") return recentRunsHandler(req, env);
     if (url.pathname === "/api/niche-leaderboard") return nicheLeaderboardHandler(req, env);
     if (url.pathname === "/api/cron/prewarm-demand") {
-      const expected = env.DEMO_PASSWORD;
-      const auth = req.headers.get("authorization") ?? "";
-      const keyParam = url.searchParams.get("key") ?? "";
-      if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
-        return new Response("unauthorized", { status: 401 });
-      }
+      if (!operatorAuthorized(req, url, env)) return new Response("unauthorized", { status: 401 });
       const result = await prewarmDemandIndex(env);
       return Response.json(result);
     }
@@ -79,12 +83,7 @@ export default {
     // see the cron logic without waiting until tomorrow morning.
     // Pass ?email=force to also send digest emails to subscribers even when delta is 0 (demo path).
     if (url.pathname === "/api/cron/watchlist-refresh") {
-      const expected = env.DEMO_PASSWORD;
-      const auth = req.headers.get("authorization") ?? "";
-      const keyParam = url.searchParams.get("key") ?? "";
-      if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
-        return new Response("unauthorized", { status: 401 });
-      }
+      if (!operatorAuthorized(req, url, env)) return new Response("unauthorized", { status: 401 });
       const forceEmail = url.searchParams.get("email") === "force";
       const result = await refreshWatchlistDemand(env, { forceEmail });
       return Response.json(result);
