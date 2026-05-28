@@ -5,6 +5,7 @@ import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import { recordOperator } from "../memory/store";
 import { computeConfidence } from "./confidence";
+import { normalizeNicheKey } from "./nicheNormalize";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
 
@@ -13,16 +14,17 @@ type EnrichmentInput = Omit<Operator, "rank" | "sales_angle" | "icp_fit_reason" 
 export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<Operator[]> {
   await emit.emit("phase", { phase: "synthesis" });
 
-  // Niche-level demand context — one lookup against the ~7M-business demand index for the *niche keyword* the user typed.
-  // This is the correct interpretation of the demand API; per-operator brandability scores were misleading.
+  // Niche-level demand context — one lookup against the 7M-business demand index for the
+  // normalized niche keyword. MUST use the same normalizer the UI DemandProbe uses so the
+  // count we cite during synthesis matches the count rendered in the page header.
+  // (Codex live-run finding #4, 2026-05-28 — UI said "X businesses", synthesis said "Y".)
   let nicheDemand: { count: number; rank_signal: number | null } | null = null;
   try {
-    // Use just the niche (first 1-2 words) for the lookup
-    const nicheKey = q.niche.replace(/\b(companies|firms|operators|businesses|in|the|a|an)\b/gi, "").trim().split(/\s+/).slice(0, 2).join(" ") || q.niche;
+    const nicheKey = normalizeNicheKey(q.niche) || q.niche;
     const d = await demandLookup(nicheKey, env.DEMAND_API_BASE, env.CACHE);
     if (d) {
       nicheDemand = { count: d.demand, rank_signal: d.results[0]?.score_components?.demand ?? null };
-      await emit.emit("progress", { message: `Niche "${nicheKey}" has ${d.demand} matching businesses in the demand index.` });
+      await emit.emit("progress", { message: `Niche "${nicheKey}" has ${d.demand.toLocaleString()} matching businesses in the demand index.` });
     }
   } catch (err) {
     await emit.emit("progress", { message: `Demand lookup failed (continuing): ${(err as Error).message.slice(0, 100)}` });

@@ -82,8 +82,15 @@ export async function ddgSearch(query: string, opts: { num?: number } = {}): Pro
     const link = unwrapDdgUrl(rawHref);
     if (!link.startsWith("http")) continue;
     if (seenLinks.has(link)) continue;
-    // DDG sometimes returns its own pages — skip
-    if (/duckduckgo\.com\/(?:l\/|html\/|\?q=)/i.test(link)) continue;
+    // Skip DDG's own pages AND its ad-redirect endpoint. y.js is DDG's ad-tracker
+    // (e.g. duckduckgo.com/y.js?ad_provider=...&ad_domain=...&u=...) — unwrapping leaves us
+    // with the y.js URL itself, which then dies in enrichment with no useful signal.
+    // (Codex live-run finding #1, 2026-05-28 — wasted one enrich slot per ad row.)
+    if (/duckduckgo\.com\/(?:l\/|html\/|\?q=|y\.js)/i.test(link)) continue;
+    // Bing also occasionally appears in DDG fallback results via cross-syndication.
+    if (/bing\.com\/aclick/i.test(link)) continue;
+    // Any link still carrying ad-provider tracking params after unwrap is an ad.
+    if (/[?&](?:ad_provider|ad_domain|adurl)=/i.test(link)) continue;
     seenLinks.add(link);
 
     const title = decodeHtmlEntities(titleRaw);

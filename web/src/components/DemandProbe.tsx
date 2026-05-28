@@ -14,23 +14,28 @@ interface ResearchResponse {
   demand: number;
 }
 
-// Strip trailing common qualifier words ("contractors", "firms", "centers", …) so the
-// demand probe matches against the core noun ("roofing", "law", "childcare") which is
-// how the index is keyworded — and produces the impressive total ("82,200 businesses"
-// vs the much narrower "roofing contractors" exact-phrase count).
+// Niche normalization — MUST match worker/src/agent/nicheNormalize.ts exactly. If the UI
+// here says "82,200 businesses" but synthesis cites a different number, the demo story
+// falls apart. Both files reference each other in their header comments; updating one
+// requires updating the other.
 const TRAILING_QUALIFIERS = /\s+(contractors?|firms?|practices?|services?|centers?|shops?|businesses?|companies?|providers?|specialists?|professionals?|technicians?|installers?|locations?|stores?|studios?|salons?|offices?)$/i;
+const STOP_WORDS = /\b(companies|firms|operators|businesses|the|a|an)\b/gi;
 
 function parseNiche(q: string): string {
-  let inputPart = q.trim();
+  let inputPart = (q ?? "").trim();
+  if (!inputPart) return "";
+  // (1) Strip trailing "in <city>" / "near <city>" / "around <city>" / "@ <city>"
   const m = inputPart.match(/^\s*(.+?)\s+(?:in|near|around|@)\s+(.+?)\s*$/i);
   if (m && m[1]) inputPart = m[1].trim();
-  // Strip trailing qualifier(s) — iteratively in case of multi-word ("law firms" → "law")
+  // (2) Iteratively strip trailing qualifier(s) ("law firms" → "law")
   let prev = "";
   while (prev !== inputPart) {
     prev = inputPart;
     inputPart = inputPart.replace(TRAILING_QUALIFIERS, "").trim();
   }
-  return inputPart;
+  // (3) Remove stop-words + collapse whitespace.
+  inputPart = inputPart.replace(STOP_WORDS, "").replace(/\s+/g, " ").trim();
+  return inputPart || q.trim();
 }
 
 /**
