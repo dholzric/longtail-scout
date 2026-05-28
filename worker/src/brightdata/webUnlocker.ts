@@ -51,8 +51,10 @@ export async function webUnlocker(
       method: "GET",
       headers: PLAIN_HEADERS,
       redirect: "follow",
-      // Hard timeout — Workers default fetch can hang forever on slow origins.
-      signal: AbortSignal.timeout(8000)
+      // Hard timeout — was 8s, dropped to 3s after a Houston scout showed plain-fetch
+      // hanging for 30+ seconds on certain sites before falling to BD. Better to fast-fail
+      // and either fall through to BD or drop the candidate via the per-candidate budget.
+      signal: AbortSignal.timeout(3000)
     });
     if (resp.ok) {
       const html = await resp.text();

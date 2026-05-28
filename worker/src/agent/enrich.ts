@@ -181,8 +181,8 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
     }
     // Snippet for the hover-preview: about meta or first sentence of body, capped to 240 chars
     const aboutSnippet = extractAbout(homepageHtml);
-    sources.push({ field: "about", tool: "bridge_render", url: c.url, snippet: aboutSnippet ? aboutSnippet.slice(0, 240) : undefined });
-    await emit.emit("enrich", { name: c.name, field: "homepage", status: "ok" });
+    sources.push({ field: "about", tool: page.source === "plain" ? "plain_fetch" : "bridge_render", url: c.url, snippet: aboutSnippet ? aboutSnippet.slice(0, 240) : undefined });
+    await emit.emit("enrich", { name: c.name, field: "homepage", status: "ok", source: page.source });
   } catch (err) {
     await emit.emit("enrich", { name: c.name, field: "homepage", status: "fail", error: (err as Error).message });
     return null;
@@ -334,15 +334,32 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
-  // After Stretch 10's plain-fetch fallback, ~60% of candidates skip the bridge entirely and
-  // resolve as free parallel Workers fetches. Concurrency 12 lets those land in seconds total;
-  // the ~40% that fall through to BD still serialize at the bridge mutex (out of our control),
-  // but the queue moves much faster because we're not waiting on slow ones to start fast ones.
+  // Per-candidate hard budget. Without this, one slow BD-fallback candidate (homepage takes 30+s
+  // through the bridge mutex) blocks a pool slot for tens of seconds. With it, the slot frees up
+  // and the next plain-path candidate gets to start. The dropped candidate is lost from the
+  // result set but the scout doesn't grind to a halt — much better aggregate throughput.
+  const CANDIDATE_BUDGET_MS = 25_000;
   const capped = candidates.slice(0, 30);
   const CONCURRENCY = 12;
-  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY}-way parallel; BD-fallback path still serializes at the bridge)…` });
+  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY}-way parallel · ${CANDIDATE_BUDGET_MS / 1000}s budget each)…` });
 
-  const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit, tally));
+  // Wrap each enrichOne in a deadline race. If a candidate exceeds the budget, return null and
+  // let it fall out of the result set.
+  const settled = await pool(capped, CONCURRENCY, async (c) => {
+    const start = Date.now();
+    const result = await Promise.race([
+      enrichOne(c, env, emit, tally),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), CANDIDATE_BUDGET_MS))
+    ]);
+    const elapsedMs = Date.now() - start;
+    if (result === null && elapsedMs >= CANDIDATE_BUDGET_MS) {
+      await emit.emit("enrich", { name: c.name, field: "budget", status: "fail", note: `exceeded ${CANDIDATE_BUDGET_MS / 1000}s budget — dropped` });
+    } else if (elapsedMs > 8000) {
+      // Visibility only — slow candidates we did complete.
+      await emit.emit("enrich", { name: c.name, field: "timing", status: "ok", elapsed_ms: elapsedMs });
+    }
+    return result;
+  });
   const out: EnrichedPartial[] = [];
   for (const r of settled) {
     if (r.status === "fulfilled" && r.value) out.push(r.value);
