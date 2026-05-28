@@ -23,12 +23,12 @@ interface SerpEnv {
 }
 
 /**
- * Three-tier SERP path. Order: SerpAPI (fast JSON) → BD bridge (rendered google.com) → DDG HTML.
- * Each tier is tried only if the previous returned 0 usable results.
+ * Three-tier SERP path. Order: DDG (free, plain fetch, ~1-2s) → BD bridge (rendered google.com,
+ * ~10-15s, ~$0.005/render) → SerpAPI (paid JSON, only when SERPAPI_KEY is set).
  *
- * SerpAPI: ~1-2s, $50/mo flat. Only used when SERPAPI_KEY is set.
- * BD bridge: ~10-15s, ~$0.005/render. Default path when no SerpAPI.
- * DDG HTML: ~1-2s, free, lower-quality results. Last-resort robustness fallback.
+ * DDG-primary trade-off: slightly weaker SERP quality than google.com, but for our use case
+ * (long-tail SMB websites) page 1 looks essentially the same. The 5-10× speedup vs BD-rendered
+ * google.com pays back at every scout. BD stays as the robustness fallback when DDG returns 0.
  */
 export async function serpSearch(
   query: string,
@@ -37,13 +37,14 @@ export async function serpSearch(
 ): Promise<SerpResponse> {
   const num = opts.num ?? 20;
 
-  // Tier 1 — SerpAPI when configured
-  if (env.serpApiKey) {
-    const r = await serpApiSearch(query, env.serpApiKey, { num });
-    if (r.results.length > 0) return { ...r, source: "serpapi" };
-  }
+  // Tier 1 — DuckDuckGo HTML (free, fast, no auth)
+  try {
+    const ddg = await ddgSearch(query, { num });
+    if (ddg.results.length > 0) return { ...ddg, source: "ddg" };
+  } catch { /* tier 2 fallback */ }
 
-  // Tier 2 — Bright Data Scraping Browser via the bridge
+  // Tier 2 — Bright Data Scraping Browser via the bridge (slower, paid, but excellent against
+  // bot-protected SERPs and recovers when DDG returned 0)
   try {
     const data = await bridgeSerp(query, { num }, env.bridge);
     if (data.results.length > 0) {
@@ -60,9 +61,12 @@ export async function serpSearch(
     }
   } catch { /* tier 3 fallback */ }
 
-  // Tier 3 — DuckDuckGo HTML plain-fetch (last-resort robustness)
-  const ddg = await ddgSearch(query, { num });
-  if (ddg.results.length > 0) return { ...ddg, source: "ddg" };
+  // Tier 3 — SerpAPI when configured (last-resort paid fallback)
+  if (env.serpApiKey) {
+    const r = await serpApiSearch(query, env.serpApiKey, { num });
+    if (r.results.length > 0) return { ...r, source: "serpapi" };
+  }
+
   return { query, results: [], source: "none" };
 }
 
