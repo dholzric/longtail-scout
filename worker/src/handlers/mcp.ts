@@ -123,6 +123,20 @@ const TOOLS: ToolDefinition[] = [
     }
   },
   {
+    name: "account_brief",
+    description: "Render a one-page Markdown account brief for an operator (from a scout result) — who they are, why they fit, signals, contacts, draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM note or email.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        operator: { type: "object", description: "Operator object from the scout tool (name + url required)." },
+        linkedin: { type: "object", description: "Optional linkedin_check result to embed.", properties: { on_linkedin: { type: "boolean" }, evidence_url: { type: "string" } } },
+        contacts: { type: "object", description: "Optional find_contacts result to embed." },
+        email: { type: "object", description: "Optional draft_email result to embed.", properties: { subject: { type: "string" }, body: { type: "string" } } }
+      },
+      required: ["operator"]
+    }
+  },
+  {
     name: "find_contacts",
     description: "Discover a reachable email, phone, and named contact for an operator by walking its contact/about pages via Bright Data. Returns the operator's own-domain inbox first (the highest-value address), with the pages fetched as citations. Cost-capped and cached 7 days.",
     inputSchema: {
@@ -278,6 +292,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env, origin));
     case "linkedin_check":     return makeResponse(id, await toolLinkedInCheck(args, env, origin));
     case "find_contacts":      return makeResponse(id, await toolFindContacts(args, env, origin));
+    case "account_brief":      return makeResponse(id, await toolAccountBrief(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -463,6 +478,28 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolAccountBrief(args: any, env: Env, origin: string) {
+  if (!args?.operator?.name || !args?.operator?.url) return textContent("ERROR: operator.name and operator.url required");
+  try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/brief`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ operator: args.operator, linkedin: args.linkedin, contacts: args.contacts, email: args.email })
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`account-brief failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    const j = await r.json() as { markdown?: string };
+    // The brief itself is the useful payload — return it as text so MCP clients render the Markdown.
+    return textContent(j.markdown ?? "(empty brief)");
+  } catch (err) {
+    return textContent(`account-brief error: ${(err as Error).message}`);
   }
 }
 

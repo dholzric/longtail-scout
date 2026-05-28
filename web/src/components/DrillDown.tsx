@@ -85,7 +85,7 @@ interface LinkedInVerdict {
  * hard evidence the operator is invisible to LinkedIn-graph tools like Apollo/ZoomInfo/Clay.
  * Cached 30d server-side, so re-opening an operator costs no additional Bright Data calls.
  */
-function LinkedInVerification({ name, city, opUrl }: { name: string; city?: string; opUrl: string }) {
+function LinkedInVerification({ name, city, opUrl, onVerdict }: { name: string; city?: string; opUrl: string; onVerdict?: (v: LinkedInVerdict) => void }) {
   const [state, setState] = useState<"loading" | "done" | "error">("loading");
   const [verdict, setVerdict] = useState<LinkedInVerdict | null>(null);
 
@@ -102,6 +102,7 @@ function LinkedInVerification({ name, city, opUrl }: { name: string; city?: stri
         if (cancelled) return;
         setVerdict(j);
         setState(j.checked ? "done" : "error");
+        if (j.checked && onVerdict) onVerdict(j);
       })
       .catch(() => { if (!cancelled) setState("error"); });
     return () => { cancelled = true; };
@@ -212,6 +213,38 @@ export function DrillDown({ op }: { op: Operator }) {
   const [contacts, setContacts] = useState<ContactDiscovery | null>(null);
   const [contactsLoading, setContactsLoading] = useState<boolean>(false);
   const [contactsNote, setContactsNote] = useState<string | null>(null);
+  const [linkedinVerdict, setLinkedinVerdict] = useState<LinkedInVerdict | null>(null);
+  const [briefBusy, setBriefBusy] = useState<boolean>(false);
+
+  async function exportBrief() {
+    setBriefBusy(true);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+      const r = await fetch("/api/brief", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          operator: op,
+          linkedin: linkedinVerdict ? { on_linkedin: linkedinVerdict.on_linkedin, evidence_url: linkedinVerdict.evidence_url } : undefined,
+          contacts: contacts ? { emails: contacts.emails, phone: contacts.phone, contact: contacts.contact } : undefined,
+          email: ai ? { subject: ai.subject, body: ai.body } : undefined
+        })
+      });
+      if (!r.ok) return;
+      const j = await r.json() as { markdown: string; filename: string };
+      const blob = new Blob([j.markdown], { type: "text/markdown;charset=utf-8" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = j.filename || "longtail-brief.md";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(href);
+    } finally {
+      setBriefBusy(false);
+    }
+  }
 
   async function discoverContacts() {
     setContactsLoading(true);
@@ -323,6 +356,15 @@ export function DrillDown({ op }: { op: Operator }) {
         </div>
         <div class="flex items-center gap-2">
           <button
+            class="border border-ink-25 bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1.5 disabled:opacity-50"
+            onClick={(e) => { e.stopPropagation(); exportBrief(); }}
+            disabled={briefBusy}
+            type="button"
+            title="Download a Markdown account brief (evidence + contacts + draft email + sources) to paste into your CRM"
+          >
+            {briefBusy ? "exporting…" : "export brief"} <span aria-hidden="true">↓</span>
+          </button>
+          <button
             class="border border-ink-25 bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 inline-flex items-center gap-1.5"
             onClick={(e) => { e.stopPropagation(); printDossier(); }}
             type="button"
@@ -367,7 +409,7 @@ export function DrillDown({ op }: { op: Operator }) {
 
       {/* Apollo-blind verification — live LinkedIn-absence proof via Bright Data */}
       <div class="mt-4">
-        <LinkedInVerification name={op.name} city={op.city} opUrl={op.url} />
+        <LinkedInVerification name={op.name} city={op.city} opUrl={op.url} onVerdict={setLinkedinVerdict} />
       </div>
 
       {/* Two-column layout */}

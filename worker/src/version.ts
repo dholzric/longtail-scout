@@ -12,5 +12,6 @@
  *   1.1.0 — post-submission security hardening (bridge SSRF guard + drift test, auth DRY)
  *   1.2.0 — Apollo-blind verification: live LinkedIn-absence proof via Bright Data (/api/linkedin-check + MCP tool)
  *   1.3.0 — Contact discovery: email/phone/contact harvested from contact+about pages via Bright Data (/api/contact-discovery + MCP tool)
+ *   1.4.0 — Account brief export: one-click Markdown dossier (/api/brief + MCP tool + drill-down download)
  */
-export const VERSION = "1.3.0";
+export const VERSION = "1.4.0";
