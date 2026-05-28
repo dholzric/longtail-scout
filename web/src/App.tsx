@@ -19,6 +19,7 @@ import { Hero } from "./components/Hero";
 import { TweaksPanel } from "./components/TweaksPanel";
 import { ByokPanel } from "./components/ByokPanel";
 import { RecentRuns } from "./components/RecentRuns";
+import { NicheRecon } from "./components/NicheRecon";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -279,6 +280,7 @@ export function App() {
         )}
         {!embedMode && <Hero demandCount={demandCount} />}
         <QueryForm value={query} onChange={setQuery} onRun={() => run()} onRunWith={(q) => run(q)} onShare={copyShareUrl} disabled={status === "running"} />
+        {!embedMode && <NicheRecon demoKey={demoKey} disabled={status === "running"} onPickQuery={(q) => { setQuery(q); void run(q); }} />}
         <DemandProbe query={query} onCount={setDemandCount} />
         {showByok && <ByokPanel />}
         {!embedMode && <Watchlist demoKey={demoKey} currentQuery={query} onPickQuery={setQuery} />}

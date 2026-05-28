@@ -8,6 +8,7 @@ import { mcpHandler } from "./handlers/mcp";
 import { recentRunsHandler, nicheLeaderboardHandler } from "./handlers/recentRuns";
 import { ogImageHandler, shareHandler } from "./handlers/og";
 import { lookalikesHandler } from "./handlers/lookalikes";
+import { nicheReconHandler } from "./handlers/nicheRecon";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -69,6 +70,7 @@ export default {
     if (url.pathname === "/api/og.svg") return ogImageHandler(req, env);
     if (url.pathname === "/share") return shareHandler(req, env);
     if (url.pathname === "/api/lookalikes") return lookalikesHandler(req, env);
+    if (url.pathname === "/api/niche-recon") return nicheReconHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can
     // see the cron logic without waiting until tomorrow morning.
     // Pass ?email=force to also send digest emails to subscribers even when delta is 0 (demo path).
