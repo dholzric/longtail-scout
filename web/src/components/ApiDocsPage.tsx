@@ -32,7 +32,7 @@ export function ApiDocsPage() {
           path="/api/health"
           summary="Liveness check — no auth"
           example={`curl https://longtailscout.com/api/health`}
-          response={`{ "ok": true, "ts": 1779870000000 }`}
+          response={`{ "ok": true, "version": "1.5.1", "ts": 1779870000000 }`}
         />
 
         <Endpoint
@@ -100,6 +100,64 @@ Headers: content-type: image/png, x-shot-cache: hit | live`}
   "body": "Hi, Noticed Braun's has been in Houston since 1987...",
   "provider": "deepseek",
   "estimated_cost_usd": 0.000217
+}`}
+        />
+
+        <Endpoint
+          method="GET"
+          path="/api/linkedin-check?name={biz}&city={city}&url={homepage}"
+          summary="Apollo-blind verification. Runs a site:linkedin.com/company search THROUGH Bright Data and reports whether a matching LinkedIn company page exists. A confirmed absence is hard proof the operator is invisible to Apollo/ZoomInfo/Clay."
+          example={`curl 'https://longtailscout.com/api/linkedin-check?name=Amstill%20Roofing&city=Houston&key=<pw>'`}
+          response={`{
+  "checked": true,
+  "on_linkedin": false,
+  "evidence_url": null,
+  "match_count": 0,
+  "serp_query": "site:linkedin.com/company \\"Amstill Roofing\\" Houston",
+  "via": "bright_data_serp"
+}`}
+          notes="KV-cached 30 days. Accepts ?key= for the drill-down's lazy in-browser fetch."
+        />
+
+        <Endpoint
+          method="GET"
+          path="/api/contact-discovery?url={homepage}&name={biz}"
+          summary="Walks the operator's contact/about pages via the Bright Data bridge and extracts a reachable email (own-domain inbox ranked first), phone, and named contact. Cost-capped at 3 BD renders with early-exit."
+          example={`curl 'https://longtailscout.com/api/contact-discovery?url=https%3A%2F%2Famstillroofing.com&key=<pw>'`}
+          response={`{
+  "emails": [{ "email": "info@amstillroofing.com", "same_domain": true }],
+  "phone": "(713) 941-3691",
+  "contact": { "name": "Stephen Bush", "role": "Owner" },
+  "sources": [{ "field": "contact", "tool": "bright_data_render", "url": "https://amstillroofing.com/contact" }],
+  "pages_fetched": 2,
+  "via": "bright_data_render"
+}`}
+          notes="KV-cached 7 days. SSRF-guarded (public http(s) only). Accepts ?key=."
+        />
+
+        <Endpoint
+          method="POST"
+          path="/api/brief"
+          summary="Render a one-page Markdown account brief for an operator — evidence + signals + discovered contacts + draft email + numbered Bright Data sources. Pure compute, shared with the MCP account_brief tool."
+          example={`curl -X POST https://longtailscout.com/api/brief \\
+  -H "authorization: Bearer <pw>" -H "content-type: application/json" \\
+  -d '{"operator":{ /* Operator */ }, "linkedin":{"on_linkedin":false}}'`}
+          response={`{ "markdown": "# Amstill Roofing\\n...", "filename": "longtail-brief-amstill-roofing.md" }`}
+        />
+
+        <Endpoint
+          method="POST"
+          path="/api/triggers"
+          summary="Re-rank a run's operators by buying-signal strength — who do I call first? Scores open roles (premium for growth/ops hires), recent expansion/funding/award headlines by recency, and multi-vertical presence. Pure compute."
+          example={`curl -X POST https://longtailscout.com/api/triggers \\
+  -H "authorization: Bearer <pw>" -H "content-type: application/json" \\
+  -d '{"operators":[ /* Operator[] from a scout */ ]}'`}
+          response={`{
+  "triggers": [
+    { "url": "https://...", "name": "Amstill Roofing", "trigger_score": 71,
+      "primary_reason": "Hiring: 3 open roles incl. Estimator",
+      "reasons": ["Hiring: 3 open roles incl. Estimator", "Recent: opens new Dallas location"] }
+  ]
 }`}
         />
 

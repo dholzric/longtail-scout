@@ -105,8 +105,14 @@ export function AboutPage() {
         <section>
           <h2 class="text-xl font-semibold mb-3">Features at a glance</h2>
           <ul class="text-sm leading-relaxed list-disc list-inside space-y-1">
-            <li>20 vertical prompt packs (roofing, HVAC, dental, childcare, MSP, legal, ...)</li>
+            <li><strong>Apollo-blind verification</strong> — live "Not on LinkedIn, confirmed via Bright Data" proof per operator</li>
+            <li><strong>Contact discovery</strong> — real email + phone + named contact harvested from contact/about pages via Bright Data</li>
+            <li><strong>Account brief export</strong> — one-click Markdown dossier (evidence + contacts + draft email + sources)</li>
+            <li><strong>"Act first" trigger feed</strong> — operators re-ranked by buying-signal strength (hiring, expansion, funding)</li>
+            <li>25 vertical prompt packs (roofing, HVAC, dental, childcare, MSP, legal, ...)</li>
             <li>ICP fit reason + draft outreach angle per operator</li>
+            <li>Tech-stack detection per operator (ATS / field-service SaaS / CMS sniffed from homepage HTML)</li>
+            <li>MCP server — all 10 capabilities exposed as tools for Claude Desktop / Cursor / any MCP client</li>
             <li>Apollo-thin / New / Seen×N / city badges</li>
             <li>Confidence score (0-100) per row</li>
             <li>Filter by confidence, hiring, long-tail size</li>
@@ -128,12 +134,12 @@ export function AboutPage() {
         <section>
           <h2 class="text-xl font-semibold mb-3">What's next</h2>
           <ul class="text-sm leading-relaxed list-disc list-inside space-y-1">
-            <li>Watchlist + weekly re-runs via Cloudflare Cron Triggers — turn discovery into recurring intel</li>
-            <li>CRM connectors (HubSpot, Salesforce) beyond manual CSV</li>
-            <li>Real Bright Data MCP Server integration for LLM tool-use (sponsor pattern)</li>
-            <li>Heat-map underlay on the map view using the demand-API's geotagged records</li>
-            <li>Tech-stack detection (BuiltWith-style) per operator</li>
-            <li>Recent-funding signal (Crunchbase via Bright Data)</li>
+            <li>CRM connectors (HubSpot, Salesforce) beyond manual CSV export + the Markdown brief</li>
+            <li>Consume Bright Data's own MCP Server as an upstream tool inside the discovery phase</li>
+            <li>Per-operator screenshot diffs — recapture quarterly, flag homepage changes as trigger events</li>
+            <li>Slack/Discord push when the watchlist cron lands "+N new operators"</li>
+            <li>Recent-funding + leadership-change signals (Crunchbase / news via Bright Data) folded into the trigger score</li>
+            <li>Vertical packs for the next 50 niches (currently 25)</li>
           </ul>
         </section>
 

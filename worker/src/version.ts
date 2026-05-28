@@ -14,5 +14,6 @@
  *   1.3.0 — Contact discovery: email/phone/contact harvested from contact+about pages via Bright Data (/api/contact-discovery + MCP tool)
  *   1.4.0 — Account brief export: one-click Markdown dossier (/api/brief + MCP tool + drill-down download)
  *   1.5.0 — Trigger-event "Act first" feed: re-rank operators by buying-signal strength (/api/triggers + MCP tool)
+ *   1.5.1 — docs refresh: README + /about + /docs + /mcp updated for the v1.2–1.5 feature/tool surface (10 MCP tools)
  */
-export const VERSION = "1.5.0";
+export const VERSION = "1.5.1";

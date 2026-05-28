@@ -106,6 +106,10 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 - **Draft outreach angle** — every row has a one-sentence draft outreach line the SDR edits and sends. Labeled "Draft — edit before sending" so trust signal is honest.
 - **Confidence score (0-100)** — derived from citation count + data depth + hostname-name match. Rank answers "who first?"; confidence answers "how much do I trust this row?"
 - **Apollo-thin badge** — every operator on its own website (not LinkedIn/Crunchbase/etc.) is labeled `Apollo-thin`.
+- **Apollo-blind verification** *(v1.2)* — on drill-down, fire a `site:linkedin.com/company "<name>"` search **through Bright Data** and stamp a verified `Not on LinkedIn — confirmed via Bright Data` badge with the exact query shown. Turns the wedge thesis from an assertion into live evidence on the hardest bot-protected target there is. (`/api/linkedin-check`, KV-cached 30d.)
+- **Contact discovery** *(v1.3)* — walk the operator's contact/about pages via the Bright Data Browser and extract a reachable email (own-domain inbox ranked first), phone, and named contact, with the pages fetched as citations. Cost-capped at 3 renders with early-exit. (`/api/contact-discovery`, KV-cached 7d.)
+- **Account brief export** *(v1.4)* — one-click Markdown dossier per operator bundling evidence, signals, the live LinkedIn verdict, discovered contacts, the draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM. (`/api/brief`.)
+- **"Act first" trigger feed** *(v1.5)* — after a run, operators are re-ranked by buying-signal strength (open roles weighted toward growth/ops hires, recent expansion/funding/award headlines by recency, multi-vertical presence). Zero extra API spend — scored from evidence already gathered. (`/api/triggers`.)
 - **Memory layer** — every URL surfaced across queries is remembered in Cloudflare KV. New operators are labeled `New`; recurring ones show `Seen ×N`. Swappable for Cognee/Pinecone — the interface aligns with vector-DB APIs.
 - **City badge** in multi-city results; **favicons** next to each operator's name.
 - **Outreach kit** in the drill-down — copy email subject/body, `mailto:` deep link, vertical-specific template.
@@ -184,11 +188,13 @@ Deploy: `pnpm deploy` from the repo root (builds web/dist, then runs `wrangler d
 
 ## What's next
 
-- **Bright Data MCP Server** — wrap the existing /api/scout, /api/businesses, /api/screenshot, /api/draft-email endpoints as MCP tools so any MCP-aware client (Claude Desktop, ChatGPT MCP, etc.) can call them directly. The HTTP/SSE shape is already in place.
-- **CRM connectors** — direct push to HubSpot / Salesforce / Apollo CSV import, beyond the manual CSV export.
-- **Per-operator screenshot diffs** — recapture once a quarter; flag operators whose homepages have materially changed (homepage refresh ≈ leadership change ≈ trigger event).
-- **Slack/Discord webhook** — wire the watchlist cron to ping a channel when `+N new operators` lands.
+- **CRM connectors** — direct push to HubSpot / Salesforce / Apollo CSV import, beyond the manual CSV export + the Markdown account brief.
+- **Consume Bright Data's own MCP Server** as an upstream tool inside the discovery phase (we currently *expose* an MCP server; the next step is to *consume* theirs).
+- **Per-operator screenshot diffs** — recapture once a quarter; flag operators whose homepages have materially changed (homepage refresh ≈ leadership change ≈ trigger event), folded into the trigger score.
+- **Recent-funding + leadership-change signals** (Crunchbase / news via Bright Data) added to the "Act first" trigger feed.
 - **Vertical packs for the next 50 niches** — current packs are 25.
+
+> **Already shipped since the v1.0 submission:** an MCP server exposing all 10 capabilities as tools (`/api/mcp`); Apollo-blind LinkedIn verification, contact discovery, account-brief export, and the "Act first" trigger feed (v1.2–v1.5); a Slack/Discord watchlist webhook; tech-stack detection; and the heat-map underlay.
 
 ## License
 

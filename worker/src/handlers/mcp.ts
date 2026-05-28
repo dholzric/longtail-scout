@@ -4,12 +4,17 @@
  * Exposes LongTail Scout's core API as MCP tools so any MCP-aware client
  * (Claude Desktop, ChatGPT MCP, Cursor, etc.) can drive scouts directly.
  *
- * Five tools:
+ * Ten tools:
  *   - scout                 → run a full scout (sample by default to avoid burning credits)
  *   - find_businesses       → demand-API geotagged businesses for a niche+city
  *   - demand_count          → integer count of businesses matching a niche
  *   - operator_screenshot   → base64 PNG of an operator's homepage
  *   - draft_email           → AI-personalized cold email for one operator
+ *   - niche_recon           → reverse the funnel: product description → top long-tail verticals
+ *   - linkedin_check        → Apollo-blind verification: is the operator on LinkedIn? (via BD)
+ *   - find_contacts         → email/phone/contact harvested from contact+about pages (via BD)
+ *   - account_brief         → one-page Markdown dossier for an operator
+ *   - rank_triggers         → re-rank operators by buying-signal strength ("act first")
  *
  * Authentication: Bearer <DEMO_PASSWORD> in the Authorization header (same as
  * the rest of /api/*). The MCP client passes the demo password as the

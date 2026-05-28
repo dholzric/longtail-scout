@@ -33,6 +33,10 @@ export function McpDocsPage() {
             <ToolRow name="operator_screenshot" desc="Capture a live homepage screenshot via Bright Data Browser API. Returns base64 PNG. Cached 30 days." />
             <ToolRow name="draft_email" desc="AI-personalized cold email for one operator. References their about + hiring + recent activity. ~$0.0002/call." />
             <ToolRow name="niche_recon" desc="Reverse the GTM funnel — paste a product description, get the top 5 long-tail verticals ranked by demand-density × Apollo-thinness. The killer demo move." />
+            <ToolRow name="linkedin_check" desc="Apollo-blind verification — run a site:linkedin.com/company search through Bright Data and report whether an operator has a LinkedIn company page. A confirmed absence is hard proof they're invisible to Apollo/ZoomInfo/Clay." />
+            <ToolRow name="find_contacts" desc="Walk an operator's contact/about pages via Bright Data and extract a reachable email (own-domain inbox first), phone, and named contact — with the pages fetched as citations. Cost-capped, cached 7d." />
+            <ToolRow name="account_brief" desc="Render a one-page Markdown account brief for an operator: who they are, why they fit, signals, contacts, draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM." />
+            <ToolRow name="rank_triggers" desc="Re-rank a set of operators by buying-signal strength — who to contact first. Scores open roles (premium for growth/ops hires), recent expansion/funding/award headlines by recency, and multi-vertical presence." />
           </ul>
         </section>
 
@@ -49,7 +53,7 @@ export function McpDocsPage() {
     }
   }
 }`}</pre>
-          <p class="text-sm text-ink-60 mt-2">Restart Claude Desktop. The five tools appear under the 🔌 plug menu. Try: <em>"Use longtailscout to find roofing contractors in Houston."</em></p>
+          <p class="text-sm text-ink-60 mt-2">Restart Claude Desktop. All ten tools appear under the 🔌 plug menu. Try: <em>"Use longtailscout to find roofing contractors in Houston, then check which ones aren't on LinkedIn."</em></p>
         </section>
 
         <section>
@@ -86,6 +90,14 @@ export function McpDocsPage() {
   -H "authorization: Bearer <DEMO_PASSWORD>" \\
   -H "content-type: application/json" \\
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"demand_count","arguments":{"niche":"law"}}}'`}
+            />
+            <CurlBlock
+              title="Apollo-blind verification (is the operator on LinkedIn?)"
+              cmd={`curl https://longtailscout.com/api/mcp \\
+  -X POST \\
+  -H "authorization: Bearer <DEMO_PASSWORD>" \\
+  -H "content-type: application/json" \\
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"linkedin_check","arguments":{"name":"Amstill Roofing","city":"Houston"}}}'`}
             />
           </div>
         </section>
