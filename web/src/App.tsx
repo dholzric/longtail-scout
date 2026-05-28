@@ -20,6 +20,7 @@ import { TweaksPanel } from "./components/TweaksPanel";
 import { ByokPanel } from "./components/ByokPanel";
 import { RecentRuns } from "./components/RecentRuns";
 import { NicheRecon } from "./components/NicheRecon";
+import { APP_VERSION } from "./version";
 
 type Status = "idle" | "running" | "done" | "error";
 type ViewMode = "table" | "map";
@@ -356,7 +357,7 @@ export function App() {
       {!embedMode && <footer class="border-t border-ink-15 mt-12">
         <div class="mx-auto max-w-6xl px-6 py-10 font-mono text-[11px] text-ink-50 uppercase tracking-wider flex flex-wrap items-center justify-between gap-3">
           <span>longtailscout.com · made in Austin · all rights reserved</span>
-          <span>Built for the Bright Data Web Data UNLOCKED hackathon, May 2026</span>
+          <span>Built for the Bright Data Web Data UNLOCKED hackathon, May 2026 · v{APP_VERSION}</span>
         </div>
       </footer>}
     </div>

@@ -9,6 +9,7 @@ import { recentRunsHandler, nicheLeaderboardHandler } from "./handlers/recentRun
 import { ogImageHandler, shareHandler } from "./handlers/og";
 import { lookalikesHandler } from "./handlers/lookalikes";
 import { nicheReconHandler } from "./handlers/nicheRecon";
+import { VERSION } from "./version";
 
 export interface Env {
   CACHE: KVNamespace;
@@ -55,7 +56,7 @@ function operatorAuthorized(req: Request, url: URL, env: Env): boolean {
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(req.url);
-    if (url.pathname === "/api/health") return Response.json({ ok: true, ts: Date.now() });
+    if (url.pathname === "/api/health") return Response.json({ ok: true, version: VERSION, ts: Date.now() });
     if (url.pathname === "/api/smoke") {
       // SECURITY: smoke hits Bright Data SERP (real $$$) — gate behind the demo password.
       if (!operatorAuthorized(req, url, env)) return new Response("unauthorized", { status: 401 });

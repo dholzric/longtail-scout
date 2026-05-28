@@ -23,10 +23,11 @@
 import type { Env } from "../index";
 import { findSample } from "../samples";
 import type { Operator } from "../types";
+import { VERSION } from "../version";
 
 const PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "longtailscout";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = VERSION;
 
 interface JsonRpcRequest {
   jsonrpc: "2.0";
