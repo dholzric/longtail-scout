@@ -10,5 +10,6 @@
  * History:
  *   1.0.0 — lablab "Web Data UNLOCKED" submission baseline
  *   1.1.0 — post-submission security hardening (bridge SSRF guard + drift test, auth DRY)
+ *   1.2.0 — Apollo-blind verification: live LinkedIn-absence proof via Bright Data (/api/linkedin-check + MCP tool)
  */
-export const VERSION = "1.1.0";
+export const VERSION = "1.2.0";

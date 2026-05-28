@@ -123,6 +123,19 @@ const TOOLS: ToolDefinition[] = [
     }
   },
   {
+    name: "linkedin_check",
+    description: "Apollo-blind verification: run a `site:linkedin.com/company` search through Bright Data and report whether an operator has a LinkedIn company page. A confirmed absence is hard proof the operator is invisible to LinkedIn-graph tools (Apollo/ZoomInfo/Clay) — the core LongTail Scout thesis. Cached 30 days.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Operator business name, e.g. 'Acme Roofing'." },
+        city: { type: "string", description: "City, optional — biases the match." },
+        url: { type: "string", description: "Operator homepage URL, optional — used for context." }
+      },
+      required: ["name"]
+    }
+  },
+  {
     name: "niche_recon",
     description: "Reverse the GTM funnel: given a product description, suggest the top long-tail verticals to hunt in. An LLM expands the description into ~6 candidate verticals, then we cross-reference each against the 7M-business demand index. Ranks by demand density × Apollo-thinness (share of businesses whose only URL is a booking-platform / Google profile / Facebook page — i.e. they don't have their own domain for Apollo to enrich from). Returns top 5 niches with demand counts, thinness %, sample cities, and a one-click `suggested_query` you can pipe into the scout tool. Use this when a GTM team isn't sure which verticals their product fits. Takes 30-60s (LLM + demand index calls).",
     inputSchema: {
@@ -251,6 +264,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env, origin));
     case "draft_email":        return makeResponse(id, await toolDraftEmail(args, env, origin));
     case "niche_recon":        return makeResponse(id, await toolNicheRecon(args, env, origin));
+    case "linkedin_check":     return makeResponse(id, await toolLinkedInCheck(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -436,6 +450,26 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolLinkedInCheck(args: any, env: Env, origin: string) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return textContent("ERROR: missing name");
+  const params = new URLSearchParams({ name });
+  if (args?.city) params.set("city", String(args.city).trim());
+  if (args?.url) params.set("url", String(args.url).trim());
+  try {
+    const headers: Record<string, string> = {};
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/linkedin-check?${params.toString()}`, { headers });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`linkedin-check failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    return jsonContent(await r.json());
+  } catch (err) {
+    return textContent(`linkedin-check error: ${(err as Error).message}`);
   }
 }
 

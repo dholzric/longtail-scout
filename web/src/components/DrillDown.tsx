@@ -70,6 +70,90 @@ function HomepageShot({ url }: { url: string }) {
   );
 }
 
+interface LinkedInVerdict {
+  checked: boolean;
+  on_linkedin: boolean;
+  evidence_url: string | null;
+  match_count: number;
+  serp_query: string;
+  error?: string;
+}
+
+/**
+ * Apollo-blind verification (v1.2.0). On drill-down open, fires a `site:linkedin.com/company`
+ * search THROUGH Bright Data and renders the verdict. A confirmed *absence* is the money shot:
+ * hard evidence the operator is invisible to LinkedIn-graph tools like Apollo/ZoomInfo/Clay.
+ * Cached 30d server-side, so re-opening an operator costs no additional Bright Data calls.
+ */
+function LinkedInVerification({ name, city, opUrl }: { name: string; city?: string; opUrl: string }) {
+  const [state, setState] = useState<"loading" | "done" | "error">("loading");
+  const [verdict, setVerdict] = useState<LinkedInVerdict | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setState("loading");
+    setVerdict(null);
+    const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+    const params = new URLSearchParams({ name, url: opUrl, key });
+    if (city) params.set("city", city);
+    fetch(`/api/linkedin-check?${params.toString()}`)
+      .then((r) => r.json())
+      .then((j: LinkedInVerdict) => {
+        if (cancelled) return;
+        setVerdict(j);
+        setState(j.checked ? "done" : "error");
+      })
+      .catch(() => { if (!cancelled) setState("error"); });
+    return () => { cancelled = true; };
+  }, [name, city, opUrl]);
+
+  if (state === "loading") {
+    return (
+      <div class="border border-ink-15 bg-paper-3 px-3 py-2 font-mono text-[11px] text-ink-50 animate-pulse">
+        verifying on LinkedIn via Bright Data…
+      </div>
+    );
+  }
+  if (state === "error" || !verdict) {
+    return (
+      <div class="border border-ink-15 bg-paper-3 px-3 py-2 font-mono text-[11px] text-ink-40">
+        LinkedIn check unavailable right now{verdict?.error ? ` · ${verdict.error}` : ""}
+      </div>
+    );
+  }
+
+  if (!verdict.on_linkedin) {
+    // The thesis, proven.
+    return (
+      <div class="border-2 border-rust bg-rust-tint/40 px-4 py-3">
+        <div class="flex items-center gap-2">
+          <span class="font-mono text-[10px] uppercase tracking-[0.16em] text-rust font-bold">✓ Not on LinkedIn — confirmed via Bright Data</span>
+        </div>
+        <div class="mt-1.5 text-sm text-ink-80 leading-snug">
+          No LinkedIn company page found for <strong class="text-ink">{name}</strong>. This is exactly why Apollo, ZoomInfo, and Clay can't see them — their data graph starts at LinkedIn. We found this operator on their own website instead.
+        </div>
+        <div class="mt-2 font-mono text-[10px] text-ink-50 break-all" title="The exact query we ran through the Bright Data Scraping Browser">
+          query: {verdict.serp_query}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div class="border border-ink-20 bg-paper-3 px-4 py-3">
+      <div class="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-60">Has a LinkedIn company page · checked via Bright Data</div>
+      <div class="mt-1.5 text-sm text-ink-70 leading-snug">
+        This operator <em>is</em> on LinkedIn, so Apollo can likely enrich it — a weaker long-tail signal. We surface it honestly rather than overclaim.
+      </div>
+      {verdict.evidence_url && (
+        <a class="mt-2 inline-block font-mono text-[11px] text-ink-60 hover:text-ink underline decoration-dotted break-all" href={verdict.evidence_url} target="_blank" rel="noreferrer">
+          {verdict.evidence_url}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function buildOutreachEmail(op: Operator): { subject: string; body: string } {
   const subject = `Quick question for ${op.name}`;
   const lines: string[] = [];
@@ -250,6 +334,11 @@ export function DrillDown({ op }: { op: Operator }) {
           )}
         </div>
       )}
+
+      {/* Apollo-blind verification — live LinkedIn-absence proof via Bright Data */}
+      <div class="mt-4">
+        <LinkedInVerification name={op.name} city={op.city} opUrl={op.url} />
+      </div>
 
       {/* Two-column layout */}
       <div class="mt-5 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_360px] gap-6">
