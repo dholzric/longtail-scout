@@ -71,6 +71,7 @@ export function QueryForm({ value, onChange, onRun, onRunWith, onShare, disabled
   const [supported, setSupported] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
   const [shared, setShared] = useState(false);
+  const [embedCopied, setEmbedCopied] = useState(false);
   const recRef = useRef<SpeechRec | null>(null);
 
   function handleShare() {
@@ -78,6 +79,20 @@ export function QueryForm({ value, onChange, onRun, onRunWith, onShare, disabled
     onShare();
     setShared(true);
     setTimeout(() => setShared(false), 1500);
+  }
+
+  function copyEmbedCode() {
+    const q = value.trim();
+    if (!q) return;
+    // Paste-into-blog-post iframe pointing at the embed-mode app. Sample mode by default so the
+    // page doesn't burn scout dollars every time someone scrolls past it; viewers can re-run live
+    // from inside the iframe if they want.
+    const src = `https://longtailscout.com/?q=${encodeURIComponent(q)}&embed=1&sample=1`;
+    const snippet = `<iframe src="${src}" width="100%" height="800" frameborder="0" style="border:1px solid #DBD4C7;border-radius:4px" title="LongTail Scout — ${q.replace(/"/g, "&quot;")}"></iframe>`;
+    navigator.clipboard?.writeText(snippet).then(() => {
+      setEmbedCopied(true);
+      setTimeout(() => setEmbedCopied(false), 1800);
+    }).catch(() => {});
   }
 
   useEffect(() => {
@@ -213,14 +228,26 @@ export function QueryForm({ value, onChange, onRun, onRunWith, onShare, disabled
             </button>
           ))}
         </div>
-        {onShare && value.trim().length > 0 && (
-          <button
-            class="font-mono text-[11px] text-ink-50 hover:text-ink border-b border-dotted border-ink-30"
-            onClick={handleShare}
-            title="Copy a shareable URL that auto-fills this query (and auto-runs)"
-          >
-            {shared ? "✓ copied share URL" : "copy share URL"}
-          </button>
+        {value.trim().length > 0 && (
+          <div class="flex items-center gap-3 font-mono text-[11px] text-ink-50">
+            {onShare && (
+              <button
+                class="hover:text-ink border-b border-dotted border-ink-30"
+                onClick={handleShare}
+                title="Copy a shareable URL that auto-fills this query (and auto-runs). The URL unfurls into a branded OG card in Slack / Twitter / Discord."
+              >
+                {shared ? "✓ copied share URL" : "🔗 copy share URL"}
+              </button>
+            )}
+            <button
+              class="hover:text-ink border-b border-dotted border-ink-30"
+              onClick={copyEmbedCode}
+              title="Copy an iframe snippet you can paste into a blog, slide, or marketing page. Renders the scout result inline without the surrounding chrome."
+              type="button"
+            >
+              {embedCopied ? "✓ embed code copied" : "📋 embed code"}
+            </button>
+          </div>
         )}
       </div>
 

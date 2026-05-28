@@ -278,14 +278,14 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
 
       {/* Magazine grid table */}
       <div class="border border-ink-20 bg-paper">
-        {/* Header row */}
-        <div class="grid grid-cols-[60px_minmax(0,1fr)_200px_160px_minmax(0,1.3fr)_80px] gap-0 border-b border-ink-20 bg-paper-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-50 py-2.5">
+        {/* Header row — collapses to 2 cols (# + operator) on mobile; mobile stacks everything else inside the operator cell */}
+        <div class="grid md:grid-cols-[60px_minmax(0,1fr)_200px_160px_minmax(0,1.3fr)_80px] grid-cols-[40px_minmax(0,1fr)] gap-0 border-b border-ink-20 bg-paper-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-50 py-2.5">
           <div class="px-4">#</div>
           <div>operator · domain</div>
-          <div>confidence</div>
-          <div>hiring</div>
-          <div>icp fit & sales angle</div>
-          <div class="px-4 text-right">cites</div>
+          <div class="hidden md:block">confidence</div>
+          <div class="hidden md:block">hiring</div>
+          <div class="hidden md:block">icp fit & sales angle</div>
+          <div class="hidden md:block px-4 text-right">cites</div>
         </div>
 
         {visible.map((op, idx) => {
@@ -296,7 +296,7 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
             <div key={op.url} data-op-id={operatorPermalinkId(op.url)}>
               <div
                 onClick={() => setOpen(isOpen ? null : op.url)}
-                class={`grid grid-cols-[60px_minmax(0,1fr)_200px_160px_minmax(0,1.3fr)_80px] gap-0 py-4 border-b border-ink-10 cursor-pointer transition-colors ${isOpen ? "bg-paper-3" : "hover:bg-paper-2"}`}
+                class={`grid md:grid-cols-[60px_minmax(0,1fr)_200px_160px_minmax(0,1.3fr)_80px] grid-cols-[40px_minmax(0,1fr)] gap-0 py-4 border-b border-ink-10 cursor-pointer transition-colors ${isOpen ? "bg-paper-3" : "hover:bg-paper-2"}`}
               >
                 {/* # column */}
                 <div class="px-4">
@@ -353,7 +353,24 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
                       )}
                     </div>
                   )}
-                  <div class="font-mono text-[10px] uppercase tracking-wider text-ink-50">
+                  {/* Mobile-only compact summary — the desktop columns are hidden on narrow viewports */}
+                  <div class="md:hidden mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span class="font-mono"><span class="text-ink-50">conf</span> <span class={op.confidence >= 80 ? "text-moss-dk font-semibold" : op.confidence >= 60 ? "text-ochre-dk font-semibold" : "text-ink-60"}>{op.confidence}</span></span>
+                    <span class="font-mono">
+                      <span class="text-ink-50">hire</span>{" "}
+                      {op.hiring.count ? <span class="text-moss-dk font-semibold">{op.hiring.count}</span> : <span class="text-ink-40">—</span>}
+                    </span>
+                    <span class="font-mono"><span class="text-ink-50">cites</span> <span class="text-ink">{op.sources.length}</span></span>
+                  </div>
+                  {op.icp_fit_reason && (
+                    <div class="md:hidden mt-2 text-xs text-ink-80 leading-snug">
+                      <span class="font-mono text-[9px] uppercase tracking-wider text-rust">icp fit · </span>{op.icp_fit_reason}
+                    </div>
+                  )}
+                  {op.sales_angle && (
+                    <div class="md:hidden mt-1 text-xs text-ink-80 leading-snug italic">"{op.sales_angle}"</div>
+                  )}
+                  <div class="font-mono text-[10px] uppercase tracking-wider text-ink-50 mt-2">
                     {op.size_estimate && <span>{op.size_estimate} emp · </span>}
                     rank #{op.rank}
                     <button
@@ -373,13 +390,13 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
                   </div>
                 </div>
 
-                {/* Confidence */}
-                <div class="pr-4">
+                {/* Confidence — hidden on mobile, condensed inside operator cell below md */}
+                <div class="hidden md:block pr-4">
                   <ConfidenceBar value={op.confidence} op={op} />
                 </div>
 
                 {/* Hiring */}
-                <div class="pr-4">
+                <div class="hidden md:block pr-4">
                   {op.hiring.count ? (
                     <>
                       <div class="font-serif text-lg font-semibold text-ink">{op.hiring.count} <span class="text-sm font-normal text-ink-60">role{op.hiring.count > 1 ? "s" : ""}</span></div>
@@ -396,7 +413,7 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
                 </div>
 
                 {/* ICP fit & sales angle */}
-                <div class="pr-4 space-y-1.5">
+                <div class="hidden md:block pr-4 space-y-1.5">
                   <div>
                     <div class="font-mono text-[9px] uppercase tracking-wider text-rust">icp fit</div>
                     <div class="text-xs text-ink-80 leading-snug">{op.icp_fit_reason || "—"}</div>
@@ -410,7 +427,7 @@ export function ResultTable({ operators, initialOpenId, query }: ResultTableProp
                 </div>
 
                 {/* Cites */}
-                <div class="px-4 text-right">
+                <div class="hidden md:block px-4 text-right">
                   <div class="font-serif text-2xl font-semibold text-ink leading-none">{op.sources.length}</div>
                   <div class="font-mono text-[9px] uppercase tracking-wider text-ink-50 mt-1">fetches</div>
                 </div>

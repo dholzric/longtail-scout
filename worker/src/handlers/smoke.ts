@@ -19,7 +19,7 @@ export async function smokeHandler(env: Env): Promise<Response> {
     checks.serp = { ok: false, error: "BRIDGE_BASE not configured" };
   } else {
     try {
-      const serp = await serpSearch("aerospace companies Houston", bridge, { num: 5 });
+      const serp = await serpSearch("aerospace companies Houston", { bridge, serpApiKey: env.SERPAPI_KEY }, { num: 5 });
       checks.serp = { ok: true, count: serp.results.length, first: serp.results[0] ?? null };
     } catch (err) {
       checks.serp = { ok: false, error: String(err) };

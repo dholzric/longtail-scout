@@ -77,6 +77,44 @@ export async function businessesHandler(req: Request, env: Env): Promise<Respons
   });
 }
 
+/** The niches we proactively pre-warm into KV so first-time visitors see instant probe results. */
+const PREWARM_NICHES = [
+  "roofing", "hvac", "dental", "childcare", "law", "msp", "auto repair", "hotel",
+  "plumbing", "electrician", "landscaping", "fitness", "yoga", "salon", "tattoo",
+  "real estate", "accounting", "marketing agency", "insurance", "veterinary",
+  "restaurant", "brewery", "photographer", "trucking", "construction"
+];
+
+/**
+ * Pre-warm KV with demand-index counts for the most common niches. Called by the daily cron
+ * so first-time visitors typing those niches see instant probe results instead of 500-1000ms
+ * spinners. ~25 niches × ~150ms each = ~4s total, runs once a day.
+ */
+export async function prewarmDemandIndex(env: Env): Promise<{ warmed: number; failed: number }> {
+  let warmed = 0;
+  let failed = 0;
+  for (const niche of PREWARM_NICHES) {
+    const q = niche.toLowerCase();
+    const cacheKey = `demand-research:${q}`;
+    const existing = await env.CACHE.get(cacheKey, "json");
+    if (existing) { warmed++; continue; } // already cached, skip
+    const upstream = new URL("/api/research", env.DEMAND_API_BASE);
+    upstream.searchParams.set("q", q);
+    upstream.searchParams.set("tlds", "com");
+    upstream.searchParams.set("limit", "1");
+    try {
+      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-prewarm/1.0" } });
+      if (!r.ok) { failed++; continue; }
+      const j = await r.json() as { query?: string; demand?: number };
+      const out = { query: j.query ?? q, demand: typeof j.demand === "number" ? j.demand : 0 };
+      // 12h TTL — the cron runs daily, so by the time entries expire, the next cron has refreshed.
+      await env.CACHE.put(cacheKey, JSON.stringify(out), { expirationTtl: 43200 });
+      warmed++;
+    } catch { failed++; }
+  }
+  return { warmed, failed };
+}
+
 /** Lightweight passthrough to /api/research on the demand-API. Used by the live "N businesses match this niche" probe under the query input. */
 export async function demandResearchHandler(req: Request, env: Env): Promise<Response> {
   const url = new URL(req.url);

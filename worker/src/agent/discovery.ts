@@ -86,10 +86,11 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
         const query = String(args.query ?? "");
         await emit.emit("tool", { tool: "serp", args: { query }, url: null });
         try {
-          const result = await serpSearchCached(query, bridge, env.CACHE, { num: 25 });
-          if (tally) tally.bd_renders += 1; // each SERP = one Bright Data Browser render
-          // Per-SERP visibility — surface result count so 0-result trips are debuggable in the trace.
-          await emit.emit("progress", { message: `SERP "${query}" → ${result.results.length} raw hit${result.results.length === 1 ? "" : "s"}` });
+          const result = await serpSearchCached(query, { bridge, serpApiKey: env.SERPAPI_KEY }, env.CACHE, { num: 25 });
+          // Only charge a BD render when the bridge actually served the SERP (SerpAPI / DDG paths are flat-fee or free).
+          if (tally && result.source === "bridge") tally.bd_renders += 1;
+          // Per-SERP visibility — surface result count AND source so we can see which tier handled the query.
+          await emit.emit("progress", { message: `SERP "${query}" → ${result.results.length} raw hit${result.results.length === 1 ? "" : "s"} via ${result.source ?? "?"}` });
           for (const r of result.results) {
             rawCandidates.push({ name: r.title, url: r.link, origin_query: query });
             await emit.emit("candidate", { name: r.title, url: r.link });

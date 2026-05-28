@@ -1,7 +1,7 @@
 import { smokeHandler } from "./handlers/smoke";
 import { scoutHandler } from "./handlers/scout";
 import { watchlistHandler, refreshWatchlistDemand } from "./handlers/watchlist";
-import { businessesHandler, demandResearchHandler } from "./handlers/businesses";
+import { businessesHandler, demandResearchHandler, prewarmDemandIndex } from "./handlers/businesses";
 import { screenshotHandler } from "./handlers/screenshot";
 import { draftEmailHandler } from "./handlers/draftEmail";
 import { mcpHandler } from "./handlers/mcp";
@@ -26,6 +26,8 @@ export interface Env {
   BRIDGE_BASE: string;
   BRIDGE_AUTH_TOKEN?: string;
   RESEND_API_KEY?: string;
+  /** When set, discovery prefers SerpAPI's JSON SERP over BD's google.com rendering — ~5× faster. */
+  SERPAPI_KEY?: string;
 }
 
 export default {
@@ -52,6 +54,16 @@ export default {
     if (url.pathname === "/api/mcp" || url.pathname === "/mcp-api") return mcpHandler(req, env);
     if (url.pathname === "/api/recent-runs") return recentRunsHandler(req, env);
     if (url.pathname === "/api/niche-leaderboard") return nicheLeaderboardHandler(req, env);
+    if (url.pathname === "/api/cron/prewarm-demand") {
+      const expected = env.DEMO_PASSWORD;
+      const auth = req.headers.get("authorization") ?? "";
+      const keyParam = url.searchParams.get("key") ?? "";
+      if (expected && auth !== `Bearer ${expected}` && keyParam !== expected) {
+        return new Response("unauthorized", { status: 401 });
+      }
+      const result = await prewarmDemandIndex(env);
+      return Response.json(result);
+    }
     if (url.pathname === "/api/og.svg") return ogImageHandler(req, env);
     if (url.pathname === "/share") return shareHandler(req, env);
     if (url.pathname === "/api/lookalikes") return lookalikesHandler(req, env);
@@ -86,6 +98,13 @@ export default {
         console.log(`[cron] watchlist-refresh: refreshed=${r.refreshed} failed=${r.failed}`);
       } catch (err) {
         console.error(`[cron] watchlist-refresh failed:`, err);
+      }
+      // Pre-warm the demand-index cache for popular niches so first-time visitors get instant probe results.
+      try {
+        const r = await prewarmDemandIndex(env);
+        console.log(`[cron] prewarm demand index: warmed=${r.warmed} failed=${r.failed}`);
+      } catch (err) {
+        console.error(`[cron] prewarm demand index failed:`, err);
       }
     })());
   }
