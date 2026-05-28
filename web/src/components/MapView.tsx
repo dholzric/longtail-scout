@@ -4,15 +4,28 @@ import "leaflet/dist/leaflet.css";
 import type { Operator } from "../types";
 import { SectionHeader } from "./SectionHeader";
 
-/** Numbered black-box pin matching the design language. Stem + dot footprint. */
-function numberedPinIcon(rank: number): L.DivIcon {
+/** Numbered black-box pin matching the design language. Stem + dot footprint.
+ *  `viaIndex` = true means this operator's geo came from the demand-index match (its lat/lng
+ *  was inherited from a business in our 7M-record corpus, so the pin sits on top of a heat
+ *  circle). Renders a small moss-green ring on the pin box so users can see at a glance which
+ *  operators are "anchored to the index" vs Nominatim-geocoded. */
+function numberedPinIcon(rank: number, viaIndex: boolean): L.DivIcon {
+  const badge = viaIndex
+    ? `<div class="lts-pin-badge" title="position derived from demand-index match"></div>`
+    : "";
   return L.divIcon({
     className: "lts-pin",
-    html: `<div class="lts-pin-box">${rank}</div><div class="lts-pin-stem"></div>`,
+    html: `<div class="lts-pin-box">${rank}${badge}</div><div class="lts-pin-stem"></div>`,
     iconSize: [26, 40],
     iconAnchor: [13, 40],
     popupAnchor: [0, -40],
   });
+}
+
+/** Detect whether an operator's geo came from the demand-index match fallback (synthesize.ts
+ *  pushes a citation with tool="demand_index_match" when it overrides Nominatim's answer). */
+function isGeoFromDemandIndex(op: Operator): boolean {
+  return op.sources.some(s => s.field === "geo" && s.tool === "demand_index_match");
 }
 
 interface Props {
@@ -118,13 +131,16 @@ export function MapView({ operators, query, compact }: Props) {
         rating >= 4.0 ? cs.getPropertyValue("--ochre").trim() :
         rating >= 3.5 ? cs.getPropertyValue("--moss").trim() :
         cs.getPropertyValue("--sky-dk").trim();
+      // Circles deliberately faint — they're context, not the operators themselves. Pins should
+      // dominate the visual hierarchy. Was 0.5 stroke / 0.18 fill; dropped to 0.28 / 0.09 after
+      // a user reported confusing them with operator markers.
       const c = L.circleMarker([b.lat, b.lng], {
         radius,
         color,
         weight: 1,
-        opacity: 0.5,
+        opacity: 0.28,
         fillColor: color,
-        fillOpacity: 0.18,
+        fillOpacity: 0.09,
         interactive: true
       });
       c.bindTooltip(
@@ -144,11 +160,13 @@ export function MapView({ operators, query, compact }: Props) {
     const bounds = L.latLngBounds([]);
     for (const op of withGeo) {
       const g = op.geo!;
-      const m = L.marker([g.lat, g.lng], { icon: numberedPinIcon(op.rank), title: op.name, zIndexOffset: 1000 });
+      const viaIndex = isGeoFromDemandIndex(op);
+      const m = L.marker([g.lat, g.lng], { icon: numberedPinIcon(op.rank, viaIndex), title: op.name, zIndexOffset: 1000 });
       const popup = `
         <div style="min-width:240px;font-family:var(--font-sans)">
           <div style="font-family:var(--font-serif);font-weight:600;font-size:14px;color:var(--ink);margin-bottom:2px">#${op.rank} · ${escapeHtml(op.name)}</div>
           <a href="${escapeAttr(op.url)}" target="_blank" rel="noreferrer" style="color:var(--ink-60);font-size:11px;font-family:var(--font-mono);text-decoration:none;border-bottom:1px dotted var(--ink-30)">${escapeHtml(op.url)}</a>
+          ${viaIndex ? `<div style="margin-top:6px;font-family:var(--font-mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--moss-dk)">📍 geo via demand-index match</div>` : ""}
           <div style="margin-top:8px;font-size:12px;color:var(--ink-70)">${escapeHtml(op.icp_fit_reason)}</div>
           <div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--ink-15);font-size:11px;color:var(--ink-80);font-style:italic">"${escapeHtml(op.sales_angle)}"</div>
         </div>`;
@@ -214,11 +232,15 @@ export function MapView({ operators, query, compact }: Props) {
       <div class="border border-ink-20 bg-paper overflow-hidden">
         {densityCount > 0 && showHeat && (
           <div class="border-b border-ink-15 bg-paper-2 px-5 py-2 font-mono text-[11px] text-ink-60 flex items-center gap-4 flex-wrap">
-            <span class="uppercase tracking-[0.14em] text-ink-50">demand density:</span>
+            <span class="uppercase tracking-[0.14em] text-ink-50">pins = operators · circles = demand-index density:</span>
             <LegendDot color="var(--rust)" label="4.5★+ high signal" />
             <LegendDot color="var(--ochre)" label="4.0-4.4★" />
             <LegendDot color="var(--moss)" label="3.5-3.9★" />
             <LegendDot color="var(--sky-dk)" label="< 3.5★" />
+            <span class="inline-flex items-center gap-1.5">
+              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--moss-bright);border:1.5px solid var(--paper);box-shadow:0 0 0 1px var(--moss-dk)"></span>
+              <span class="text-ink-70">on-pin dot = position via demand-index match</span>
+            </span>
             <span class="text-ink-40 ml-auto">size = review count · pins = LongTail discoveries</span>
           </div>
         )}
