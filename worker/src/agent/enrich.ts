@@ -311,13 +311,13 @@ async function pool<T, R>(items: T[], concurrency: number, worker: (item: T) => 
 
 export async function enrichCandidates(candidates: Candidate[], env: Env, emit: SseEmitter, tally?: CostTally): Promise<EnrichedPartial[]> {
   await emit.emit("phase", { phase: "enrichment" });
-  // Bright Data Browser API serializes navigations via the bridge mutex.
-  // Each candidate does 1-2 BD renders (homepage; careers if linked). Cap at 30 so a busy-city
-  // query like "roofing in Chicago" returns ~20-30 operators rather than the prior 6-cap that
-  // bottlenecked everything. Total time at ~4-5s/render: 30 × 5s ≈ 2-3 min worst case.
+  // After Stretch 10's plain-fetch fallback, ~60% of candidates skip the bridge entirely and
+  // resolve as free parallel Workers fetches. Concurrency 12 lets those land in seconds total;
+  // the ~40% that fall through to BD still serialize at the bridge mutex (out of our control),
+  // but the queue moves much faster because we're not waiting on slow ones to start fast ones.
   const capped = candidates.slice(0, 30);
-  const CONCURRENCY = 3; // bridge mutex bottlenecks BD anyway; this paces SSE events + processes non-BD parts in parallel
-  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY} at a time)…` });
+  const CONCURRENCY = 12;
+  await emit.emit("progress", { message: `Enriching ${capped.length} candidates (${CONCURRENCY}-way parallel; BD-fallback path still serializes at the bridge)…` });
 
   const settled = await pool(capped, CONCURRENCY, c => enrichOne(c, env, emit, tally));
   const out: EnrichedPartial[] = [];
