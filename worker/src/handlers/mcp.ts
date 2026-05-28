@@ -123,6 +123,17 @@ const TOOLS: ToolDefinition[] = [
     }
   },
   {
+    name: "rank_triggers",
+    description: "Re-rank a set of operators (from a scout result) by buying-signal strength — who to contact FIRST. Scores open roles (premium for growth/ops hires), recent expansion/funding/award headlines weighted by recency, and multi-vertical presence. Returns each operator with a 0-100 trigger_score and the reasons.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        operators: { type: "array", description: "Array of operator objects from the scout tool.", items: { type: "object" } }
+      },
+      required: ["operators"]
+    }
+  },
+  {
     name: "account_brief",
     description: "Render a one-page Markdown account brief for an operator (from a scout result) — who they are, why they fit, signals, contacts, draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM note or email.",
     inputSchema: {
@@ -293,6 +304,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "linkedin_check":     return makeResponse(id, await toolLinkedInCheck(args, env, origin));
     case "find_contacts":      return makeResponse(id, await toolFindContacts(args, env, origin));
     case "account_brief":      return makeResponse(id, await toolAccountBrief(args, env, origin));
+    case "rank_triggers":      return makeResponse(id, await toolRankTriggers(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -478,6 +490,23 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolRankTriggers(args: any, env: Env, origin: string) {
+  const operators = Array.isArray(args?.operators) ? args.operators : null;
+  if (!operators) return textContent("ERROR: operators array required");
+  try {
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/triggers`, { method: "POST", headers, body: JSON.stringify({ operators }) });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`rank-triggers failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    return jsonContent(await r.json());
+  } catch (err) {
+    return textContent(`rank-triggers error: ${(err as Error).message}`);
   }
 }
 

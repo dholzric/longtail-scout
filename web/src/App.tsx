@@ -6,6 +6,7 @@ import { AgentTrace, type TraceEntry } from "./components/AgentTrace";
 import { ResultTable } from "./components/ResultTable";
 import { MapView } from "./components/MapView";
 import { WedgeSummary } from "./components/WedgeSummary";
+import { TriggerFeed } from "./components/TriggerFeed";
 import { CityBreakdown } from "./components/CityBreakdown";
 import { SocialShare } from "./components/SocialShare";
 import { AboutPage } from "./components/AboutPage";
@@ -328,6 +329,7 @@ export function App() {
         {operators.length > 0 && (
           <>
             <div data-section="wedge-summary"><WedgeSummary operators={operators} niche={query} /></div>
+            <TriggerFeed operators={operators} ready={status === "done"} demoKey={demoKey} />
             <CityBreakdown operators={operators} />
             <SocialShare operators={operators} query={query} />
             <div class="flex items-center gap-2">

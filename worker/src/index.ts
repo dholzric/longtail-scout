@@ -12,6 +12,7 @@ import { nicheReconHandler } from "./handlers/nicheRecon";
 import { linkedinCheckHandler } from "./handlers/linkedinCheck";
 import { contactDiscoveryHandler } from "./handlers/contactDiscovery";
 import { briefHandler } from "./handlers/brief";
+import { triggersHandler } from "./handlers/triggers";
 import { VERSION } from "./version";
 
 export interface Env {
@@ -86,6 +87,7 @@ export default {
     if (url.pathname === "/api/linkedin-check") return linkedinCheckHandler(req, env);
     if (url.pathname === "/api/contact-discovery") return contactDiscoveryHandler(req, env);
     if (url.pathname === "/api/brief") return briefHandler(req, env);
+    if (url.pathname === "/api/triggers") return triggersHandler(req, env);
     // Manual trigger for the daily watchlist refresh — gated by the demo password so judges can
     // see the cron logic without waiting until tomorrow morning.
     // Pass ?email=force to also send digest emails to subscribers even when delta is 0 (demo path).

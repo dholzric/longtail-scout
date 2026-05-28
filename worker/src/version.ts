@@ -13,5 +13,6 @@
  *   1.2.0 — Apollo-blind verification: live LinkedIn-absence proof via Bright Data (/api/linkedin-check + MCP tool)
  *   1.3.0 — Contact discovery: email/phone/contact harvested from contact+about pages via Bright Data (/api/contact-discovery + MCP tool)
  *   1.4.0 — Account brief export: one-click Markdown dossier (/api/brief + MCP tool + drill-down download)
+ *   1.5.0 — Trigger-event "Act first" feed: re-rank operators by buying-signal strength (/api/triggers + MCP tool)
  */
-export const VERSION = "1.4.0";
+export const VERSION = "1.5.0";
