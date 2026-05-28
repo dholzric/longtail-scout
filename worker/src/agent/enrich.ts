@@ -21,23 +21,38 @@ async function negativeCacheCheck(kv: KVNamespace, hostname: string): Promise<{ 
   } catch { return null; }
 }
 
-/** Heuristic: does this HTML look like a real operator's site (vs an aggregator / parked / 404)?
- *  Returns null if it looks fine, or a short reason string if it should be neg-cached. */
-function isEmptyShell(html: string, url: string): string | null {
-  if (!html || html.length < 500) return "html too short";
+/**
+ * Heuristic: does this HTML look like a real operator's site (vs aggregator / parked / 404)?
+ * Returns null if fine, or a short reason string for skipping/neg-caching.
+ *
+ * Modes:
+ *   strict=true  — full check (use on BD-rendered HTML, which has the full hydrated DOM)
+ *   strict=false — only "obviously dead" check (parked domain, hard 404). For plain-fetch HTML
+ *                  we can't trust visible-char counts or aggregator-keyword heuristics because
+ *                  JS-heavy SPAs legitimately render empty before hydration.
+ */
+function isEmptyShell(html: string, url: string, opts: { strict: boolean }): string | null {
+  if (!html || html.length < 200) return "html too short";
   const text = html.toLowerCase();
-  // Parked / for-sale domains
-  if (/buy this domain|domain (?:is )?for sale|parked (?:domain|by)|domain expired/i.test(text)) return "parked domain";
-  // Generic aggregator/listing markers in absence of about-page signals
+  // Parked / for-sale domains — works regardless of strict mode
+  if (/buy this domain|domain (?:is )?for sale|parked (?:domain|by)|domain expired|godaddy\.com\/.+park/i.test(text)) return "parked domain";
+  // Hard 404 — same
+  if (/<title[^>]*>\s*(?:404[\s—\-]*|page not found|nothing here)/i.test(html)) return "404-like page";
+
+  if (!opts.strict) {
+    // Plain-path: stop here. Avoid the aggregator/visible-content heuristics that produce false
+    // positives on JS-rendered sites.
+    void url;
+    return null;
+  }
+
+  // Strict-mode (BD-rendered) checks
   const isAggregator = /\b(?:browse (?:by )?location|top \d+ |best \d+ |compare quotes|find a contractor|leads? near you)\b/i.test(text);
   const hasOperatorSignals = /\b(?:about us|our team|our crew|family[\s-]?owned|locally[\s-]?owned|family[\s-]?run|founded in|since \d{4}|established|serving \w+ since|our story|contact us|free estimate|schedule|book online|get a quote|request service)\b/i.test(text);
   if (isAggregator && !hasOperatorSignals) return "aggregator-shaped";
-  // Pure-redirect / framework-only pages — no meaningful body text
   const visibleChars = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim().length;
   if (visibleChars < 200) return "no visible content";
-  // 404-like patterns
-  if (/\b(?:page not found|404 error|nothing here|this page (?:doesn't|does not) exist)\b/i.test(text) && visibleChars < 1500) return "404-like page";
-  void url; // reserved for future per-URL heuristics
+  void url;
   return null;
 }
 import type { SseEmitter } from "../stream";
@@ -149,11 +164,19 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
     // are free — see webUnlocker.ts.
     if (tally && page.source !== "plain") tally.bd_renders += 1;
     homepageHtml = page.html;
-    // After-the-fact check: if this homepage looks like an empty shell, remember that for next time.
-    const shellReason = isEmptyShell(homepageHtml, c.url);
+
+    // After-the-fact check: empty-shell detection. CRITICAL: only neg-cache from BD-rendered HTML.
+    // Plain-fetch HTML can legitimately be near-empty for JS-heavy SPAs that render content via
+    // hydration; if we neg-cache those, we'll skip real operator sites on every future scout.
+    // For plain-fetch responses we apply a tighter "obviously dead" check: parked-domain language
+    // only, no aggregator heuristic (since aggregator language might exist on a real site's footer
+    // and we can't trust the visible-char count without JS execution).
+    const fromBridge = page.source !== "plain";
+    const shellReason = isEmptyShell(homepageHtml, c.url, { strict: fromBridge });
     if (shellReason) {
-      await negativeCachePut(env.CACHE, candidateHost, shellReason);
-      await emit.emit("enrich", { name: c.name, field: "homepage", status: "skip", reason: `looks like ${shellReason} — neg-cached for 7d` });
+      // Only persist to KV when the BD-rendered HTML confirmed it — plain-path skips are this-run only.
+      if (fromBridge) await negativeCachePut(env.CACHE, candidateHost, shellReason);
+      await emit.emit("enrich", { name: c.name, field: "homepage", status: "skip", reason: `${shellReason} (via ${page.source})` });
       return null;
     }
     // Snippet for the hover-preview: about meta or first sentence of body, capped to 240 chars

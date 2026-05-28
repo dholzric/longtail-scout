@@ -52,7 +52,10 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
   const messages: ChatCompletionMessageParam[] = [{ role: "user", content: user }];
   const rawCandidates: Candidate[] = [];
 
-  for (let turn = 0; turn < 3; turn++) {
+  // Cap at 2 turns — each turn is N parallel SERPs through the bridge mutex, so each turn
+  // costs ~N × 12s wall-clock. 3 turns was producing 120-150s discovery time; 2 is enough
+  // when SERP num is 25 (= up to 50-100 unique hostnames per turn before dedupe).
+  for (let turn = 0; turn < 2; turn++) {
     const { response, provider } = await llmCall(env, {
       system,
       messages,
@@ -129,11 +132,11 @@ export async function discoverCandidates(q: ScoutQuery, env: Env, emit: SseEmitt
 
     if (finalized) break;
 
-    // Force-finalize only when we have a meaningful pool — was 10, now 30. Lower thresholds were
-    // capping major-metro queries at ~8 operators when the niche actually has hundreds of local
-    // operators (e.g. "roofing in Chicago" → 2 SERP queries → 30 raw → force-finalize → only 8
-    // surface). 30 lets the LLM fire 3-4 diverse SERP queries before we cut it off.
-    if (rawCandidates.length >= 30) {
+    // Force-finalize at 15 raw candidates. After SERP num was bumped to 25, a single SERP often
+    // returns 15+ hits, so one turn is plenty for the LLM to have material to rank.
+    // Lower this AND the turn cap (above) means typical scouts now finish discovery in ~30-60s
+    // instead of 120-150s.
+    if (rawCandidates.length >= 15) {
       await emit.emit("progress", { message: `Have ${rawCandidates.length} raw candidates after turn ${turn + 1} — finalizing.` });
       break;
     }
