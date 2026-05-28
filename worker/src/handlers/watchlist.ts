@@ -33,7 +33,7 @@ interface RedactedWatch extends Omit<Watch, "subscribers" | "webhook_url"> {
   webhook_configured: boolean;
 }
 
-function redactWatch(w: Watch): RedactedWatch {
+export function redactWatch(w: Watch): RedactedWatch {
   const { subscribers, webhook_url, ...rest } = w;
   return {
     ...rest,
@@ -45,7 +45,7 @@ function redactWatch(w: Watch): RedactedWatch {
 /** Sign a (watch_id, email) tuple with HMAC-SHA256 keyed on DEMO_PASSWORD. The first 16 hex
  *  chars are enough entropy (~64 bits) to make brute-force enumeration impractical while
  *  keeping email URLs short enough to render cleanly. */
-async function signUnsub(id: string, email: string, secret: string): Promise<string> {
+export async function signUnsub(id: string, email: string, secret: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
@@ -54,7 +54,7 @@ async function signUnsub(id: string, email: string, secret: string): Promise<str
   return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
 }
 
-async function verifyUnsub(id: string, email: string, token: string, secret: string): Promise<boolean> {
+export async function verifyUnsub(id: string, email: string, token: string, secret: string): Promise<boolean> {
   if (!token || token.length !== 16) return false;
   const expected = await signUnsub(id, email, secret);
   // Constant-time compare so we don't leak the prefix on mismatch.

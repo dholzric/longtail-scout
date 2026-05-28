@@ -61,7 +61,7 @@ const PLATFORM_HOSTS = new Set([
 
 /** Does this URL count as the business's OWN domain (i.e., Apollo can enrich from it)?
  *  Returns false for booking platforms, social profiles, aggregators, and obvious shared hosts. */
-function isOwnDomain(website: string | null | undefined): boolean {
+export function isOwnDomain(website: string | null | undefined): boolean {
   if (!website || website.length < 5) return false;
   try {
     const u = new URL(website);

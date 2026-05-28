@@ -20,14 +20,25 @@ interface BridgeScreenshotResp {
   duration_ms: number;
 }
 
-const PRIVATE_HOSTNAME_RE = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|fe80:|fc00:|fd00:|::1$|metadata\.google\.internal)/i;
+// IPv6 ranges that resolve to internal/private networks:
+//   - fc00::/7  (unique-local) — first byte is fc or fd, any second byte → "fc[0-9a-f]{2}:" / "fd[0-9a-f]{2}:"
+//   - fe80::/10 (link-local)   — first byte fe, second nibble 8-b           → "fe[89ab][0-9a-f]:"
+//   - ::1       (loopback)
+// The previous regex only matched the literal prefixes fc00:/fd00:/fe80:, so fd12:: bypassed it.
+const PRIVATE_HOSTNAME_RE = /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.|169\.254\.|fc[0-9a-f]{2}:|fd[0-9a-f]{2}:|fe[89ab][0-9a-f]:|::1$|metadata\.google\.internal)/i;
 
-function validateTargetUrl(s: string): boolean {
+/** Exported for unit testing — this is the SSRF guard. Reject anything that isn't a public
+ *  http(s) URL. Keep in sync with the regex above. */
+export function validateTargetUrl(s: string): boolean {
   if (!s || s.length > 2048) return false;
   let u: URL;
   try { u = new URL(s); } catch { return false; }
   if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-  if (PRIVATE_HOSTNAME_RE.test(u.hostname)) return false;
+  // IPv6 hostnames parse back with brackets ("[fe80::1]"). Strip them before regex match,
+  // otherwise the fe80: / fc00: / fd00: / ::1 patterns silently miss bracketed forms and we
+  // ship an IPv6 SSRF bypass. (Caught by tests/security.test.ts.)
+  const host = u.hostname.replace(/^\[|\]$/g, "");
+  if (PRIVATE_HOSTNAME_RE.test(host)) return false;
   return true;
 }
 
