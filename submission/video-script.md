@@ -1,82 +1,169 @@
-# LongTail Scout — 90-Second Demo Video Script
+# LongTail Scout — 90-Second Demo Script
 
-Target length: 75-95 seconds. Single take preferred. Screen recording at 1920×1080.
-
-Pre-flight:
-1. Bridge running on .29 — verify `curl https://bridge.longtailscout.com/health` returns `ok: true`
-2. Roofing query pre-warmed in KV cache — run it once and let cache populate
-3. Clean browser window, no extensions visible, devtools closed
-4. Open `https://longtailscout.com/?key=Piglet` so the demo password auto-fills
-5. Mic check, screen recording started
+**Target length:** 85-90 seconds. **One take preferred** (judges feel the live progression).
+**Pre-flight:** finish `submission/demo-checklist.md` first.
 
 ---
 
-## Storyboard
+## How to use this script
 
-### 00:00–00:08 — Hook (8s)
+Each row is one beat. Read **🎙️ SAY** aloud in real time. Do **🖱️ DO** at exactly that moment. **📺 SCREEN** describes what the camera should be looking at — don't worry about exact pixel matches, just direction.
 
-[Title card overlay or just begin on the page]
-
-**Narration:**
-> "Apollo and ZoomInfo can't see roofing contractors. Or HVAC. Or childcare providers. Or any of the 7 million small American businesses that aren't on LinkedIn."
-
-### 00:08–00:18 — Intro to the product (10s)
-
-[Camera on the page header: "LongTail Scout — Apollo for the long tail"]
-
-**Narration:**
-> "LongTail Scout is an AI agent that finds them — built on Bright Data, DeepSeek, and a private demand-signal index."
-
-### 00:18–00:30 — Type the query (12s)
-
-[Click into the input. Type or paste: `roofing contractors in Houston`. Click Run.]
-
-**Narration:**
-> "I'll type the kind of query you'd give an SDR. Roofing contractors. In Houston. Watch the agent work."
-
-### 00:30–01:00 — Agent trace (30s)
-
-[Camera on the trace pane. Don't narrate every line — let the trace speak for itself with brief callouts.]
-
-**Narration as events appear:**
-> "Phase one — discovery. The agent fires four parallel Google searches via Bright Data's Scraping Browser. Different angles: direct, suppliers, hiring, news."
->
-> [pause for "Discovered N candidates" event]
->
-> "Phase two — enrichment. For each top operator, it renders their homepage through Bright Data, extracts hiring signals and press links from the page itself."
-
-### 01:00–01:20 — Result table (20s)
-
-[Camera on the result table as it renders. Hover over the top row.]
-
-**Narration:**
-> "Eight ranked roofing contractors. Each row: name, size estimate, hiring count, and a sales angle. Click any row…"
-
-[Click to expand the top row's drill-down.]
-
-> "…and you see the underlying sources. Every claim has a citation back to the Bright Data fetch that produced it. No hallucination."
-
-### 01:20–01:30 — Punch line + end card (10s)
-
-[End card or final shot of the URL.]
-
-**Narration:**
-> "Live at longtailscout.com. Source on GitHub. Built on Bright Data Scraping Browser. Thanks."
+You're talking to a hackathon judge who has 90 seconds of attention. Don't over-explain. Let the screen do the work.
 
 ---
 
-## Visual cues / on-screen text
+## 00:00 – 00:07 · The hook
 
-- 0:00 — Title overlay: "LongTail Scout — Apollo for the long tail"
-- 0:18 — Caption: `https://longtailscout.com`
-- 0:30 — Caption: "Phase 1: Discovery (Bright Data SERP via Scraping Browser)"
-- 0:42 — Caption: "Phase 2: Enrichment (Bright Data Browser API per operator)"
-- 1:00 — Caption: "Phase 3: Synthesis (DeepSeek, every claim cited)"
-- 1:20 — End card: "longtailscout.com · github.com/dholzric/longtail-scout · MIT"
+📺 **SCREEN:** Page loaded. Title visible: "longtailscout.com — vol. 1 · field manual for the long tail · est. may 2026". Hero section visible. Empty query input.
 
-## Recording tips
+🖱️ **DO:** Nothing yet. Just be on the page.
 
-- One full take preferred. Don't edit between phases — judges should *feel* the live progression.
-- If the agent run is slow, you can either (a) pre-warm cache so it's fast, or (b) speed-cut the 30-second discovery phase.
-- Cursor visibility: enable "Show cursor" / "Highlight clicks" in OBS/Loom.
-- Audio: external mic if possible, otherwise check input levels before the take.
+🎙️ **SAY:**
+> "Apollo and ZoomInfo can't see roofing contractors. They can't see HVAC techs, dental clinics, hair salons, or any of the seven million small American businesses that aren't on LinkedIn. This is LongTail Scout."
+
+(7 seconds. Pace yourself — don't rush.)
+
+---
+
+## 00:07 – 00:18 · The setup
+
+📺 **SCREEN:** Same view. The query input.
+
+🖱️ **DO:** Click into the query input. It should already say `roofing contractors in Houston` (the default). If it's empty, type it. Don't hit Run yet.
+
+🎙️ **SAY:**
+> "Type a niche and a city. The kind of query an SDR would build a list around. Watch what happens when you click run."
+
+🖱️ **DO at "click run":** Click the black "RUN SCOUT →" button.
+
+(Time at end of this beat: 0:18.)
+
+---
+
+## 00:18 – 00:50 · The live agent run
+
+📺 **SCREEN:** Trace panel starts streaming. "Phase: discovery" appears, then a flood of candidate names. The cost meter at the top of the page starts ticking. Pins start dropping on the inline live map.
+
+🖱️ **DO:** Don't touch anything. Let the trace fly. Move the mouse to subtly point at things as you narrate them.
+
+🎙️ **SAY** (timed in three beats — pause briefly between them):
+
+> *(at ~0:20, gesture to the trace)*
+> "Discovery — the agent fires four Bright Data SERP queries in parallel: direct, suppliers, hiring, news. Different angles to catch the operators that one query alone would miss."
+
+> *(at ~0:32, gesture to the cost meter at the top of the page)*
+> "Enrichment — for each candidate, it plain-fetches the homepage, parses the careers page, extracts hiring signals. The cost meter shows real spend — Bright Data renders and DeepSeek tokens, three cents so far."
+
+> *(at ~0:42, point to a pin dropping on the inline map)*
+> "And the map is filling in live as operators are geocoded against our seven-million-business demand index."
+
+(At about 0:50 the trace should show "Synthesis via deepseek" and the result table should be rendering.)
+
+**If the run is taking longer than 35s, just keep narrating. Repeat the cost line. The map appearing is your visual cover.**
+
+---
+
+## 00:50 – 01:08 · The result
+
+📺 **SCREEN:** Result table is rendered. 8-10 ranked operators. Wedge summary banner visible above ("N of N Apollo-thin"). City breakdown chips visible.
+
+🖱️ **DO:** Move your mouse over the table. Click the **top row** (#1) to expand its drill-down panel.
+
+🎙️ **SAY:**
+> "Eight ranked roofing contractors. Each row: name, hiring signals, recent activity, and a one-line sales angle. Click any row..."
+
+🖱️ **DO at "click any row":** Click row #1 to expand.
+
+🎙️ **SAY** *(as the drill-down expands)*:
+> "...and every claim is footnoted back to the exact Bright Data fetch that produced it. No hallucination. Look at the bottom — a personalized cold email, drafted by DeepSeek from the operator's own about page."
+
+(Time at end: 1:08.)
+
+---
+
+## 01:08 – 01:25 · The killer differentiator — Niche Recon
+
+📺 **SCREEN:** Result table still visible.
+
+🖱️ **DO:** Scroll up to the query input area. Above the input, there's a chip that says **"🧭 don't know your niche? get recon →"**. Click it.
+
+🎙️ **SAY:**
+> "But here's what Apollo physically cannot do."
+
+🖱️ **DO:** The Niche Recon panel expands. There's a textarea pre-filled with the product description (from your pre-warm step). If it's not, paste:
+
+> `home services CRM and scheduling for trades — quotes, dispatch, mobile job sheets, GPS tracking, payments`
+
+Click the **"find niches →"** button.
+
+🎙️ **SAY:**
+> "Paste a product description. We map it to candidate verticals via LLM, then cross-reference each against our private demand index. We rank by how Apollo-thin each vertical is — meaning what share of the businesses there have no real domain Apollo can match. Booking platforms, social profiles, Google profile pages — Apollo's blind to all of them."
+
+(Niche Recon results should appear within 2-5 seconds because the cache is warm.)
+
+📺 **SCREEN:** Niche Recon shows top 5 niches. Top result should be something like `electrical` with `100% Apollo-thin` — every business uses ServiceTitan booking, no own domain.
+
+🖱️ **DO:** Point at the top row. Don't click — just gesture.
+
+🎙️ **SAY:**
+> "Electrical contractors. Hundreds of operators, every single one using ServiceTitan booking links instead of their own websites. Apollo doesn't see any of them. We just did."
+
+(Time at end: 1:25.)
+
+---
+
+## 01:25 – 01:30 · The close
+
+📺 **SCREEN:** Niche Recon panel visible.
+
+🖱️ **DO:** Nothing. Optionally close the Niche Recon panel and let the result table from the earlier scout be the final shot, if it makes a better closing frame.
+
+🎙️ **SAY:**
+> "LongTail Scout — live at longtailscout.com. Source on GitHub. Bright Data and DeepSeek under the hood. Thanks."
+
+(End at 1:30.)
+
+---
+
+## Cue card — the absolute minimum if you forget the script
+
+If something goes off-rails and you need to ad-lib, hit these four beats in order:
+
+1. **"Apollo can't see small local businesses."** (the problem)
+2. **"Live scout in ~40 seconds, every claim cited back to a Bright Data fetch."** (the product)
+3. **"Niche Recon — paste your product, find verticals Apollo's blind to."** (the moat)
+4. **"longtailscout.com."** (the URL)
+
+90 seconds covers all four with breathing room. Don't add a fifth thing.
+
+---
+
+## Visual overlays (post-edit, optional)
+
+If you have time to edit, drop these as lower-thirds during recording:
+
+| Timestamp | Caption |
+|---|---|
+| 0:00 | `LongTail Scout · longtailscout.com` |
+| 0:18 | `Bright Data Scraping Browser + Brave SERP API` |
+| 0:32 | `Live cost meter: $0.03 per scout` |
+| 0:50 | `Ranked operators with citation-grounded sales angles` |
+| 1:08 | `Niche Recon — reverse the GTM funnel` |
+| 1:18 | `Apollo-thinness = 1 − (own_domain / total) on raw rows` |
+| 1:25 | `https://longtailscout.com` |
+
+Skip overlays if it stresses your post-edit timeline. The voiceover carries the demo on its own.
+
+---
+
+## After the recording
+
+1. Watch the playback once at 1.0×. **Listen for um/uh/anyway/like.** A single take with 1-2 verbal stumbles is fine; more than that, do a second take.
+2. **Check audio levels.** No clipping, no breath noise dominating.
+3. **Trim head and tail.** Cut to the first "Apollo" and end on "Thanks."
+4. **Export at 1080p.** H.264, ~10 Mbps. Aim for a file under 80 MB.
+5. **Upload to YouTube as unlisted.** Title: `LongTail Scout — 90-second demo (Bright Data Web Data UNLOCKED hackathon)`.
+6. **Save the YouTube URL** — you'll paste it into the lablab submission form.
+
+Then go to `submission/lablab-submission.md` for the form copy.

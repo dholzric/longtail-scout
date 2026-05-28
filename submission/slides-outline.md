@@ -1,31 +1,33 @@
 # LongTail Scout — Slide Deck Outline
 
-Submission for Bright Data Web Data UNLOCKED hackathon, Track 1 (GTM Intelligence).
-5–8 slides, designed for skimming. Paste into Google Slides / Figma / Canva.
+Submission for **Bright Data Web Data UNLOCKED** hackathon, Track 1 (GTM Intelligence). 2026-05-30.
+8 slides, designed for skimming. Paste into Google Slides / Figma / Canva.
+
+This deck is OPTIONAL — lablab.ai doesn't require slides, just the form + video. But if you want supporting material to send to the partner-prize judges (Bright Data, Cognee, Speechmatics), this is the deck.
 
 ---
 
 ## Slide 1 — Title
 
 **LongTail Scout**
-*Live long-tail prospect scout for vertical-SaaS GTM teams.*
+*Apollo for the long tail.*
 
-Find net-new accounts in markets Apollo, ZoomInfo, and Clay can't see.
+Live AI prospect scout for the 7M small American businesses Apollo can't see.
 
-Built for the Bright Data Web Data UNLOCKED hackathon — Track 1, GTM Intelligence.
-2026-05-30 · `https://longtailscout.com` · MIT on GitHub
+Bright Data Web Data UNLOCKED hackathon · Track 1, GTM Intelligence · 2026-05-30
+`https://longtailscout.com`
 
 ---
 
 ## Slide 2 — The buyer's problem
 
-The GTM teams at **AccuLynx, ServiceTitan, JobNimbus, HousecallPro, Roofr, Brightwheel, Jobber, Bambee** spend their weeks chasing the same kind of account:
+The GTM teams at **ServiceTitan, AccuLynx, JobNimbus, Brightwheel, Jobber, Bambee, Toast** spend their weeks chasing the same kind of account:
 
 > *Small, local, operator-owned, web-first. Real revenue, real budget, no LinkedIn corporate page, no Apollo record.*
 
-Their SDRs spend Monday building lists by hand — scrolling through directory sites, copying URLs from Google searches, opening every roofing company's website to see if they're hiring or what services they sell. **One SDR can build ~10 qualified accounts a day this way.** That's $300/account in fully-loaded cost just to *find* them, before any outreach happens.
+One SDR builds ~10 qualified accounts a day by hand — scrolling directory sites, opening every roofing company's homepage, copying URLs out of Google. **~$300 per account just to FIND them**, before any outreach starts.
 
-Apollo, ZoomInfo, and Clay don't help here. Their data was built around the LinkedIn employee-profile graph. For the long tail — local trades, niche manufacturers, family-owned services, franchisees — that graph is empty.
+Apollo and ZoomInfo don't help here. Their data was built around the LinkedIn employee graph. For the long tail — local trades, niche manufacturers, family-owned services, franchisees — that graph is empty.
 
 This is the job we automate.
 
@@ -33,113 +35,114 @@ This is the job we automate.
 
 ## Slide 3 — The product
 
-**Type a niche × city query. Get a ranked, cited, evidence-backed list of operators.**
+**Type a niche × city query. Get a ranked, cited, evidence-backed list of operators in ~40 seconds.**
 
-Example query: *"roofing contractors in Houston"*
+Example query: `roofing contractors in Houston`
 
-Output: ~8 ranked operators with
+Output: 8-10 ranked operators with
 - Company name + homepage URL
-- Hiring signals (roles posted, role count)
-- Recent activity headlines from the web
-- Size estimate
-- A one-sentence **sales angle** generated from the scraped facts
-- Every claim citation-linked to the source URL
+- Hiring signals scraped from the careers page (role count + titles)
+- Recent activity headlines pulled live from press / blog
+- Size estimate from public footprint
+- A one-sentence **sales angle** generated from scraped facts
+- **Every claim citation-linked to the source URL**
 
-Per-row drill-down panel shows the underlying Bright Data fetches.
+Per-row drill-down shows the underlying Bright Data fetches inline. On-page map plots operators against a heat layer of every other business in the demand index for that niche.
 
-(screenshot here from the live demo)
+*(screenshot here from the live demo)*
 
 ---
 
 ## Slide 4 — How Bright Data powers it
 
-Three-phase hybrid agent pipeline. **Bright Data is the spine.**
+**Three-phase hybrid agent pipeline. Bright Data is the spine.**
 
 | Phase | Step | Bright Data tool |
 |---|---|---|
-| 1. Discovery | LLM fires 3–4 diverse SERP queries in parallel, dedupes | **Scraping Browser** drives real Chromium against Google → bypass bot detection automatically |
-| 2. Enrichment | Per top candidate: render homepage, search "<co> careers", search "<co> news" | **Scraping Browser** renders JS-heavy ATS pages (Greenhouse, Lever, Workday, Ashby) |
-| 3. Synthesis | LLM ranks + writes per-row sales angle; every claim cited | — |
+| 1. Discovery | LLM fires 4 parallel SERP queries: direct, hiring, news, suppliers | **Brave SERP API → DDG → BD Scraping Browser** cascade. BD handles the long-tail queries Brave misses. |
+| 2. Enrichment | Per candidate: render homepage, careers, news. Hybrid plain-fetch + BD. | **BD Scraping Browser** for JS-heavy ATS pages (Greenhouse / Lever / Workday) |
+| 3. Synthesis | DeepSeek ranks + writes citation-grounded sales angles | — |
 
-One zone (`longtail_browser`, type `browser_api`) handles both SERP and per-site enrichment via the **Chrome DevTools Protocol over WebSocket**. A tiny bridge service on the home server connects Playwright to BD's WSS endpoint and exposes `/render` + `/serp` HTTP for the Worker.
+A tiny Playwright bridge service on the home server connects to Bright Data's **WSS (Chrome DevTools Protocol) Browser API** and exposes `/render` + `/serp` + `/screenshot` as HTTP for the Worker.
 
-This is the MCP-Server pattern — agent calls a tool, doesn't need to know about zones or WSS connections.
+One BD zone (`lts_browser`, type `browser_api`) handles SERP + render + screenshot. Mutex serialization avoids BD's per-context throttling.
 
 ---
 
-## Slide 5 — Architecture
+## Slide 5 — The killer differentiator: Niche Recon
+
+**The feature Apollo physically cannot replicate.**
+
+Paste a product description. Get the top 5 long-tail verticals to hunt in.
+
+How: we map the description to candidate verticals via LLM, then cross-reference each against our private 7M-business demand index. We rank by **Apollo-thinness** — what share of businesses in the vertical have NO own-domain website. Booking platforms (Booksy, Boulevard, ServiceTitan, Vagaro), social profiles (Facebook, Instagram, Yelp), Google profile pages — all of those make the operator invisible to Apollo's domain-match enrichment.
+
+Example output for `"home services CRM for trades"`:
+
+| Niche | Businesses | Apollo-thin |
+|---|---:|---:|
+| electrical | 30+ | **100%** (every one uses ServiceTitan booking) |
+| hvac | 30+ | 86% |
+| pool service | 30+ | 76% |
+| plumbing | 30+ | 50% |
+
+This is the moat. Apollo doesn't have the demand index. Without the index, this feature doesn't exist.
+
+---
+
+## Slide 6 — Architecture
 
 ```
 Browser ── Preact SPA ── Cloudflare Worker (TypeScript)
                               │
-                              ├── Bright Data Scraping Browser (via WSS bridge)
-                              ├── DeepSeek (OpenAI-compatible LLM, with GLM/OpenRouter fallback)
-                              ├── Cloudflare KV (caches BD calls, 24h SERP / 7d static)
-                              └── Private 7M-business demand-signal index (CF Tunnel)
+                              ├── Brave SERP API (primary)
+                              ├── DuckDuckGo HTML (Tier 2)
+                              ├── Bright Data Scraping Browser (Tier 3, via WSS bridge)
+                              ├── Bright Data Browser API (screenshots)
+                              ├── DeepSeek (LLM primary) / OpenRouter / GLM (fallbacks)
+                              ├── Cloudflare KV (caches: 24h SERP / 7d static / 1h niche samples)
+                              ├── Cloudflare Cron (daily watchlist refresh + cache pre-warm)
+                              ├── Resend (email digests, longtailscout.com domain verified)
+                              └── Private 7M-business demand index (CF Tunnel)
 ```
 
-Hosted on **Cloudflare Workers paid plan**. Custom domain via auto-cert. SSE streaming for live agent trace. Gated by a demo password.
+**Hosting:** Cloudflare Workers (paid plan), custom domain via auto-cert, SSE streaming for the live agent trace. Demo password gates writes; all read paths still require Bearer auth for the demand index (we don't expose the moat).
 
-OSS stack: Preact + Tailwind v4 + Vite (frontend), playwright-core + cheerio (bridge), Wrangler 3 (deploy).
-
----
-
-## Slide 6 — Why this beats Apollo for long tail
-
-Two moats:
-
-**1. Live web rendering via Bright Data.** Apollo's data is static, refreshed quarterly. We pull operator websites + Google + press in real time, every query. Operators added yesterday are in our results today.
-
-**2. Private demand-signal index.** A 7M-business scrape of local services pulled from Google Maps via the team's own scraping infra. We don't tell the LLM that the niche has "high demand" without numbers — we tell it the niche has **82,200 matching businesses** (for "roofing") and let it reason about market size.
-
-Apollo doesn't have either of these. Their build-vs-buy decision was made before LLMs could ground their reasoning in scraped fact.
+**Stack:** Preact + Tailwind v4 + Vite (frontend), Wrangler 3 (deploy), playwright-core + cheerio (bridge), Vitest (49 tests).
 
 ---
 
-## Slide 7 — Demo (link to video)
+## Slide 7 — Beyond the demo: MCP, watchlists, security
 
-(embed YouTube video here, or screenshot a frame + link)
+**MCP Server at `/api/mcp`** — 6 tools any MCP-aware client (Claude Desktop, Cursor, ChatGPT) can call:
 
-90 seconds. Live URL: `https://longtailscout.com`. Demo password in the submission notes.
+| Tool | Use case |
+|---|---|
+| `scout` | Run a full long-tail scout for a niche × city |
+| `niche_recon` | Reverse the funnel — paste a product, get the top verticals |
+| `find_businesses` | Geotagged businesses from the demand index |
+| `demand_count` | Single-integer count for a niche |
+| `operator_screenshot` | Live BD-rendered homepage screenshot |
+| `draft_email` | Personalized cold email from operator facts |
+
+**Watchlist + alerts:** save a query, daily cron refreshes the demand-index count, Resend email digest + Slack/Discord webhook fire when delta > 0. CAN-SPAM compliant — each digest email has an HMAC-signed unsubscribe link.
+
+**Security:** 49 unit tests covering SSRF guard (caught an IPv6 bypass before deploy), HMAC unsubscribe tokens, watchlist PII redaction, the Apollo-thinness platform-host filter. Two external code reviews (Codex), 10/10 findings closed.
 
 ---
 
 ## Slide 8 — What's next + thanks
 
 **Next 30 days:**
-- CRM connectors (HubSpot, Salesforce, Apollo CSV import)
-- "Always-on" mode: re-run the same niche × city every week, surface new entrants
-- Vertical-tuned prompts (roofing, HVAC, childcare, EMS specific signals)
-- Two-token export — single-button "send to ChatGPT/Claude/Gemini for a prospecting email"
+- CRM connectors (HubSpot, Salesforce, Apollo CSV reverse-import)
+- Quality mode: opt-in BD-bridge enrichment that recovers the ~35% of candidates plain-fetch drops
+- Vertical-tuned prompts (roofing, HVAC, childcare, EMS — different hiring signal weights per market)
+- Bright Data MCP Server integration once it's GA — deprecate our Playwright bridge, call BD directly
 
 **Thanks to:**
-- **Bright Data** for the $250 promo credit and the Scraping Browser product
-- **Cloudflare** for Workers, KV, Tunnels, custom-domain auto-cert (all free-tier-friendly)
-- **DeepSeek** for genuinely cheap, fast tool-use LLM
+- **Bright Data** for the Scraping Browser product and the hackathon promo credit
+- **Cloudflare** for Workers, KV, Tunnels, custom-domain auto-cert (the free tier is staggeringly generous)
+- **DeepSeek** for cheap fast tool-use LLM — primary all the way
 - **lablab.ai** for running the hackathon
 
----
-
-## Submission form copy (for lablab.ai)
-
-**Title:** LongTail Scout
-
-**Short description** (under 200 chars):
-> Apollo for the long tail. An AI agent that finds the small, local, niche businesses Apollo can't see — built on Bright Data Scraping Browser, DeepSeek, Cloudflare, and a private 7M-business demand-signal index.
-
-**Long description:**
-> LongTail Scout is a GTM-intelligence agent that surfaces the operators Apollo, ZoomInfo, and Clay can't find: small, local, niche businesses that aren't on LinkedIn. Type a niche × city query (`"roofing contractors in Houston"`); get a ranked, cited list of operators with hiring signals scraped from their careers pages, recent activity headlines, and a one-sentence sales angle aimed at vertical-specific SaaS buyers.
->
-> The agent runs as a three-phase pipeline on a single Cloudflare Worker: LLM-driven discovery (Bright Data SERP queries via Scraping Browser), deterministic per-candidate enrichment (homepage + careers + news via Bright Data's WSS-only Scraping Browser, bridged through a tiny Playwright service), and LLM synthesis (DeepSeek ranks + writes citation-grounded sales angles).
->
-> A private 7M-business demand-signal index (built independently of LinkedIn) provides niche-size context to the synthesis prompt, so the agent reasons about real market dynamics, not LLM hallucination.
->
-> **Live demo:** https://longtailscout.com — demo password: `<see Demo Notes section below>`
-> **Source:** https://github.com/dholzric/longtail-scout (MIT)
-
-**Demo Notes (paste into the lablab submission's private notes / judge comments field, not the public description):**
-> Password to unlock the demo: `Piglet` (set as the `DEMO_PASSWORD` env on the Worker). Open `https://longtailscout.com/?key=Piglet` to auto-fill.
-
-**Tech tags:** Bright Data, DeepSeek, Cloudflare Workers, TypeScript, Preact, Playwright
-
-**Category:** GTM Intelligence (Track 1)
+**Live demo:** `https://longtailscout.com` · **Source:** `github.com/dholzric/longtail-scout`
