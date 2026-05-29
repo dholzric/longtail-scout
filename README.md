@@ -173,7 +173,7 @@ pnpm dev:worker
 pnpm dev:web
 ```
 
-Deploy: `pnpm deploy` from the repo root (builds web/dist, then runs `wrangler deploy`).
+Deploy: `pnpm run deploy` from the repo root (builds web/dist, then runs `wrangler deploy`). Use `pnpm run deploy`, not `pnpm deploy` — the latter collides with pnpm's built-in `deploy` command.
 
 ## Tech credits
 

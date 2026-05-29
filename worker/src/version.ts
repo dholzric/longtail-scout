@@ -15,5 +15,6 @@
  *   1.4.0 — Account brief export: one-click Markdown dossier (/api/brief + MCP tool + drill-down download)
  *   1.5.0 — Trigger-event "Act first" feed: re-rank operators by buying-signal strength (/api/triggers + MCP tool)
  *   1.5.1 — docs refresh: README + /about + /docs + /mcp updated for the v1.2–1.5 feature/tool surface (10 MCP tools)
+ *   1.5.2 — fix the one-command deploy (root script's `pnpm -C worker deploy` collided with pnpm's reserved `deploy`)
  */
-export const VERSION = "1.5.1";
+export const VERSION = "1.5.2";
