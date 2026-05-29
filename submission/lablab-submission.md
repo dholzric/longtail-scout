@@ -105,73 +105,28 @@ https://github.com/dholzric/longtail-scout
 
 ---
 
-## Field: Long description / "What does your project do?"
+## Field: Long description / "What does your project do?" (600-2000 chars)
 
-Paste this whole block verbatim:
+Paste this block (~1,816 chars — within the 600-2000 limit; the earlier 5,917-char version was over the cap):
 
 ```
-LongTail Scout is a GTM-intelligence agent that surfaces the operators Apollo, ZoomInfo, and Clay can't find: small, local, niche businesses that aren't on LinkedIn.
+LongTail Scout is a GTM-intelligence agent that surfaces the operators Apollo, ZoomInfo, and Clay can't find: the small, local, niche businesses — roofers, HVAC techs, dental clinics, salons — that aren't on LinkedIn. Those tools are built on the LinkedIn employee graph, so the long tail is invisible to them. LongTail Scout finds these operators through their own websites + Google + news in real time via Bright Data, and proves they're Apollo-blind.
 
-THE PROBLEM
-GTM teams at vertical-SaaS companies (AccuLynx, ServiceTitan, Brightwheel, Jobber, Bambee) spend their weeks chasing accounts that look identical: small, local, operator-owned, web-first. Real revenue, real budget, no LinkedIn corporate page, no Apollo record. One SDR builds ~10 qualified accounts a day by scrolling directory sites and opening every roofing company's homepage by hand. That's ~$300 per account just to FIND them.
+Type a niche x city — "roofing contractors in Houston" — and a 3-phase agent runs on a Cloudflare Worker:
+1. Discovery — SERP queries via the Bright Data Scraping Browser, rendering Google to bypass bot detection.
+2. Enrichment — each homepage and careers page rendered through the Scraping Browser; hiring, size, and recent activity extracted.
+3. Synthesis — DeepSeek ranks the operators and writes a sales angle, with every claim citation-linked to the Bright Data fetch that produced it.
 
-Apollo and ZoomInfo can't help here. Their data was built around the LinkedIn employee graph — and for the long tail (local trades, niche manufacturers, family-owned services) that graph is empty.
+Each operator's drill-down closes the GTM loop, all Bright-Data-backed:
+- Apollo-blind verification: a live LinkedIn search confirms the operator has no company page — hard proof Apollo can't see them.
+- Contact discovery: a real email, phone, and named contact from the contact pages.
+- Decision-maker finder: the owner/founder plus their LinkedIn profile.
+- Signal radar: live third-party news (funding, expansion, awards) as buying triggers.
+- Account brief: a one-click Markdown dossier with every source cited.
 
-THE PRODUCT
-Type a niche × city query: "roofing contractors in Houston". Get a ranked list of operators with:
-  • Company name + homepage URL
-  • Hiring signals (open roles scraped from their careers page)
-  • Recent activity headlines pulled live from the web
-  • Size estimate
-  • A one-sentence sales angle generated from the scraped facts
-  • Every claim citation-linked back to the exact Bright Data fetch that produced it
+Niche Recon reverses the funnel: paste what you sell, get the top verticals ranked by "Apollo-thinness" — the share of operators with no own domain Apollo can match — cross-referenced against a private 7M-business demand index.
 
-Per-row drill-down shows the underlying evidence. An on-page map plots operators against a heat layer of every other business in the demand index for that niche.
-
-WHY BRIGHT DATA IS THE SPINE
-The agent runs a 3-phase pipeline on a single Cloudflare Worker:
-
-  1. DISCOVERY — LLM fires 4 parallel SERP queries via Brave Search API (free 2k/mo tier), with Bright Data Scraping Browser as the deeper-fallback tier when Brave's organic results miss the long tail.
-
-  2. ENRICHMENT — for each top candidate, plain-fetch the homepage, parse the careers page for hiring signals, scrape recent press. Bright Data Scraping Browser (Chrome over WSS) handles the JS-heavy ATS pages (Greenhouse, Lever, Workday) that plain HTTP can't render. Homepage screenshots in the drill-down are also rendered through Bright Data Browser API.
-
-  3. SYNTHESIS — DeepSeek ranks the operators and writes citation-grounded sales angles. Every claim is footnoted back to the Bright Data fetch that produced it. No hallucination.
-
-THE KILLER DIFFERENTIATOR — NICHE RECON
-The feature Apollo physically cannot replicate: paste your product description, get the top long-tail verticals to hunt in. We map the description to candidate verticals via LLM, then cross-reference each against our private 7M-business demand index. We rank by "Apollo-thinness" — the share of businesses whose only URL is a booking platform (Booksy, Boulevard, ServiceTitan, Yelp, a Facebook page) instead of their own domain. Apollo enriches via domain match; no domain means Apollo is blind to that business. Niches with high Apollo-thinness are where you can build a list nobody else has.
-
-Example output for "home services CRM for trades":
-  • electrical    100% Apollo-thin (every operator uses ServiceTitan booking)
-  • hvac          86% thin
-  • pool service  76% thin
-  • plumbing      50% thin
-
-THE STACK
-Cloudflare Worker (TypeScript, Wrangler) + Cloudflare KV (caching) + Cloudflare Cron Triggers (daily watchlist refresh) + a tiny Playwright bridge on a home server (192.168.1.29, exposed via Cloudflare Tunnel) that wraps Bright Data's WSS Chrome connection in HTTP. Frontend is Preact + Tailwind v4 + Vite, served as Worker static assets. LLM is DeepSeek primary with OpenRouter / GLM-4.6 / AI/ML API as fallbacks.
-
-WHAT'S NEW VS. THE BASELINE
-  • Live scout in ~40 seconds end-to-end (was 8+ minutes before speed work — Brave SERP primary, plain-fetch-only enrichment, single-turn discovery cap)
-  • Editorial / field-manual UI inspired by analog scientific journals — Fraunces serif + JetBrains Mono + a cream-paper palette
-  • PER-OPERATOR INTELLIGENCE SUITE (v1.2–1.7), all Bright-Data-backed:
-      - Apollo-blind verification — a live site:linkedin.com/company search via Bright Data that CONFIRMS an operator has no LinkedIn company page (hard proof Apollo can't see them)
-      - Contact discovery — walks the contact/about pages for a real email + phone + named contact
-      - Decision-maker finder — the owner/founder + their LinkedIn /in/ profile (who to actually email)
-      - Signal radar — live third-party news (funding / expansion / leadership / award) as buying triggers
-      - "Act first" trigger feed — re-ranks the run by buying-signal strength
-      - Account-brief export — a one-click Markdown dossier (evidence + contacts + draft email + sources)
-    The drill-down is now a full loop: find → prove it's Apollo-blind → reach the person → why-now → act.
-  • MCP server at /api/mcp (12 tools — scout, find_businesses, demand_count, operator_screenshot, draft_email, niche_recon, linkedin_check, find_contacts, account_brief, rank_triggers, signal_radar, decision_maker) so Claude Desktop / Cursor users can drive the whole pipeline directly
-  • Live cost meter (Bright Data renders + LLM tokens in USD, streaming)
-  • Watchlist with daily cron-refreshed demand counts + Resend email digests + Slack/Discord webhook integration
-  • Demand-index hostname-match geocoding (when Nominatim misses, we inherit lat/lng from the index) + a dense heat-map underlay (deep-page fetch surfaces ~200 distinct operators, not 16)
-  • 118 unit tests including SSRF guards (worker + bridge), HMAC unsubscribe tokens, PII redaction, the Apollo-thinness platform-host detector, and every new classifier (LinkedIn / contacts / signals / decision-maker / triggers / brief / name-cleanup)
-  • Two passes of external security review (Codex), 10/10 findings closed, plus a bridge SSRF fix; full live end-to-end burn-test of all 12 endpoints + 12 MCP tools (3 bugs found & fixed)
-
-LIVE DEMO
-https://longtailscout.com — see the Demo Notes section below for the password.
-
-SOURCE
-https://github.com/dholzric/longtail-scout
+All 12 capabilities are also exposed as MCP tools, so any MCP client (Claude Desktop, Cursor) can drive the whole pipeline.
 ```
 
 ---
