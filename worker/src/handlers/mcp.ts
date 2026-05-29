@@ -31,6 +31,38 @@ import type { Env } from "../index";
 import { findSample } from "../samples";
 import type { Operator } from "../types";
 import { VERSION } from "../version";
+import { scoutHandler } from "./scout";
+import { screenshotHandler } from "./screenshot";
+import { draftEmailHandler } from "./draftEmail";
+import { nicheReconHandler } from "./nicheRecon";
+import { linkedinCheckHandler } from "./linkedinCheck";
+import { contactDiscoveryHandler } from "./contactDiscovery";
+import { briefHandler } from "./brief";
+import { triggersHandler } from "./triggers";
+import { signalRadarHandler } from "./signalRadar";
+import { decisionMakerHandler } from "./decisionMaker";
+
+/**
+ * Call a sibling API handler IN-PROCESS rather than via fetch(origin + path). A Worker fetching
+ * its own custom hostname loops back through the Cloudflare edge and 522s when the inner handler
+ * is slow (bridge/Bright Data). Building a Request and invoking the handler directly avoids the
+ * loopback entirely — faster and reliable. The demo-password header is injected so the handlers'
+ * auth gates pass. (Caught by the v1.7.0 live test: every bridge-backed MCP tool 522'd.)
+ */
+type ApiHandler = (req: Request, env: Env) => Promise<Response>;
+function localGet(handler: ApiHandler, env: Env, origin: string, path: string, params: Record<string, string | undefined>): Promise<Response> {
+  const u = new URL(path, origin);
+  for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== "") u.searchParams.set(k, v);
+  const headers = new Headers();
+  if (env.DEMO_PASSWORD) headers.set("authorization", `Bearer ${env.DEMO_PASSWORD}`);
+  return handler(new Request(u.toString(), { headers }), env);
+}
+function localPost(handler: ApiHandler, env: Env, origin: string, path: string, body: unknown): Promise<Response> {
+  const u = new URL(path, origin);
+  const headers = new Headers({ "content-type": "application/json" });
+  if (env.DEMO_PASSWORD) headers.set("authorization", `Bearer ${env.DEMO_PASSWORD}`);
+  return handler(new Request(u.toString(), { method: "POST", headers, body: JSON.stringify(body) }), env);
+}
 
 const PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "longtailscout";
@@ -246,7 +278,7 @@ function authorized(req: Request, env: Env): boolean {
   return h === `Bearer ${env.DEMO_PASSWORD}`;
 }
 
-export async function mcpHandler(req: Request, env: Env): Promise<Response> {
+export async function mcpHandler(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   if (req.method === "GET") {
     // Public discovery — what is this endpoint, what tools does it expose.
     return Response.json({
@@ -281,13 +313,13 @@ export async function mcpHandler(req: Request, env: Env): Promise<Response> {
       responses.push(makeError(r.id ?? null, -32600, "invalid request"));
       continue;
     }
-    responses.push(await handleMethod(r, env, req));
+    responses.push(await handleMethod(r, env, req, ctx));
   }
 
   return Response.json(isBatch ? responses : responses[0]);
 }
 
-async function handleMethod(r: JsonRpcRequest, env: Env, req: Request): Promise<JsonRpcResponse> {
+async function handleMethod(r: JsonRpcRequest, env: Env, req: Request, ctx: ExecutionContext): Promise<JsonRpcResponse> {
   const id = r.id ?? null;
   // Derive origin from the inbound request rather than hard-coding the production hostname.
   // Lets the MCP server run correctly on preview/staging deployments AND on the production
@@ -307,7 +339,7 @@ async function handleMethod(r: JsonRpcRequest, env: Env, req: Request): Promise<
       case "tools/list":
         return makeResponse(id, { tools: TOOLS });
       case "tools/call":
-        return await callTool(id, r.params, env, origin);
+        return await callTool(id, r.params, env, origin, ctx);
       case "notifications/initialized":
       case "notifications/cancelled":
         // No-op; per spec these don't expect a response.
@@ -322,13 +354,13 @@ async function handleMethod(r: JsonRpcRequest, env: Env, req: Request): Promise<
   }
 }
 
-async function callTool(id: number | string | null, params: any, env: Env, origin: string): Promise<JsonRpcResponse> {
+async function callTool(id: number | string | null, params: any, env: Env, origin: string, ctx: ExecutionContext): Promise<JsonRpcResponse> {
   const name = params?.name;
   const args = params?.arguments ?? {};
   if (!name) return makeError(id, -32602, "missing tool name");
 
   switch (name) {
-    case "scout":              return makeResponse(id, await toolScout(args, env, origin));
+    case "scout":              return makeResponse(id, await toolScout(args, env, origin, ctx));
     case "find_businesses":    return makeResponse(id, await toolFindBusinesses(args, env));
     case "demand_count":       return makeResponse(id, await toolDemandCount(args, env));
     case "operator_screenshot":return makeResponse(id, await toolScreenshot(args, env, origin));
@@ -346,7 +378,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
 
 // ─── Tool implementations ────────────────────────────────────────────────────
 
-async function toolScout(args: any, env: Env, origin: string) {
+async function toolScout(args: any, env: Env, origin: string, ctx: ExecutionContext) {
   const query = String(args?.query ?? "").trim();
   if (!query) return textContent("ERROR: missing query");
   const mode = args?.mode === "live" ? "live" : "sample";
@@ -366,16 +398,13 @@ async function toolScout(args: any, env: Env, origin: string) {
     });
   }
 
-  // Live mode — burn credits. We call our own /api/scout SSE endpoint server-side and
-  // collect the final operators. This routes through every part of the agent pipeline.
+  // Live mode — burn credits. Invoke the scout handler IN-PROCESS (no edge loopback) and collect
+  // the final operators off its SSE stream. Routes through every part of the agent pipeline.
   try {
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const resp = await fetch(`${origin}/api/scout`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ query })
-    });
+    const headers = new Headers({ "content-type": "application/json" });
+    if (env.DEMO_PASSWORD) headers.set("authorization", `Bearer ${env.DEMO_PASSWORD}`);
+    const req = new Request(new URL("/api/scout", origin).toString(), { method: "POST", headers, body: JSON.stringify({ query }) });
+    const resp = await scoutHandler(req, env, ctx);
     if (!resp.ok || !resp.body) {
       return textContent(`live scout failed: HTTP ${resp.status}`);
     }
@@ -488,9 +517,7 @@ async function toolScreenshot(args: any, env: Env, origin: string) {
   const width = Math.min(Math.max(Number(args?.width ?? 1024), 320), 1920);
   const height = Math.min(Math.max(Number(args?.height ?? 640), 240), 1080);
   try {
-    const headers: Record<string, string> = {};
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/screenshot?url=${encodeURIComponent(url)}&w=${width}&h=${height}`, { headers });
+    const r = await localGet(screenshotHandler, env, origin, "/api/screenshot", { url, w: String(width), h: String(height) });
     if (!r.ok) return textContent(`screenshot failed: HTTP ${r.status}`);
     const ab = await r.arrayBuffer();
     const bytes = new Uint8Array(ab);
@@ -510,19 +537,9 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
   const desc = String(args?.product_description ?? "").trim();
   if (!desc || desc.length < 10) return textContent("ERROR: product_description required (10-800 chars)");
   try {
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/niche-recon`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ product_description: desc })
-    });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`niche-recon failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
-    const j = await r.json();
-    return jsonContent(j);
+    const r = await localPost(nicheReconHandler, env, origin, "/api/niche-recon", { product_description: desc });
+    if (!r.ok) return textContent(`niche-recon failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
+    return jsonContent(await r.json());
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
   }
@@ -531,17 +548,11 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
 async function toolDecisionMaker(args: any, env: Env, origin: string) {
   const name = String(args?.name ?? "").trim();
   if (!name) return textContent("ERROR: missing name");
-  const params = new URLSearchParams({ name });
-  if (args?.city) params.set("city", String(args.city).trim());
-  if (args?.contact) params.set("contact", String(args.contact).trim());
   try {
-    const headers: Record<string, string> = {};
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/decision-maker?${params.toString()}`, { headers });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`decision-maker failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localGet(decisionMakerHandler, env, origin, "/api/decision-maker", {
+      name, city: args?.city ? String(args.city).trim() : undefined, contact: args?.contact ? String(args.contact).trim() : undefined
+    });
+    if (!r.ok) return textContent(`decision-maker failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return jsonContent(await r.json());
   } catch (err) {
     return textContent(`decision-maker error: ${(err as Error).message}`);
@@ -551,17 +562,11 @@ async function toolDecisionMaker(args: any, env: Env, origin: string) {
 async function toolSignalRadar(args: any, env: Env, origin: string) {
   const name = String(args?.name ?? "").trim();
   if (!name) return textContent("ERROR: missing name");
-  const params = new URLSearchParams({ name });
-  if (args?.city) params.set("city", String(args.city).trim());
-  if (args?.url) params.set("url", String(args.url).trim());
   try {
-    const headers: Record<string, string> = {};
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/signal-radar?${params.toString()}`, { headers });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`signal-radar failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localGet(signalRadarHandler, env, origin, "/api/signal-radar", {
+      name, city: args?.city ? String(args.city).trim() : undefined, url: args?.url ? String(args.url).trim() : undefined
+    });
+    if (!r.ok) return textContent(`signal-radar failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return jsonContent(await r.json());
   } catch (err) {
     return textContent(`signal-radar error: ${(err as Error).message}`);
@@ -572,13 +577,8 @@ async function toolRankTriggers(args: any, env: Env, origin: string) {
   const operators = Array.isArray(args?.operators) ? args.operators : null;
   if (!operators) return textContent("ERROR: operators array required");
   try {
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/triggers`, { method: "POST", headers, body: JSON.stringify({ operators }) });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`rank-triggers failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localPost(triggersHandler, env, origin, "/api/triggers", { operators });
+    if (!r.ok) return textContent(`rank-triggers failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return jsonContent(await r.json());
   } catch (err) {
     return textContent(`rank-triggers error: ${(err as Error).message}`);
@@ -588,17 +588,8 @@ async function toolRankTriggers(args: any, env: Env, origin: string) {
 async function toolAccountBrief(args: any, env: Env, origin: string) {
   if (!args?.operator?.name || !args?.operator?.url) return textContent("ERROR: operator.name and operator.url required");
   try {
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/brief`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ operator: args.operator, linkedin: args.linkedin, contacts: args.contacts, email: args.email })
-    });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`account-brief failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localPost(briefHandler, env, origin, "/api/brief", { operator: args.operator, linkedin: args.linkedin, contacts: args.contacts, email: args.email });
+    if (!r.ok) return textContent(`account-brief failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     const j = await r.json() as { markdown?: string };
     // The brief itself is the useful payload — return it as text so MCP clients render the Markdown.
     return textContent(j.markdown ?? "(empty brief)");
@@ -610,16 +601,11 @@ async function toolAccountBrief(args: any, env: Env, origin: string) {
 async function toolFindContacts(args: any, env: Env, origin: string) {
   const url = String(args?.url ?? "").trim();
   if (!url) return textContent("ERROR: missing url");
-  const params = new URLSearchParams({ url });
-  if (args?.name) params.set("name", String(args.name).trim());
   try {
-    const headers: Record<string, string> = {};
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/contact-discovery?${params.toString()}`, { headers });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`find-contacts failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localGet(contactDiscoveryHandler, env, origin, "/api/contact-discovery", {
+      url, name: args?.name ? String(args.name).trim() : undefined
+    });
+    if (!r.ok) return textContent(`find-contacts failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return jsonContent(await r.json());
   } catch (err) {
     return textContent(`find-contacts error: ${(err as Error).message}`);
@@ -629,17 +615,11 @@ async function toolFindContacts(args: any, env: Env, origin: string) {
 async function toolLinkedInCheck(args: any, env: Env, origin: string) {
   const name = String(args?.name ?? "").trim();
   if (!name) return textContent("ERROR: missing name");
-  const params = new URLSearchParams({ name });
-  if (args?.city) params.set("city", String(args.city).trim());
-  if (args?.url) params.set("url", String(args.url).trim());
   try {
-    const headers: Record<string, string> = {};
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/linkedin-check?${params.toString()}`, { headers });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`linkedin-check failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
+    const r = await localGet(linkedinCheckHandler, env, origin, "/api/linkedin-check", {
+      name, city: args?.city ? String(args.city).trim() : undefined, url: args?.url ? String(args.url).trim() : undefined
+    });
+    if (!r.ok) return textContent(`linkedin-check failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
     return jsonContent(await r.json());
   } catch (err) {
     return textContent(`linkedin-check error: ${(err as Error).message}`);
@@ -650,19 +630,9 @@ async function toolDraftEmail(args: any, env: Env, origin: string) {
   const operator = args?.operator;
   if (!operator?.name || !operator?.url) return textContent("ERROR: operator.name and operator.url required");
   try {
-    const headers: Record<string, string> = { "content-type": "application/json" };
-    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
-    const r = await fetch(`${origin}/api/draft-email`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ operator, buyer: args?.buyer })
-    });
-    if (!r.ok) {
-      const errText = await r.text().catch(() => "");
-      return textContent(`draft-email failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
-    }
-    const j = await r.json();
-    return jsonContent(j);
+    const r = await localPost(draftEmailHandler, env, origin, "/api/draft-email", { operator, buyer: args?.buyer });
+    if (!r.ok) return textContent(`draft-email failed: HTTP ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
+    return jsonContent(await r.json());
   } catch (err) {
     return textContent(`draft-email error: ${(err as Error).message}`);
   }

@@ -49,6 +49,28 @@ function extractPhone(html: string): string | null {
 
 const ROLE_KEYWORDS = ["founder", "co-founder", "ceo", "president", "owner", "managing partner", "principal", "general manager", "head of"];
 
+/** Common words that capitalize at the start of a sentence/testimonial and get mis-captured as a
+ *  person name (e.g. "Was Very ... Owner" → "Was Very"). A real name token is never one of these. */
+const NON_NAME_TOKENS = new Set([
+  "was", "very", "the", "our", "we", "this", "that", "they", "their", "great", "best", "highly",
+  "would", "will", "call", "free", "get", "your", "you", "service", "services", "quality",
+  "professional", "honest", "reliable", "thank", "thanks", "definitely", "i", "my", "his", "her",
+  "a", "an", "and", "for", "with", "from", "about", "contact", "home", "team", "us", "is", "are",
+  "very", "so", "such", "what", "when", "where", "why", "how", "good", "amazing", "excellent"
+]);
+
+/** Reject obvious non-names: must be 2–3 capitalized tokens and contain no common English filler
+ *  word. Guards against testimonial/marketing text bleeding into the contact name. */
+function isPlausiblePersonName(name: string): boolean {
+  const tokens = name.trim().split(/\s+/);
+  if (tokens.length < 2 || tokens.length > 3) return false;
+  for (const t of tokens) {
+    if (NON_NAME_TOKENS.has(t.toLowerCase())) return false;
+    if (!/^[A-Z][A-Za-z.'’-]*$/.test(t)) return false;
+  }
+  return true;
+}
+
 /**
  * Detect a likely person name. We look for patterns like:
  *   "Bob Smith, Founder" / "Founded by Bob Smith" / "CEO: Bob Smith" / "Owner — Bob Smith"
@@ -65,7 +87,7 @@ function extractContact(html: string): { name: string; role: string } | null {
         const candidates = Array.isArray(data) ? data : [data];
         for (const node of candidates) {
           const founder = node?.founder?.name ?? node?.founder;
-          if (typeof founder === "string" && /[A-Z][a-z]+\s+[A-Z][a-z]+/.test(founder)) return { name: founder.trim(), role: "Founder" };
+          if (typeof founder === "string" && isPlausiblePersonName(founder.trim())) return { name: founder.trim(), role: "Founder" };
         }
       } catch { /* malformed json-ld */ }
     }
@@ -77,17 +99,17 @@ function extractContact(html: string): { name: string; role: string } | null {
   for (const role of ROLE_KEYWORDS) {
     const re = new RegExp(`\\b(${role})\\b[\\s:,\\-—]+([A-Z][a-z]+(?:\\s+[A-Z]\\.?)?\\s+[A-Z][a-z]+)`, "i");
     const m = plain.match(re);
-    if (m && m[2]) return { name: m[2].trim(), role: titleCase(role) };
+    if (m && m[2] && isPlausiblePersonName(m[2].trim())) return { name: m[2].trim(), role: titleCase(role) };
   }
   // Pattern B: "<Name>, <Role>" e.g. "Bob Smith, Founder"
   for (const role of ROLE_KEYWORDS) {
     const re = new RegExp(`([A-Z][a-z]+(?:\\s+[A-Z]\\.?)?\\s+[A-Z][a-z]+)\\s*[,—\\-]\\s*(${role})\\b`, "i");
     const m = plain.match(re);
-    if (m && m[1]) return { name: m[1].trim(), role: titleCase(role) };
+    if (m && m[1] && isPlausiblePersonName(m[1].trim())) return { name: m[1].trim(), role: titleCase(role) };
   }
   // Pattern C: "Founded by <Name>" / "Owned by <Name>"
   const foundedBy = plain.match(/\b(?:founded|started|owned|run)\s+by\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?\s+[A-Z][a-z]+)/i);
-  if (foundedBy && foundedBy[1]) return { name: foundedBy[1].trim(), role: "Founder" };
+  if (foundedBy && foundedBy[1] && isPlausiblePersonName(foundedBy[1].trim())) return { name: foundedBy[1].trim(), role: "Founder" };
 
   return null;
 }

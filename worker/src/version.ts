@@ -18,5 +18,6 @@
  *   1.5.2 — fix the one-command deploy (root script's `pnpm -C worker deploy` collided with pnpm's reserved `deploy`)
  *   1.6.0 — Signal Radar: live third-party news/funding/expansion triggers via Bright Data (/api/signal-radar + MCP tool). 11 MCP tools.
  *   1.7.0 — Decision-maker finder: owner/founder + LinkedIn profile via Bright Data (/api/decision-maker + MCP tool). 12 MCP tools.
+ *   1.7.1 — live-test fixes: MCP tools call handlers in-process (no same-zone loopback 522); contact-name plausibility guard; signal-radar cache key includes opHost.
  */
-export const VERSION = "1.7.0";
+export const VERSION = "1.7.1";

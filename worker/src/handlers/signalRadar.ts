@@ -38,7 +38,9 @@ export async function signalRadarHandler(req: Request, env: Env): Promise<Respon
   let opHost: string | undefined;
   try { opHost = homepage ? new URL(homepage).hostname : undefined; } catch { opHost = undefined; }
 
-  const cacheKey = `signals:v1:${normalizeBizName(name)}:${city.toLowerCase()}`;
+  // opHost is part of the key: own-domain results are excluded only when a url is supplied, so a
+  // url-less call must NOT share a cache entry with a url-bearing one (else own-domain leaks).
+  const cacheKey = `signals:v2:${normalizeBizName(name)}:${city.toLowerCase()}:${(opHost ?? "").replace(/^www\./, "").toLowerCase()}`;
   const cached = await env.CACHE.get(cacheKey, "json") as SignalRadarResponse | null;
   if (cached) return Response.json({ ...cached, cached: true }, { headers: { "cache-control": "public, max-age=3600" } });
 

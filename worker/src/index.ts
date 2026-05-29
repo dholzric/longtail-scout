@@ -74,7 +74,7 @@ export default {
     if (url.pathname === "/api/demand-research") return demandResearchHandler(req, env);
     if (url.pathname === "/api/screenshot") return screenshotHandler(req, env);
     if (url.pathname === "/api/draft-email") return draftEmailHandler(req, env);
-    if (url.pathname === "/api/mcp" || url.pathname === "/mcp-api") return mcpHandler(req, env);
+    if (url.pathname === "/api/mcp" || url.pathname === "/mcp-api") return mcpHandler(req, env, ctx);
     if (url.pathname === "/api/recent-runs") return recentRunsHandler(req, env);
     if (url.pathname === "/api/niche-leaderboard") return nicheLeaderboardHandler(req, env);
     if (url.pathname === "/api/cron/prewarm-demand") {
