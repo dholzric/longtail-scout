@@ -258,7 +258,10 @@ async function enrichOne(c: Candidate, env: Env, emit: SseEmitter, tally?: CostT
     if (recent_activity.length >= 3) break;
     const href = m[1] ?? "";
     const text = (m[2] ?? "").trim().replace(/\s+/g, " ");
-    if (!text || /^read more$|^learn more$|^view all$|^news$|^press$/i.test(text)) continue;
+    // Reject nav/taxonomy link text and single-word labels ("Categories", "Blog", "More") — a real
+    // press/news headline is multi-word. (v1.7.2: live test surfaced a "Categories" sidebar link.)
+    const NAV_JUNK = /^(read more|learn more|view all|see all|news|press|blog|media|categories|category|archives?|tags?|home|menu|services?|about|about us|contact|contact us|gallery|projects|portfolio|testimonials|reviews|faq|search|subscribe|newsletter|sign in|log ?in|register|more|all posts|recent posts|posts|events|resources|videos|photos)$/i;
+    if (!text || NAV_JUNK.test(text) || !/\s/.test(text)) continue;
     try {
       const url = new URL(href, c.url).toString();
       if (seenPress.has(url)) continue;

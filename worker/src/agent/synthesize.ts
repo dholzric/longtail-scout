@@ -5,6 +5,7 @@ import { llmCall } from "../llm/client";
 import { demandLookup } from "../demand/client";
 import { recordOperator } from "../memory/store";
 import { computeConfidence } from "./confidence";
+import { cleanOperatorName } from "./operatorName";
 import { normalizeNicheKey } from "./nicheNormalize";
 import type { SseEmitter } from "../stream";
 import type { CostTally } from "../cost";
@@ -62,7 +63,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
     const icp_fit_reason = (o.icp_fit_reason ?? "").trim() || "Long-tail operator, web-first";
     if (!base) {
       const stub: Operator = {
-        name: o.name,
+        name: cleanOperatorName(o.name, o.url),
         url: o.url,
         sources: [],
         about: null,
@@ -80,7 +81,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
       stub.confidence = computeConfidence(stub);
       return stub;
     }
-    const op: Operator = { ...base, icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, memory: null, confidence: 0 };
+    const op: Operator = { ...base, name: cleanOperatorName(o.name, o.url), icp_fit_reason, sales_angle: o.sales_angle, rank: o.rank, memory: null, confidence: 0 };
     op.confidence = computeConfidence(op);
     return op;
   });
