@@ -32,7 +32,7 @@ export function ApiDocsPage() {
           path="/api/health"
           summary="Liveness check — no auth"
           example={`curl https://longtailscout.com/api/health`}
-          response={`{ "ok": true, "version": "1.6.0", "ts": 1779870000000 }`}
+          response={`{ "ok": true, "version": "1.7.0", "ts": 1779870000000 }`}
         />
 
         <Endpoint
@@ -133,6 +133,21 @@ Headers: content-type: image/png, x-shot-cache: hit | live`}
   "via": "bright_data_render"
 }`}
           notes="KV-cached 7 days. SSRF-guarded (public http(s) only). Accepts ?key=."
+        />
+
+        <Endpoint
+          method="GET"
+          path="/api/decision-maker?name={biz}&city={city}&contact={knownName}"
+          summary="Find the operator's decision-maker. Runs a site:linkedin.com/in search THROUGH Bright Data and returns named people with their LinkedIn profile + title, owner/founder/CEO roles first. Pass a known contact name to look that person up directly."
+          example={`curl 'https://longtailscout.com/api/decision-maker?name=Amstill%20Roofing&city=Houston&key=<pw>'`}
+          response={`{
+  "people": [
+    { "name": "Stephen Bush", "title": "Owner", "profile_url": "https://www.linkedin.com/in/...", "source_host": "linkedin.com" }
+  ],
+  "serp_query": "\\"Amstill Roofing\\" Houston (owner OR founder ...) site:linkedin.com/in",
+  "via": "bright_data_serp"
+}`}
+          notes="KV-cached 30d. Accepts ?key=."
         />
 
         <Endpoint

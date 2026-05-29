@@ -110,10 +110,11 @@ export function AboutPage() {
             <li><strong>Account brief export</strong> — one-click Markdown dossier (evidence + contacts + draft email + sources)</li>
             <li><strong>"Act first" trigger feed</strong> — operators re-ranked by buying-signal strength (hiring, expansion, funding)</li>
             <li><strong>Signal radar</strong> — live third-party news (funding / expansion / leadership / award) per operator via Bright Data, each citation-linked</li>
+            <li><strong>Decision-maker finder</strong> — the owner/founder + their LinkedIn profile, found via Bright Data; pairs with the discovered inbox</li>
             <li>25 vertical prompt packs (roofing, HVAC, dental, childcare, MSP, legal, ...)</li>
             <li>ICP fit reason + draft outreach angle per operator</li>
             <li>Tech-stack detection per operator (ATS / field-service SaaS / CMS sniffed from homepage HTML)</li>
-            <li>MCP server — all 11 capabilities exposed as tools for Claude Desktop / Cursor / any MCP client</li>
+            <li>MCP server — all 12 capabilities exposed as tools for Claude Desktop / Cursor / any MCP client</li>
             <li>Apollo-thin / New / Seen×N / city badges</li>
             <li>Confidence score (0-100) per row</li>
             <li>Filter by confidence, hiring, long-tail size</li>

@@ -17,5 +17,6 @@
  *   1.5.1 — docs refresh: README + /about + /docs + /mcp updated for the v1.2–1.5 feature/tool surface (10 MCP tools)
  *   1.5.2 — fix the one-command deploy (root script's `pnpm -C worker deploy` collided with pnpm's reserved `deploy`)
  *   1.6.0 — Signal Radar: live third-party news/funding/expansion triggers via Bright Data (/api/signal-radar + MCP tool). 11 MCP tools.
+ *   1.7.0 — Decision-maker finder: owner/founder + LinkedIn profile via Bright Data (/api/decision-maker + MCP tool). 12 MCP tools.
  */
-export const VERSION = "1.6.0";
+export const VERSION = "1.7.0";

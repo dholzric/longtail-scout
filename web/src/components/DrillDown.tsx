@@ -202,6 +202,18 @@ interface ContactDiscovery {
   error?: string;
 }
 
+interface Person {
+  name: string;
+  title: string | null;
+  profile_url: string | null;
+  source_host: string;
+}
+interface DecisionMakerResult {
+  people: Person[];
+  serp_query: string;
+  error?: string;
+}
+
 interface NewsSignal {
   category: "funding" | "expansion" | "leadership" | "award" | "hiring" | "launch" | "press";
   headline: string;
@@ -239,6 +251,26 @@ export function DrillDown({ op }: { op: Operator }) {
   const [briefBusy, setBriefBusy] = useState<boolean>(false);
   const [signals, setSignals] = useState<SignalRadar | null>(null);
   const [signalsLoading, setSignalsLoading] = useState<boolean>(false);
+  const [people, setPeople] = useState<DecisionMakerResult | null>(null);
+  const [peopleLoading, setPeopleLoading] = useState<boolean>(false);
+
+  async function findDecisionMaker() {
+    setPeopleLoading(true);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+      const params = new URLSearchParams({ name: op.name, key });
+      if (op.city) params.set("city", op.city);
+      // Chain off contact discovery / homepage enrichment if we already have a name.
+      const known = contacts?.contact?.name ?? op.contact?.name;
+      if (known) params.set("contact", known);
+      const r = await fetch(`/api/decision-maker?${params.toString()}`);
+      setPeople(await r.json() as DecisionMakerResult);
+    } catch (err) {
+      setPeople({ people: [], serp_query: "", error: (err as Error).message });
+    } finally {
+      setPeopleLoading(false);
+    }
+  }
 
   async function scanSignals() {
     setSignalsLoading(true);
@@ -584,6 +616,39 @@ export function DrillDown({ op }: { op: Operator }) {
                   </div>
                 )}
               </div>
+            )}
+          </div>
+
+          {/* Decision-maker — find the owner/founder + LinkedIn profile via Bright Data */}
+          <div class="border border-ink-15 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">👤 decision-maker</div>
+              <button
+                class="border border-ink-25 bg-paper-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 disabled:opacity-50"
+                onClick={findDecisionMaker}
+                disabled={peopleLoading}
+                type="button"
+                title="Find the owner/founder and their LinkedIn profile via Bright Data"
+              >
+                {peopleLoading ? "searching via BD…" : people ? "re-scan" : "find via Bright Data"}
+              </button>
+            </div>
+            <div class="text-xs text-ink-60">Who to actually contact — the owner/founder and their LinkedIn profile, found via Bright Data. Pairs with the email above.</div>
+            {people?.error && <div class="mt-2 text-xs text-rust-dk italic">{people.error}</div>}
+            {people && !people.error && people.people.length === 0 && (
+              <div class="mt-2 text-xs text-ink-50 italic">No clear decision-maker profile found — common for sole proprietors with no LinkedIn presence (another Apollo-blind tell).</div>
+            )}
+            {people && people.people.length > 0 && (
+              <ul class="m-0 mt-2 p-0 list-none space-y-1.5">
+                {people.people.map((p, i) => (
+                  <li key={i} class="flex items-center gap-2 text-sm">
+                    <span class="text-ink-80"><strong class="text-ink">{p.name}</strong>{p.title ? <span class="text-ink-60 text-xs"> · {p.title}</span> : null}</span>
+                    {p.profile_url && (
+                      <a class="ml-auto font-mono text-[10px] text-rust hover:underline shrink-0" href={p.profile_url} target="_blank" rel="noreferrer">LinkedIn ↗</a>
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 

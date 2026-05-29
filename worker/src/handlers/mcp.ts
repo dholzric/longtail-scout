@@ -4,7 +4,7 @@
  * Exposes LongTail Scout's core API as MCP tools so any MCP-aware client
  * (Claude Desktop, ChatGPT MCP, Cursor, etc.) can drive scouts directly.
  *
- * Eleven tools:
+ * Twelve tools:
  *   - scout                 → run a full scout (sample by default to avoid burning credits)
  *   - find_businesses       → demand-API geotagged businesses for a niche+city
  *   - demand_count          → integer count of businesses matching a niche
@@ -16,6 +16,7 @@
  *   - account_brief         → one-page Markdown dossier for an operator
  *   - rank_triggers         → re-rank operators by buying-signal strength ("act first")
  *   - signal_radar          → live third-party news/funding/expansion triggers (via BD)
+ *   - decision_maker        → find the operator's owner/founder + LinkedIn profile (via BD)
  *
  * Authentication: Bearer <DEMO_PASSWORD> in the Authorization header (same as
  * the rest of /api/*). The MCP client passes the demo password as the
@@ -126,6 +127,19 @@ const TOOLS: ToolDefinition[] = [
         }
       },
       required: ["operator"]
+    }
+  },
+  {
+    name: "decision_maker",
+    description: "Find the operator's decision-maker. Runs a `\"<company>\" (owner OR founder ...) site:linkedin.com/in` search through Bright Data and returns named people with their LinkedIn profile + title, owner/founder/CEO roles first. Pass a known contact name to look that specific person up. Cached 30d.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Operator business name." },
+        city: { type: "string", description: "City, optional." },
+        contact: { type: "string", description: "A known contact name to look up directly, optional (e.g. from find_contacts)." }
+      },
+      required: ["name"]
     }
   },
   {
@@ -325,6 +339,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "account_brief":      return makeResponse(id, await toolAccountBrief(args, env, origin));
     case "rank_triggers":      return makeResponse(id, await toolRankTriggers(args, env, origin));
     case "signal_radar":       return makeResponse(id, await toolSignalRadar(args, env, origin));
+    case "decision_maker":     return makeResponse(id, await toolDecisionMaker(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -510,6 +525,26 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolDecisionMaker(args: any, env: Env, origin: string) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return textContent("ERROR: missing name");
+  const params = new URLSearchParams({ name });
+  if (args?.city) params.set("city", String(args.city).trim());
+  if (args?.contact) params.set("contact", String(args.contact).trim());
+  try {
+    const headers: Record<string, string> = {};
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/decision-maker?${params.toString()}`, { headers });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`decision-maker failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    return jsonContent(await r.json());
+  } catch (err) {
+    return textContent(`decision-maker error: ${(err as Error).message}`);
   }
 }
 
