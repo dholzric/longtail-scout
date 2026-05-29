@@ -325,11 +325,34 @@ That's the bet LongTail Scout makes.
 
 ---
 
-## Field: Tech tags
+## Field: Technologies (pick from lablab's fixed tag list — match these exactly)
+
+Select, in order:
 
 ```
-Bright Data, DeepSeek, Cloudflare Workers, TypeScript, Preact, Playwright, MCP, Vite, Tailwind
+Bright Data Scraping Browser     ← core + the required Bright Data product
+DeepSeek V3                       ← primary LLM (deepseek-chat)
+AI/ML API                         ← configured fallback provider (see worker/src/llm/client.ts)
 ```
+
+Defensible add-ons (your call):
+
+```
+Anthropic Claude          ← the AI/ML API + OpenRouter fallbacks route to Claude Sonnet models
+Cloudflare Workers AI     ← the ONLY Cloudflare tag available; mild stretch (it's their model-inference
+                            product — we use Workers/KV/Cron/Tunnels but not the AI binding). Tag if you
+                            want Cloudflare represented, with that caveat.
+Claude Code               ← if you want to credit the build tooling
+```
+
+DO NOT select (we don't use them — tagging unused partner tech reads as padding):
+- Other Bright Data tags (SERP API, MCP Server, Datasets, Proxy Networks, Web Scraper API) — we use ONLY Scraping Browser. Our SERP is Brave → DDG → BD Scraping Browser rendering Google, not BD's SERP API product. We EXPOSE our own MCP server; we don't consume Bright Data's.
+- Cognee / Pinecone / Chroma / Weaviate / Qdrant — the memory layer is Cloudflare KV (only "swappable for" these).
+- Speechmatics — voice input is the browser's native Web Speech API.
+- DeepSeek R1 — we run V3/chat, not R1.
+- OpenAI — we use the OpenAI SDK but pointed at DeepSeek; no OpenAI inference.
+
+(Note: Preact, Vite, Tailwind, TypeScript, Playwright aren't in lablab's tag list, so they can't be selected — they live in the description/stack text instead.)
 
 ---
 
