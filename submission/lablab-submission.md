@@ -14,27 +14,24 @@ Tick each field on the form against this list. ✅ = ready-to-paste block below.
 
 | Form field | Status |
 |---|---|
-| Project name | ✅ |
-| Tagline / short description | ✅ |
+| Project Title | ✅ |
+| Short Description (255 char max) | ✅ |
+| Long Description | ✅ |
+| **Cover Image** (required) | ⚠️ upload `og-card.png` (block below) |
+| **Video Presentation** (required) | ⚠️ paste your YouTube URL after upload |
 | Event track (GTM Intelligence) | ✅ |
-| **Categories (global tag multi-select)** | ✅ guidance below |
-| **Cover image / thumbnail** | ⚠️ upload `og-card.png` (block below) |
-| Live demo URL | ✅ |
-| Source code URL | ✅ |
-| Video URL | ⚠️ paste after you upload the YouTube video |
-| Long description | ✅ |
+| **Category (global tag multi-select)** | ✅ guidance below |
+| Technologies / tech tags | ✅ |
+| Live demo / Demo URL | ✅ |
+| GitHub / Source code URL | ✅ |
+| Team members | ✅ (team "more-coffee-less-sleep" already exists) |
 | How it uses Bright Data | ✅ |
-| Inspiration | ✅ |
-| Challenges | ✅ |
-| Accomplishments | ✅ |
-| What we learned | ✅ |
-| What's next | ✅ |
-| Tech tags / technologies | ✅ |
-| Team members | ✅ |
-| Presentation / slides URL | optional — build from `slides-outline.md` if you want one |
+| Inspiration · Challenges · Accomplishments · What we learned · What's next | ✅ |
 | Private demo notes (password) | ✅ |
 
-**The two things only you can complete:** the cover image upload and the video URL. Everything else is paste-ready below.
+Confirmed against your saved form: the requirements are **Project Title, Short Description, Long Description, Cover Image, Video Presentation**, plus Category, Technologies, Demo URL, GitHub, Team. lablab's "Presentation" = the **video**, not a slide deck (so `slides-outline.md` is optional extra material, not a required field).
+
+**The two things only you can complete:** the **Cover Image** upload (`og-card.png`) and the **Video Presentation** URL. Everything else is paste-ready below.
 
 ---
 
@@ -44,13 +41,13 @@ Tick each field on the form against this list. ✅ = ready-to-paste block below.
 LongTail Scout
 ```
 
-## Field: Tagline / short description (under 200 chars)
+## Field: Short Description (the form's real label — 255 char max)
 
 ```
 Apollo for the long tail. An AI agent that finds the small, local, niche businesses Apollo can't see — built on Bright Data Scraping Browser, DeepSeek, and a private 7M-business demand index.
 ```
 
-(190 chars — under the limit.)
+(190 chars — comfortably under the 255 limit. Room to spare if you want to add a phrase.)
 
 ## Field: Event track (the hackathon's own track — single choice)
 
