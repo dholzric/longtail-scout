@@ -67,6 +67,12 @@ function nameMatches(opNorm: string, resultText: string): boolean {
   return hits / opTokens.length >= 0.6;
 }
 
+/** Convenience wrapper: does `text` plausibly refer to the business `name`? Normalizes the name
+ *  internally. Shared with the signal-radar classifier so the two stay consistent. */
+export function nameMatchesText(name: string, text: string): boolean {
+  return nameMatches(normalizeBizName(name), text);
+}
+
 export function classifyLinkedInResults(name: string, results: SerpLikeResult[]): LinkedInVerdict {
   const opNorm = normalizeBizName(name);
   let evidence_url: string | null = null;

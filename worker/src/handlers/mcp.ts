@@ -4,7 +4,7 @@
  * Exposes LongTail Scout's core API as MCP tools so any MCP-aware client
  * (Claude Desktop, ChatGPT MCP, Cursor, etc.) can drive scouts directly.
  *
- * Ten tools:
+ * Eleven tools:
  *   - scout                 → run a full scout (sample by default to avoid burning credits)
  *   - find_businesses       → demand-API geotagged businesses for a niche+city
  *   - demand_count          → integer count of businesses matching a niche
@@ -15,6 +15,7 @@
  *   - find_contacts         → email/phone/contact harvested from contact+about pages (via BD)
  *   - account_brief         → one-page Markdown dossier for an operator
  *   - rank_triggers         → re-rank operators by buying-signal strength ("act first")
+ *   - signal_radar          → live third-party news/funding/expansion triggers (via BD)
  *
  * Authentication: Bearer <DEMO_PASSWORD> in the Authorization header (same as
  * the rest of /api/*). The MCP client passes the demo password as the
@@ -125,6 +126,19 @@ const TOOLS: ToolDefinition[] = [
         }
       },
       required: ["operator"]
+    }
+  },
+  {
+    name: "signal_radar",
+    description: "Live buying-trigger radar. Runs a news search through Bright Data and returns fresh THIRD-PARTY headlines about an operator, categorized as funding / expansion / leadership / award / launch / hiring — each with a citation. The timeliest 'why now' for outreach. Cached 24h.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Operator business name." },
+        city: { type: "string", description: "City, optional — biases the search." },
+        url: { type: "string", description: "Operator homepage URL, optional — excludes their own domain from results." }
+      },
+      required: ["name"]
     }
   },
   {
@@ -310,6 +324,7 @@ async function callTool(id: number | string | null, params: any, env: Env, origi
     case "find_contacts":      return makeResponse(id, await toolFindContacts(args, env, origin));
     case "account_brief":      return makeResponse(id, await toolAccountBrief(args, env, origin));
     case "rank_triggers":      return makeResponse(id, await toolRankTriggers(args, env, origin));
+    case "signal_radar":       return makeResponse(id, await toolSignalRadar(args, env, origin));
     default:                   return makeError(id, -32602, `unknown tool: ${name}`);
   }
 }
@@ -495,6 +510,26 @@ async function toolNicheRecon(args: any, env: Env, origin: string) {
     return jsonContent(j);
   } catch (err) {
     return textContent(`niche-recon error: ${(err as Error).message}`);
+  }
+}
+
+async function toolSignalRadar(args: any, env: Env, origin: string) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return textContent("ERROR: missing name");
+  const params = new URLSearchParams({ name });
+  if (args?.city) params.set("city", String(args.city).trim());
+  if (args?.url) params.set("url", String(args.url).trim());
+  try {
+    const headers: Record<string, string> = {};
+    if (env.DEMO_PASSWORD) headers.authorization = `Bearer ${env.DEMO_PASSWORD}`;
+    const r = await fetch(`${origin}/api/signal-radar?${params.toString()}`, { headers });
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      return textContent(`signal-radar failed: HTTP ${r.status} ${errText.slice(0, 200)}`);
+    }
+    return jsonContent(await r.json());
+  } catch (err) {
+    return textContent(`signal-radar error: ${(err as Error).message}`);
   }
 }
 

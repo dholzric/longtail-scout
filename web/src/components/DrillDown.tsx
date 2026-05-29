@@ -202,6 +202,28 @@ interface ContactDiscovery {
   error?: string;
 }
 
+interface NewsSignal {
+  category: "funding" | "expansion" | "leadership" | "award" | "hiring" | "launch" | "press";
+  headline: string;
+  url: string;
+  source_host: string;
+}
+interface SignalRadar {
+  signals: NewsSignal[];
+  serp_query: string;
+  error?: string;
+}
+
+const SIGNAL_STYLE: Record<NewsSignal["category"], string> = {
+  funding: "bg-moss-tint/60 text-moss-dk",
+  expansion: "bg-sky-tint text-ink-80",
+  leadership: "bg-ochre-tint/60 text-ochre-dk",
+  award: "bg-moss-tint/40 text-moss-dk",
+  launch: "bg-sky-tint text-ink-80",
+  hiring: "bg-ochre-tint/50 text-ochre-dk",
+  press: "bg-paper-3 text-ink-60"
+};
+
 export function DrillDown({ op }: { op: Operator }) {
   const [copied, setCopied] = useState<string>("");
   const [ai, setAi] = useState<AiDraft | null>(null);
@@ -215,6 +237,23 @@ export function DrillDown({ op }: { op: Operator }) {
   const [contactsNote, setContactsNote] = useState<string | null>(null);
   const [linkedinVerdict, setLinkedinVerdict] = useState<LinkedInVerdict | null>(null);
   const [briefBusy, setBriefBusy] = useState<boolean>(false);
+  const [signals, setSignals] = useState<SignalRadar | null>(null);
+  const [signalsLoading, setSignalsLoading] = useState<boolean>(false);
+
+  async function scanSignals() {
+    setSignalsLoading(true);
+    try {
+      const key = (typeof localStorage !== "undefined" ? localStorage.getItem(SHOT_KEY) : null) ?? "";
+      const params = new URLSearchParams({ name: op.name, url: op.url, key });
+      if (op.city) params.set("city", op.city);
+      const r = await fetch(`/api/signal-radar?${params.toString()}`);
+      setSignals(await r.json() as SignalRadar);
+    } catch (err) {
+      setSignals({ signals: [], serp_query: "", error: (err as Error).message });
+    } finally {
+      setSignalsLoading(false);
+    }
+  }
 
   async function exportBrief() {
     setBriefBusy(true);
@@ -545,6 +584,38 @@ export function DrillDown({ op }: { op: Operator }) {
                   </div>
                 )}
               </div>
+            )}
+          </div>
+
+          {/* Signal radar — live third-party news/funding/expansion triggers via Bright Data */}
+          <div class="border border-ink-15 px-3 py-2.5">
+            <div class="flex items-center justify-between mb-1.5">
+              <div class="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-60">⚡ signal radar</div>
+              <button
+                class="border border-ink-25 bg-paper-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-70 hover:bg-paper-3 disabled:opacity-50"
+                onClick={scanSignals}
+                disabled={signalsLoading}
+                type="button"
+                title="Search live third-party news (funding, expansion, awards, leadership) via Bright Data"
+              >
+                {signalsLoading ? "scanning via BD…" : signals ? "re-scan" : "scan news via Bright Data"}
+              </button>
+            </div>
+            <div class="text-xs text-ink-60">Live third-party news that signals a buying trigger — funding, a new location, a leadership change, an award. The timeliest "why now" for outreach.</div>
+            {signals?.error && <div class="mt-2 text-xs text-rust-dk italic">{signals.error}</div>}
+            {signals && !signals.error && signals.signals.length === 0 && (
+              <div class="mt-2 text-xs text-ink-50 italic">No recent trigger-news found — quiet operator (or a great greenfield account).</div>
+            )}
+            {signals && signals.signals.length > 0 && (
+              <ul class="m-0 mt-2 p-0 list-none space-y-1.5">
+                {signals.signals.map((s, i) => (
+                  <li key={i} class="flex items-start gap-2 text-xs">
+                    <span class={`font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 shrink-0 ${SIGNAL_STYLE[s.category]}`}>{s.category}</span>
+                    <a class="text-ink-80 hover:text-ink underline decoration-dotted flex-1 leading-snug" href={s.url} target="_blank" rel="noreferrer" title={s.url}>{s.headline}</a>
+                    <span class="font-mono text-[10px] text-ink-50 shrink-0">{s.source_host}</span>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
 

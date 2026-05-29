@@ -37,6 +37,7 @@ export function McpDocsPage() {
             <ToolRow name="find_contacts" desc="Walk an operator's contact/about pages via Bright Data and extract a reachable email (own-domain inbox first), phone, and named contact — with the pages fetched as citations. Cost-capped, cached 7d." />
             <ToolRow name="account_brief" desc="Render a one-page Markdown account brief for an operator: who they are, why they fit, signals, contacts, draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM." />
             <ToolRow name="rank_triggers" desc="Re-rank a set of operators by buying-signal strength — who to contact first. Scores open roles (premium for growth/ops hires), recent expansion/funding/award headlines by recency, and multi-vertical presence." />
+            <ToolRow name="signal_radar" desc="Live buying-trigger radar — search third-party news via Bright Data and return fresh headlines about an operator, categorized as funding / expansion / leadership / award / launch / hiring, each with a citation. The timeliest 'why now' for outreach." />
           </ul>
         </section>
 
@@ -53,7 +54,7 @@ export function McpDocsPage() {
     }
   }
 }`}</pre>
-          <p class="text-sm text-ink-60 mt-2">Restart Claude Desktop. All ten tools appear under the 🔌 plug menu. Try: <em>"Use longtailscout to find roofing contractors in Houston, then check which ones aren't on LinkedIn."</em></p>
+          <p class="text-sm text-ink-60 mt-2">Restart Claude Desktop. All eleven tools appear under the 🔌 plug menu. Try: <em>"Use longtailscout to find roofing contractors in Houston, then check which ones aren't on LinkedIn."</em></p>
         </section>
 
         <section>

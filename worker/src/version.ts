@@ -16,5 +16,6 @@
  *   1.5.0 — Trigger-event "Act first" feed: re-rank operators by buying-signal strength (/api/triggers + MCP tool)
  *   1.5.1 — docs refresh: README + /about + /docs + /mcp updated for the v1.2–1.5 feature/tool surface (10 MCP tools)
  *   1.5.2 — fix the one-command deploy (root script's `pnpm -C worker deploy` collided with pnpm's reserved `deploy`)
+ *   1.6.0 — Signal Radar: live third-party news/funding/expansion triggers via Bright Data (/api/signal-radar + MCP tool). 11 MCP tools.
  */
-export const VERSION = "1.5.2";
+export const VERSION = "1.6.0";

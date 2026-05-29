@@ -32,7 +32,7 @@ export function ApiDocsPage() {
           path="/api/health"
           summary="Liveness check — no auth"
           example={`curl https://longtailscout.com/api/health`}
-          response={`{ "ok": true, "version": "1.5.1", "ts": 1779870000000 }`}
+          response={`{ "ok": true, "version": "1.6.0", "ts": 1779870000000 }`}
         />
 
         <Endpoint
@@ -133,6 +133,22 @@ Headers: content-type: image/png, x-shot-cache: hit | live`}
   "via": "bright_data_render"
 }`}
           notes="KV-cached 7 days. SSRF-guarded (public http(s) only). Accepts ?key=."
+        />
+
+        <Endpoint
+          method="GET"
+          path="/api/signal-radar?name={biz}&city={city}&url={homepage}"
+          summary="Live buying-trigger radar. Runs a news search THROUGH Bright Data and returns fresh third-party headlines about an operator, categorized as funding / expansion / leadership / award / launch / hiring, each with a citation. The operator's own domain + social/aggregator hosts are excluded."
+          example={`curl 'https://longtailscout.com/api/signal-radar?name=Amstill%20Roofing&city=Houston&key=<pw>'`}
+          response={`{
+  "signals": [
+    { "category": "expansion", "headline": "Amstill Roofing opens new Katy location",
+      "url": "https://bizjournal.com/...", "source_host": "bizjournal.com" }
+  ],
+  "serp_query": "\\"Amstill Roofing\\" Houston (funding OR expansion OR award ...)",
+  "via": "bright_data_serp"
+}`}
+          notes="KV-cached 24h. Accepts ?key=."
         />
 
         <Endpoint

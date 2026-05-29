@@ -110,6 +110,7 @@ The Worker registers the bridge as a tool with the LLM via OpenAI's tool-use API
 - **Contact discovery** *(v1.3)* — walk the operator's contact/about pages via the Bright Data Browser and extract a reachable email (own-domain inbox ranked first), phone, and named contact, with the pages fetched as citations. Cost-capped at 3 renders with early-exit. (`/api/contact-discovery`, KV-cached 7d.)
 - **Account brief export** *(v1.4)* — one-click Markdown dossier per operator bundling evidence, signals, the live LinkedIn verdict, discovered contacts, the draft email, and the numbered Bright Data sources behind every claim. Paste-ready for a CRM. (`/api/brief`.)
 - **"Act first" trigger feed** *(v1.5)* — after a run, operators are re-ranked by buying-signal strength (open roles weighted toward growth/ops hires, recent expansion/funding/award headlines by recency, multi-vertical presence). Zero extra API spend — scored from evidence already gathered. (`/api/triggers`.)
+- **Signal radar** *(v1.6)* — on drill-down, a live `"<name>" (funding OR expansion OR award …)` news search **through Bright Data** surfaces fresh *third-party* headlines categorized as funding / expansion / leadership / award / launch / hiring, each citation-linked. The operator's own domain + social/aggregator hosts are filtered out, so it's genuine outside validation of a buying trigger. (`/api/signal-radar`, KV-cached 24h.)
 - **Memory layer** — every URL surfaced across queries is remembered in Cloudflare KV. New operators are labeled `New`; recurring ones show `Seen ×N`. Swappable for Cognee/Pinecone — the interface aligns with vector-DB APIs.
 - **City badge** in multi-city results; **favicons** next to each operator's name.
 - **Outreach kit** in the drill-down — copy email subject/body, `mailto:` deep link, vertical-specific template.
@@ -194,7 +195,7 @@ Deploy: `pnpm run deploy` from the repo root (builds web/dist, then runs `wrangl
 - **Recent-funding + leadership-change signals** (Crunchbase / news via Bright Data) added to the "Act first" trigger feed.
 - **Vertical packs for the next 50 niches** — current packs are 25.
 
-> **Already shipped since the v1.0 submission:** an MCP server exposing all 10 capabilities as tools (`/api/mcp`); Apollo-blind LinkedIn verification, contact discovery, account-brief export, and the "Act first" trigger feed (v1.2–v1.5); a Slack/Discord watchlist webhook; tech-stack detection; and the heat-map underlay.
+> **Already shipped since the v1.0 submission:** an MCP server exposing all 11 capabilities as tools (`/api/mcp`); Apollo-blind LinkedIn verification, contact discovery, account-brief export, the "Act first" trigger feed, and the live Signal Radar (v1.2–v1.6); a Slack/Discord watchlist webhook; tech-stack detection; and the heat-map underlay.
 
 ## License
 
