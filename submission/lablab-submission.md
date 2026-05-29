@@ -8,6 +8,36 @@ This file has the exact text for every field in the lablab.ai submission form fo
 
 ---
 
+## Field-coverage checklist — map this doc against the live form
+
+Tick each field on the form against this list. ✅ = ready-to-paste block below. ⚠️ = only YOU can do it (upload/paste). If the form shows a field NOT on this list, tell me and I'll draft it.
+
+| Form field | Status |
+|---|---|
+| Project name | ✅ |
+| Tagline / short description | ✅ |
+| Event track (GTM Intelligence) | ✅ |
+| **Categories (global tag multi-select)** | ✅ guidance below |
+| **Cover image / thumbnail** | ⚠️ upload `og-card.png` (block below) |
+| Live demo URL | ✅ |
+| Source code URL | ✅ |
+| Video URL | ⚠️ paste after you upload the YouTube video |
+| Long description | ✅ |
+| How it uses Bright Data | ✅ |
+| Inspiration | ✅ |
+| Challenges | ✅ |
+| Accomplishments | ✅ |
+| What we learned | ✅ |
+| What's next | ✅ |
+| Tech tags / technologies | ✅ |
+| Team members | ✅ |
+| Presentation / slides URL | optional — build from `slides-outline.md` if you want one |
+| Private demo notes (password) | ✅ |
+
+**The two things only you can complete:** the cover image upload and the video URL. Everything else is paste-ready below.
+
+---
+
 ## Field: Project name
 
 ```
@@ -22,11 +52,41 @@ Apollo for the long tail. An AI agent that finds the small, local, niche busines
 
 (190 chars — under the limit.)
 
-## Field: Track / category
+## Field: Event track (the hackathon's own track — single choice)
 
 ```
 GTM Intelligence (Track 1)
 ```
+
+## Field: Categories (lablab's global multi-select tag list — separate from the event track)
+
+This is the big alphabetical tag list on the form (advertising, art, assistant, …). It categorizes the app across the lablab platform; it is NOT the hackathon track. Pick the tightly-relevant ones — don't spray. If the form caps the number you can pick, use this priority order:
+
+```
+1. Agent builder track - the internet of agents   ← strongest fit: LongTail Scout is an autonomous agent AND exposes 12 MCP tools other agents/assistants can call
+2. Assistant                                       ← it's a GTM assistant for SDRs
+3. App builder track - the internet of agents      ← it's also a full deployed app (pick if multi-select allows)
+```
+
+Then, if these tags exist in the list, add them (all clearly on-point for a GTM/sales-intelligence agent):
+
+```
+Sales · Business · Marketing · Data · Productivity · Automation · Developer tools (for the MCP server)
+```
+
+**Do NOT pick** (irrelevant — dilutes the categorization): Advertising, Art, Music, Gaming, Health, Travel, Entertainment, Web3, Social, Education, and similar.
+
+> Note: lablab blocks automated fetches, so I'm working from your partial list + lablab's standard taxonomy. Map the ✅ picks above to whatever exact labels your form shows; skip any that aren't present.
+
+## Field: Cover image / thumbnail (lablab REQUIRES a project image — easy to miss)
+
+Use an existing asset from the repo root — no need to make a new one:
+
+```
+og-card.png   (1200×630 editorial OG card — ideal as the cover/thumbnail)
+```
+
+Alternatives if you want a screenshot instead: `redesign-final.png` (full UI) or `heatmap-overlay.png` (the map view). Upload one in the form's image/thumbnail field.
 
 ## Field: Live demo URL
 
