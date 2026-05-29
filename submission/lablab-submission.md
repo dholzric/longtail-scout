@@ -95,12 +95,20 @@ Cloudflare Worker (TypeScript, Wrangler) + Cloudflare KV (caching) + Cloudflare 
 WHAT'S NEW VS. THE BASELINE
   • Live scout in ~40 seconds end-to-end (was 8+ minutes before speed work — Brave SERP primary, plain-fetch-only enrichment, single-turn discovery cap)
   • Editorial / field-manual UI inspired by analog scientific journals — Fraunces serif + JetBrains Mono + a cream-paper palette
-  • MCP server at /api/mcp (6 tools — scout, find_businesses, demand_count, operator_screenshot, draft_email, niche_recon) so Claude Desktop / Cursor users can drive it directly
+  • PER-OPERATOR INTELLIGENCE SUITE (v1.2–1.7), all Bright-Data-backed:
+      - Apollo-blind verification — a live site:linkedin.com/company search via Bright Data that CONFIRMS an operator has no LinkedIn company page (hard proof Apollo can't see them)
+      - Contact discovery — walks the contact/about pages for a real email + phone + named contact
+      - Decision-maker finder — the owner/founder + their LinkedIn /in/ profile (who to actually email)
+      - Signal radar — live third-party news (funding / expansion / leadership / award) as buying triggers
+      - "Act first" trigger feed — re-ranks the run by buying-signal strength
+      - Account-brief export — a one-click Markdown dossier (evidence + contacts + draft email + sources)
+    The drill-down is now a full loop: find → prove it's Apollo-blind → reach the person → why-now → act.
+  • MCP server at /api/mcp (12 tools — scout, find_businesses, demand_count, operator_screenshot, draft_email, niche_recon, linkedin_check, find_contacts, account_brief, rank_triggers, signal_radar, decision_maker) so Claude Desktop / Cursor users can drive the whole pipeline directly
   • Live cost meter (Bright Data renders + LLM tokens in USD, streaming)
   • Watchlist with daily cron-refreshed demand counts + Resend email digests + Slack/Discord webhook integration
-  • Demand-index hostname-match geocoding (when Nominatim misses, we inherit lat/lng from the index)
-  • 49 unit tests including SSRF guard, HMAC unsubscribe tokens, PII redaction, and the Apollo-thinness platform-host detector
-  • Two passes of external security review (Codex), 10/10 findings closed
+  • Demand-index hostname-match geocoding (when Nominatim misses, we inherit lat/lng from the index) + a dense heat-map underlay (deep-page fetch surfaces ~200 distinct operators, not 16)
+  • 118 unit tests including SSRF guards (worker + bridge), HMAC unsubscribe tokens, PII redaction, the Apollo-thinness platform-host detector, and every new classifier (LinkedIn / contacts / signals / decision-maker / triggers / brief / name-cleanup)
+  • Two passes of external security review (Codex), 10/10 findings closed, plus a bridge SSRF fix; full live end-to-end burn-test of all 12 endpoints + 12 MCP tools (3 bugs found & fixed)
 
 LIVE DEMO
 https://longtailscout.com — see the Demo Notes section below for the password.
@@ -188,12 +196,22 @@ That's the bet LongTail Scout makes.
   the verticals where Apollo is structurally blind. The killer demo moment Apollo
   physically cannot reproduce.
 
-- 49 unit tests covering the security-critical paths (SSRF guard, HMAC unsubscribe
-  tokens, PII redaction, Apollo-thinness platform-host detection). The IPv6 SSRF bypass
-  was caught by tests we wrote BEFORE shipping the fix, which is exactly how unit tests
-  should pay for themselves.
+- The per-operator intelligence suite that closes the GTM loop: live Apollo-blind
+  LinkedIn verification, contact discovery, decision-maker finder, signal radar, and a
+  one-click account brief — find -> prove -> reach the person -> why-now -> act. The
+  "prove it's Apollo-blind" and "find the actual person" steps are things no incumbent
+  data vendor does.
 
-- MCP server with 6 tools that any MCP-aware client (Claude Desktop, Cursor, ChatGPT)
+- 118 unit tests covering the security-critical paths (worker + bridge SSRF guards, HMAC
+  unsubscribe tokens, PII redaction, Apollo-thinness detection) and every new classifier.
+  The IPv6 SSRF bypass was caught by tests we wrote BEFORE shipping the fix, which is
+  exactly how unit tests should pay for themselves.
+
+- A full live end-to-end burn-test of all 12 API endpoints AND all 12 MCP tools against
+  real Bright Data, which caught 3 real bugs (a same-zone-loopback 522 on the MCP tools,
+  a garbage-name parse, a cache-key leak) — all fixed and re-verified live.
+
+- MCP server with 12 tools that any MCP-aware client (Claude Desktop, Cursor, ChatGPT)
   can drive directly. The same agent pipeline works as a website AND as a tool surface
   for a separate LLM.
 
@@ -295,7 +313,7 @@ WHAT TO TRY (in order of demo impact)
    cold cache, ~3s on a warm one.
 
 4. The MCP server lives at https://longtailscout.com/api/mcp — try:
-   curl https://longtailscout.com/api/mcp  (lists 6 tools)
+   curl https://longtailscout.com/api/mcp  (lists 12 tools)
    See /mcp page for Claude Desktop config.
 
 5. Map view (toggle at the top of the result table) shows operators as numbered

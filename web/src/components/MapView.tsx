@@ -104,7 +104,9 @@ export function MapView({ operators, query, demoKey, compact }: Props) {
     const url = new URL("/api/businesses", window.location.origin);
     url.searchParams.set("q", niche);
     if (city) url.searchParams.set("city", city);
-    url.searchParams.set("limit", "200");
+    // Pull a deep page: the demand index front-loads duplicate rows, so 1000 raw rows dedupe to
+    // ~10x more distinct operators than 200 — a dense heat-map instead of a sparse one.
+    url.searchParams.set("limit", "1000");
     fetch(url.toString(), {
       headers: { authorization: `Bearer ${demoKey}` }
     })

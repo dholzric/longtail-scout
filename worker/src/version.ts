@@ -20,5 +20,6 @@
  *   1.7.0 — Decision-maker finder: owner/founder + LinkedIn profile via Bright Data (/api/decision-maker + MCP tool). 12 MCP tools.
  *   1.7.1 — live-test fixes: MCP tools call handlers in-process (no same-zone loopback 522); contact-name plausibility guard; signal-radar cache key includes opHost.
  *   1.7.2 — data-quality: operator-name cleanup (strip SEO title cruft via domain match); recent-activity nav/single-word junk filter.
+ *   1.7.3 — heat-map density: raise /api/businesses page to 1000 (demand index front-loads dupes; 200→16 distinct, 1000→~199); complete submission docs (feature-guide, 12 tools, 118 tests).
  */
-export const VERSION = "1.7.2";
+export const VERSION = "1.7.3";

@@ -8,9 +8,11 @@ Everything you need to ship the LongTail Scout submission for the Bright Data We
 
 ## Do this, in order
 
+0. **`feature-guide.md`** — **Read this first if you don't know all the features.** Complete inventory of everything the app does (incl. the v1.2–1.7 intelligence suite), where each lives, what to say, plus a ~3–4 min extended walkthrough. This is your master reference.
+
 1. **`demo-checklist.md`** — Run this 20 min before you record. Pre-flight checks + cache pre-warm. **Do not skip.**
 
-2. **`video-script.md`** — The 90-second recording. Has the exact words to say + exact clicks to make, second-by-second. Print it on paper or open on a second screen.
+2. **`video-script.md`** — The tight 90-second recording (scout + Niche Recon). Exact words + clicks, second-by-second. For a longer video that shows the new features, use the extended cut in `feature-guide.md`.
 
 3. *(optional)* **`slides-outline.md`** — 8-slide deck. lablab doesn't require it, but it's useful supporting material for the partner-prize judges (Bright Data, Cognee, Speechmatics). Paste into Google Slides / Figma / Canva.
 
@@ -42,10 +44,12 @@ If you're starting from a cold morning:
 - Live site deployed: https://longtailscout.com
 - GitHub repo public: https://github.com/dholzric/longtail-scout
 - Demo password: `Piglet` (set as `DEMO_PASSWORD` env on the Worker)
-- All 4 High + 5 Medium + 1 Low Codex security findings closed
-- 49 unit tests passing
-- 6 MCP tools live
+- All 4 High + 5 Medium + 1 Low Codex security findings closed, plus a bridge SSRF fix
+- 118 unit tests passing
+- 12 MCP tools live
 - Niche Recon shipped + pre-warmed
+- v1.2–1.7 intelligence suite shipped & live-tested: Apollo-blind LinkedIn verification, contact discovery, decision-maker finder, signal radar, account-brief export, "Act first" trigger feed (all Bright-Data-backed). See `feature-guide.md`.
+- Current version: v1.7.2 (shown in the footer + `/api/health`)
 
 You just need to: record the video, fill the form, hit submit.
 

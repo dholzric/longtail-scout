@@ -3,6 +3,8 @@
 **Target length:** 85-90 seconds. **One take preferred** (judges feel the live progression).
 **Pre-flight:** finish `submission/demo-checklist.md` first.
 
+> **This is the tight 90-second cut.** It shows the scout + Niche Recon only. Since v1.2 the app gained a full per-operator intelligence suite — Apollo-blind LinkedIn verification, contact discovery, decision-maker finder, live signal radar, account-brief export, and the "Act first" trigger feed (all Bright-Data-backed). The 90 seconds can't fit them. **For the complete feature list and a ~3–4 min extended walkthrough that demos them, see `submission/feature-guide.md`.** If your video can run 2–3 minutes, use the extended cut — the drill-down "find → prove → reach → act" sequence is the strongest material.
+
 ---
 
 ## How to use this script

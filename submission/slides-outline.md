@@ -108,13 +108,13 @@ Browser ── Preact SPA ── Cloudflare Worker (TypeScript)
 
 **Hosting:** Cloudflare Workers (paid plan), custom domain via auto-cert, SSE streaming for the live agent trace. Demo password gates writes; all read paths still require Bearer auth for the demand index (we don't expose the moat).
 
-**Stack:** Preact + Tailwind v4 + Vite (frontend), Wrangler 3 (deploy), playwright-core + cheerio (bridge), Vitest (49 tests).
+**Stack:** Preact + Tailwind v4 + Vite (frontend), Wrangler 3 (deploy), playwright-core + cheerio (bridge), Vitest (118 tests).
 
 ---
 
 ## Slide 7 — Beyond the demo: MCP, watchlists, security
 
-**MCP Server at `/api/mcp`** — 6 tools any MCP-aware client (Claude Desktop, Cursor, ChatGPT) can call:
+**MCP Server at `/api/mcp`** — 12 tools any MCP-aware client (Claude Desktop, Cursor, ChatGPT) can call:
 
 | Tool | Use case |
 |---|---|
@@ -124,10 +124,16 @@ Browser ── Preact SPA ── Cloudflare Worker (TypeScript)
 | `demand_count` | Single-integer count for a niche |
 | `operator_screenshot` | Live BD-rendered homepage screenshot |
 | `draft_email` | Personalized cold email from operator facts |
+| `linkedin_check` | Apollo-blind verification — is the operator on LinkedIn? (via BD) |
+| `find_contacts` | Real email / phone / contact from the contact pages (via BD) |
+| `decision_maker` | Owner/founder + their LinkedIn profile (via BD) |
+| `signal_radar` | Live third-party news/funding/expansion triggers (via BD) |
+| `rank_triggers` | Re-rank operators by buying-signal strength |
+| `account_brief` | One-page Markdown dossier for an operator |
 
 **Watchlist + alerts:** save a query, daily cron refreshes the demand-index count, Resend email digest + Slack/Discord webhook fire when delta > 0. CAN-SPAM compliant — each digest email has an HMAC-signed unsubscribe link.
 
-**Security:** 49 unit tests covering SSRF guard (caught an IPv6 bypass before deploy), HMAC unsubscribe tokens, watchlist PII redaction, the Apollo-thinness platform-host filter. Two external code reviews (Codex), 10/10 findings closed.
+**Security:** 118 unit tests covering SSRF guards on both the worker AND the bridge (caught an IPv6 bypass before deploy), HMAC unsubscribe tokens, watchlist PII redaction, the Apollo-thinness platform-host filter, and every new classifier. Two external code reviews (Codex), 10/10 findings closed; full live burn-test of all endpoints + MCP tools.
 
 ---
 

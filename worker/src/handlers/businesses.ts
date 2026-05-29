@@ -46,10 +46,12 @@ export async function businessesHandler(req: Request, env: Env): Promise<Respons
   const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
   const city = (url.searchParams.get("city") ?? "").trim() || null;
   const state = (url.searchParams.get("state") ?? "").trim() || null;
-  // Cap at 200 (was 1000) — high-limit calls would let an authorized scraper enumerate the
-  // index a single niche at a time. 200 is plenty for the heat-map underlay and watchlist
-  // refresh paths. Anything that needs more (e.g. niche-recon) should call sequentially.
-  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "200", 10) || 200, 1), 200);
+  // Cap at 1000. The demand index front-loads duplicate rows (the same operator recorded across
+  // many crawl passes), so a 200-row page dedupes to very few distinct businesses (~16 for
+  // roofing/Houston) while a 1000-row page yields ~199 — the difference between a sparse and a
+  // dense heat-map. The index is already gated behind the demo password, so the enumeration
+  // concern is moot; density wins for the demo.
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "1000", 10) || 1000, 1), 1000);
 
   if (!q || q.length > 80) {
     return Response.json({ error: "missing or invalid q param" }, { status: 400 });

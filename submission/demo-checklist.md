@@ -29,10 +29,23 @@ curl -s "https://demand.longtailscout.com/api/research?q=roofing&tlds=com&limit=
 **If it fails:** SSH to .29, check the FastAPI service. Without this the demand probe and Niche Recon both break.
 
 ```bash
-# MCP discovery — should list 6 tools
+# MCP discovery — should list 12 tools
 curl -s https://longtailscout.com/api/mcp | python -c "import sys,json; d=json.load(sys.stdin); print(f'tools: {len(d[\"tools\"])}'); [print(' -',t['name']) for t in d['tools']]"
 ```
-**Expected:** `tools: 6` with `scout, find_businesses, demand_count, operator_screenshot, draft_email, niche_recon`.
+**Expected:** `tools: 12` — `scout, find_businesses, demand_count, operator_screenshot, draft_email, niche_recon, linkedin_check, find_contacts, account_brief, rank_triggers, signal_radar, decision_maker`.
+
+```bash
+# The four drill-down Bright Data features (v1.2-1.7) — each should return JSON, not a 502/timeout.
+# These need the bridge UP. Run them so the KV cache is warm before recording.
+for q in \
+  "linkedin-check?name=Amstill%20Roofing&city=Houston" \
+  "signal-radar?name=Amstill%20Roofing&city=Houston&url=https://amstillroofing.com" \
+  "decision-maker?name=Amstill%20Roofing&city=Houston" \
+  "contact-discovery?url=https://amstillroofing.com&name=Amstill%20Roofing"; do
+  echo "== $q =="; curl -s --max-time 90 -H "authorization: Bearer Piglet" "https://longtailscout.com/api/$q" | head -c 200; echo
+done
+```
+**Expected:** each prints JSON (`checked`, `signals`, `people`, or `emails`). A 502 means the bridge is down — see step 1. **If you can't get the bridge up, demo these from sample mode / skip them** (see `feature-guide.md` → Demo modes).
 
 ---
 
