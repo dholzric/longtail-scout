@@ -66,19 +66,35 @@ echo "scout done, $(wc -l < /tmp/warm-scout.txt) SSE events written"
 ```
 **Expected:** prints a line count > 80. The KV cache now has this query's discovery SERP results, enriched homepages, and the synthesis output. Re-runs from any browser will hit those caches and return in 5-10s instead of 40s+.
 
-**Pre-warm Niche Recon with the demo product description:**
+**Lock in a strong Niche Recon result (IMPORTANT — read this).**
+
+Niche Recon runs an LLM each call, so the niche *set* varies every click — sometimes you get the killer `electrical 100%` set, sometimes a flat `handyman 40%, pressure washing 3%` set that contradicts the script. Since **v1.8.1** the response is cached per description for **2 hours**, and `"fresh":true` re-rolls it. So we re-roll until we get the strong set, which locks it into cache; the browser click during recording then returns that exact set.
+
+The demo description is **`home services CRM for trades`** — you'll type this **exactly** into the browser textarea later (case doesn't matter; spelling/spacing does).
 
 ```bash
-curl -X POST https://longtailscout.com/api/niche-recon \
-  -H "authorization: Bearer Piglet" \
-  -H "content-type: application/json" \
-  -d '{"product_description":"home services CRM and scheduling for trades — quotes, dispatch, mobile job sheets, GPS tracking, payments"}' \
-  --max-time 120 -o /tmp/warm-recon.txt
-echo "recon done; first niches:"; python -c "import json; d=json.load(open('/tmp/warm-recon.txt')); [print(' ',n['niche'],'thin='+str(int(n['thinness_pct']*100))+'%') for n in d.get('niches',[])]"
+# Re-roll until the top niche is ~100% Apollo-thin, then stop (that strong set is now cached).
+for i in $(seq 1 8); do
+  R=$(curl -s -X POST https://longtailscout.com/api/niche-recon \
+    -H "authorization: Bearer Piglet" -H "content-type: application/json" \
+    -d '{"product_description":"home services CRM for trades","fresh":true}' --max-time 150)
+  echo "$R" | python -c "import sys,json; d=json.load(sys.stdin); ns=d.get('niches',[]); print('roll:', ', '.join(n['niche']+' '+str(int(n['thinness_pct']*100))+'%' for n in ns)); sys.exit(0 if (ns and ns[0]['thinness_pct']>=0.9 and len(ns)>=3) else 1)" && { echo '>>> LOCKED a strong set'; break; }
+done
 ```
-**Expected:** 3-5 niches print. Top niches should include plumbing, hvac, electrical with high thinness (50-100%). The cache is now warm for the recording.
 
-**If Niche Recon returns 0 niches:** the demand server is overloaded. Wait 60 seconds and re-run. If it still fails, switch the demo to a different product description (try `"appointment scheduling software for personal services like hair, nails, lashes, massage, brow studios"`).
+Then **verify the cache returns it** (no `fresh` → this is what the browser will see):
+
+```bash
+curl -s -X POST https://longtailscout.com/api/niche-recon \
+  -H "authorization: Bearer Piglet" -H "content-type: application/json" \
+  -d '{"product_description":"home services CRM for trades"}' --max-time 30 \
+| python -c "import sys,json; d=json.load(sys.stdin); print('cached:', d.get('cached')); [print(' ',n['niche'],format(n['demand_count'],','),str(int(n['thinness_pct']*100))+'%') for n in d.get('niches',[])]"
+```
+**Expected:** `cached: True` and the strong set — ideally `electrical 16,666 100% · hvac 42,873 86% · pool service 10,752 76% · plumbing 46,264 53%` (matches deck slide 5). Any set whose **top niche is ≥90% Apollo-thin** is fine; just adapt the narration to name that niche.
+
+**⏰ The cache expires after 2 hours** — run this lock-in step within 2h of recording (re-run it if you take a long break before the take).
+
+**If you can't get a ≥90% top niche after 8 rolls:** the demand server is flaky — wait 60s and retry the loop, or fall back to the slide-5 set on screen and narrate from the deck.
 
 ---
 

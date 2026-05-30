@@ -93,23 +93,23 @@ You're talking to a hackathon judge who has 90 seconds of attention. Don't over-
 🎙️ **SAY:**
 > "But here's what Apollo physically cannot do."
 
-🖱️ **DO:** The Niche Recon panel expands. There's a textarea pre-filled with the product description (from your pre-warm step). If it's not, paste:
+🖱️ **DO:** The Niche Recon panel expands. Type **exactly** this into the textarea (it must match the description you locked in during pre-warm so the cached result loads — see checklist step 2):
 
-> `home services CRM and scheduling for trades — quotes, dispatch, mobile job sheets, GPS tracking, payments`
+> `home services CRM for trades`
 
-Click the **"find niches →"** button.
+Click the **"find niches →"** button. (Because it's pre-warmed, results load in ~1s — and they're deterministic: electrical 100%, hvac 86%, pool service 76%, plumbing 53%.)
 
 🎙️ **SAY:**
 > "Paste a product description. We map it to candidate verticals via LLM, then cross-reference each against our private demand index. We rank by how Apollo-thin each vertical is — meaning what share of the businesses there have no real domain Apollo can match. Booking platforms, social profiles, Google profile pages — Apollo's blind to all of them."
 
 (Niche Recon results should appear within 2-5 seconds because the cache is warm.)
 
-📺 **SCREEN:** Niche Recon shows top 5 niches. Top result should be something like `electrical` with `100% Apollo-thin` — every business uses ServiceTitan booking, no own domain.
+📺 **SCREEN:** Niche Recon shows the niches with real index counts. Top row: `electrical` · `16,666` · `100% Apollo-thin` — every sampled business on ServiceTitan booking, no own domain.
 
 🖱️ **DO:** Point at the top row. Don't click — just gesture.
 
 🎙️ **SAY:**
-> "Electrical contractors. Hundreds of operators, every single one using ServiceTitan booking links instead of their own websites. Apollo doesn't see any of them. We just did."
+> "Sixteen thousand electrical contractors in our index — and a hundred percent Apollo-thin: every one we sampled lives on a ServiceTitan booking link, not their own domain. Apollo can't see a single one. We just did."
 
 (Time at end: 1:25.)
 
