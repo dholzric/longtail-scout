@@ -21,10 +21,14 @@ Env:  SCRAPER_DATABASE_URL (required, read-only role), and optionally
 import os
 import re
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from sqlalchemy import create_engine, text
 
 DB_URL = os.environ["SCRAPER_DATABASE_URL"]
+# When set, data endpoints require Authorization: Bearer <token>. The demand index is the moat;
+# this keeps anonymous traffic from enumerating it. Unset = open (so it's safe to deploy before
+# the worker has the matching secret). /health stays open.
+_API_TOKEN = os.environ.get("DEMAND_API_TOKEN")
 _SCHEMA = os.environ.get("SCRAPER_SCHEMA", "public")
 _TABLE = os.environ.get("SCRAPER_TABLE", "results")
 _NAME_COL = os.environ.get("SCRAPER_NAME_COL", "name")
@@ -48,6 +52,11 @@ engine = create_engine(DB_URL, pool_pre_ping=True, pool_size=4, max_overflow=4)
 app = FastAPI(title="longtail-scout demand-index", docs_url=None, redoc_url=None)
 
 
+def _require_auth(authorization: str | None) -> None:
+    if _API_TOKEN and authorization != f"Bearer {_API_TOKEN}":
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+
 @app.get("/health")
 def health() -> dict:
     return {"ok": True, "service": "demand-index"}
@@ -59,9 +68,11 @@ def research(
     # accepted (and ignored) for drop-in compatibility with the old domainsearch path:
     count_only: bool = Query(default=True),
     tlds: list[str] | None = Query(default=None),
+    authorization: str | None = Header(default=None),
 ) -> dict:
     """Demand count = how many indexed businesses match this niche keyword. Index-assisted by the
     GIN trigram indexes on (name, category), so this is sub-second."""
+    _require_auth(authorization)
     sql = text(
         f"SELECT count(*) FROM {SCHEMA}.{TABLE} "
         f"WHERE {NAME_COL} ILIKE :pat OR {CAT_COL} ILIKE :pat"
@@ -77,8 +88,10 @@ def businesses(
     city: str | None = None,
     state: str | None = None,
     limit: int = Query(default=50, ge=1, le=1000),
+    authorization: str | None = Header(default=None),
 ) -> dict:
     """Geotagged business records for a niche (+ optional exact city / state)."""
+    _require_auth(authorization)
     where = [
         f"({NAME_COL} ILIKE :q_pat OR {CAT_COL} ILIKE :q_pat)",
         "latitude IS NOT NULL",
