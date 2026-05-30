@@ -17,3 +17,8 @@ NOTES_*.md
 
 # Saved lablab submission page (local working artifact, not project source)
 submit.page/
+
+# API keys / secrets — never commit (repo is public)
+secrets/
+*.key
+.secrets*
