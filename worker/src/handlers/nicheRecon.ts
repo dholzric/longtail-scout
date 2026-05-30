@@ -13,6 +13,7 @@
  * Cached aggressively: per-niche business samples for 1h, per-niche demand counts for
  * 12h — so even on a cold first visit we usually only pay the LLM call.
  */
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 import { llmCall, envWithByok } from "../llm/client";
 
@@ -138,7 +139,7 @@ async function fetchNicheBusinesses(niche: string, env: Env, limit = 50): Promis
     // cold-cache niches stretch to 18-22s under load. 25s absorbs the worst case rather than
     // letting the call silently return an empty array on timeout.
     const r = await fetch(u.toString(), {
-      headers: { "user-agent": "longtailscout-niche-recon/1.0" },
+      headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-niche-recon/1.0" }),
       signal: AbortSignal.timeout(25000)
     });
     const ms = Date.now() - t0;
@@ -190,7 +191,7 @@ async function fetchNicheDemand(niche: string, env: Env): Promise<number> {
     // /api/research is the slow endpoint (~18s cold — it does Cloudflare-registrar work for the
     // count). 15s timed out on cold calls → spurious "30+". 30s absorbs the worst case.
     const r = await fetch(u.toString(), {
-      headers: { "user-agent": "longtailscout-niche-recon/1.0" },
+      headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-niche-recon/1.0" }),
       signal: AbortSignal.timeout(30000)
     });
     if (!r.ok) return 0;

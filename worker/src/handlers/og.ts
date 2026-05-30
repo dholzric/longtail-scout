@@ -9,6 +9,7 @@
  * /share?q=<query> — HTML wrapper page that sets og:image + og:title + og:description and then
  * client-redirects to the actual app. This is the URL the "Copy share URL" button now produces.
  */
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 
 function escapeXml(s: string): string {
@@ -134,7 +135,7 @@ export async function ogImageHandler(req: Request, env: Env): Promise<Response> 
     const nicheGuess = query.replace(/\s+(?:in|near|around)\s+.+$/i, "").trim();
     if (nicheGuess) {
       const r = await fetch(`${env.DEMAND_API_BASE.replace(/\/$/, "")}/api/research?q=${encodeURIComponent(nicheGuess.toLowerCase())}&tlds=com&limit=1`, {
-        headers: { "user-agent": "longtailscout-og/1.0" }
+        headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-og/1.0" })
       });
       if (r.ok) {
         const j = await r.json() as { demand?: number };

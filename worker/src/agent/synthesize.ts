@@ -1,3 +1,4 @@
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 import type { Operator, ScoutQuery } from "../types";
 import { buildSynthesisPrompt } from "./prompts";
@@ -98,7 +99,7 @@ export async function synthesize(q: ScoutQuery, enriched: EnrichmentInput[], env
       upstream.searchParams.set("q", nicheKey);
       if (q.city) upstream.searchParams.set("city", q.city);
       upstream.searchParams.set("limit", "1000"); // pull full niche+city slice so name match has the most options
-      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-worker/1.0" } });
+      const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-worker/1.0" }) });
       if (r.ok) {
         const data = await r.json() as { businesses?: Array<{ name?: string; website?: string; lat?: number; lng?: number; address?: string }> };
         const normalizedNiche = nicheKey.toLowerCase();

@@ -1,3 +1,4 @@
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 import { cacheKey } from "../cache";
 import { sendEmail, RESEND_DEFAULT_FROM } from "../lib/resend";
@@ -308,7 +309,7 @@ export async function refreshWatchlistDemand(env: Env, opts: { forceEmail?: bool
     upstream.searchParams.set("limit", "200");
     let current: number | null = null;
     try {
-      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-cron/1.0" } });
+      const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-cron/1.0" }) });
       if (r.ok) {
         const j = await r.json() as { count?: number };
         if (typeof j.count === "number") current = j.count;

@@ -27,6 +27,7 @@
  * single-request mode is enough for the hackathon demo and keeps Workers
  * stateless. Compliant clients (Claude Desktop, etc.) handle it fine.
  */
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 import { findSample } from "../samples";
 import type { Operator } from "../types";
@@ -485,7 +486,7 @@ async function toolFindBusinesses(args: any, env: Env) {
   if (city) upstream.searchParams.set("city", city);
   upstream.searchParams.set("limit", String(limit));
   try {
-    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-mcp/1.0" } });
+    const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-mcp/1.0" }) });
     if (!r.ok) return textContent(`demand API error: HTTP ${r.status}`);
     const j = await r.json();
     return jsonContent(j);
@@ -502,7 +503,7 @@ async function toolDemandCount(args: any, env: Env) {
   upstream.searchParams.set("tlds", "com");
   upstream.searchParams.set("limit", "1");
   try {
-    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-mcp/1.0" } });
+    const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-mcp/1.0" }) });
     if (!r.ok) return textContent(`demand API error: HTTP ${r.status}`);
     const j = await r.json() as { demand?: number };
     return jsonContent({ niche, demand: j.demand ?? 0 });

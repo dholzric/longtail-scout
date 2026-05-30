@@ -5,6 +5,7 @@
  * (90% of hackathon judges will hit the same niche/city pairs). Returns lat/lng/rating
  * records for the heat-map underlay on the map view.
  */
+import { demandHeaders } from "../demand/client";
 import type { Env } from "../index";
 
 interface BusinessRecord {
@@ -74,7 +75,7 @@ export async function businessesHandler(req: Request, env: Env): Promise<Respons
   let resp: Response;
   try {
     resp = await fetch(upstream.toString(), {
-      headers: { "user-agent": "longtailscout-worker/1.0" }
+      headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-worker/1.0" })
     });
   } catch (err) {
     return Response.json({ error: "demand api unreachable", detail: (err as Error).message }, { status: 502 });
@@ -141,7 +142,7 @@ export async function prewarmDemandIndex(env: Env): Promise<{ warmed: number; fa
     upstream.searchParams.set("tlds", "com");
     upstream.searchParams.set("limit", "1");
     try {
-      const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-prewarm/1.0" } });
+      const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-prewarm/1.0" }) });
       if (!r.ok) { failed++; continue; }
       const j = await r.json() as { query?: string; demand?: number };
       const out = { query: j.query ?? q, demand: typeof j.demand === "number" ? j.demand : 0 };
@@ -152,11 +153,11 @@ export async function prewarmDemandIndex(env: Env): Promise<{ warmed: number; fa
   }
 
   // Pass 2: niche-recon business samples (the slow upstream call). Same cache shape as
-  // worker/src/handlers/nicheRecon.ts → `nichebiz:v4:<niche>:30`.
+  // worker/src/handlers/nicheRecon.ts → `nichebiz:v5:<niche>:30`.
   for (const niche of PREWARM_NICHE_SAMPLES) {
     const q = niche.toLowerCase();
     const SAMPLE_LIMIT = 30;
-    const cacheKey = `nichebiz:v4:${q}:${SAMPLE_LIMIT}`;
+    const cacheKey = `nichebiz:v5:${q}:${SAMPLE_LIMIT}`;
     const existing = await env.CACHE.get(cacheKey, "json");
     if (existing) { warmed++; continue; }
     const upstream = new URL("/api/businesses", env.DEMAND_API_BASE);
@@ -164,7 +165,7 @@ export async function prewarmDemandIndex(env: Env): Promise<{ warmed: number; fa
     upstream.searchParams.set("limit", String(SAMPLE_LIMIT));
     try {
       const r = await fetch(upstream.toString(), {
-        headers: { "user-agent": "longtailscout-prewarm/1.0" },
+        headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-prewarm/1.0" }),
         signal: AbortSignal.timeout(20000)
       });
       if (!r.ok) { failed++; continue; }
@@ -246,7 +247,7 @@ export async function demandResearchHandler(req: Request, env: Env): Promise<Res
   // We only need the `demand` count — skip the slow per-domain registrar/scoring work.
   upstream.searchParams.set("count_only", "1");
   try {
-    const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-worker/1.0" } });
+    const r = await fetch(upstream.toString(), { headers: demandHeaders(env.DEMAND_API_TOKEN, { "user-agent": "longtailscout-worker/1.0" }) });
     if (!r.ok) return Response.json({ error: "upstream error" }, { status: 502 });
     const j = await r.json() as { query?: string; demand?: number };
     const out = { query: j.query ?? q, demand: typeof j.demand === "number" ? j.demand : 0 };

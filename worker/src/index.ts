@@ -30,6 +30,9 @@ export interface Env {
   BRIGHTDATA_WEB_UNLOCKER_ZONE: string;
   BRIGHTDATA_SCRAPER_ZONE: string;
   DEMAND_API_BASE: string;
+  /** Bearer token for the demand-index API (the moat). When set, the worker sends it on every
+   *  demand call and the service rejects unauthenticated requests. Unset = open (legacy). */
+  DEMAND_API_TOKEN?: string;
   NOMINATIM_BASE?: string;
   BRIDGE_BASE: string;
   BRIDGE_AUTH_TOKEN?: string;

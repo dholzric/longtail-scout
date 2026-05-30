@@ -7,7 +7,7 @@ export async function smokeHandler(env: Env): Promise<Response> {
   const checks: Record<string, unknown> = {};
 
   try {
-    const demand = await demandLookup("aerospace", env.DEMAND_API_BASE, env.CACHE);
+    const demand = await demandLookup("aerospace", env.DEMAND_API_BASE, env.CACHE, env.DEMAND_API_TOKEN);
     checks.demand = demand
       ? { ok: true, demand_count: demand.demand, results: demand.results.length }
       : { ok: false, error: "null response" };
