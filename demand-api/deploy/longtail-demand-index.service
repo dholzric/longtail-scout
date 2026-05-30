@@ -1,0 +1,24 @@
+[Unit]
+Description=LongTail Scout demand-index API (read-only over overlordng2.results)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dholzric
+WorkingDirectory=/home/dholzric/projects/longtail-demand-index
+EnvironmentFile=/home/dholzric/projects/longtail-demand-index/.env
+# Reuses an interpreter that already has the deps (fastapi/uvicorn/sqlalchemy/psycopg).
+# `python -m uvicorn` (the venv has the module but not the console-script entry point).
+ExecStart=/home/dholzric/projects/domainsearch/.venv/bin/python -m uvicorn app:app --host 0.0.0.0 --port 8090
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+
+# Deploy notes:
+#   sudo cp deploy/longtail-demand-index.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now longtail-demand-index
+#   sudo ufw allow 8090/tcp comment 'longtail-scout demand-index'   # host process needs an explicit allow
+# Reached by the quiltmap-r720 Cloudflare Tunnel: ingress demand.longtailscout.com -> http://192.168.1.29:8090
