@@ -3,6 +3,8 @@
 Submission for **Bright Data Web Data UNLOCKED** hackathon, Track 1 (GTM Intelligence). 2026-05-30.
 8 slides, designed for skimming. Paste into Google Slides / Figma / Canva.
 
+> **Formatting note:** `**text**` means "make this bold/emphasized on the slide" — it is NOT literal text. Google Slides / Canva don't render Markdown, so delete the `**` markers (or apply bold manually) when you paste. Same for `*italic*`. This is an outline, not paste-verbatim copy.
+
 This deck is OPTIONAL — lablab.ai doesn't require slides, just the form + video. But if you want supporting material to send to the partner-prize judges (Bright Data, Cognee, Speechmatics), this is the deck.
 
 ---
@@ -25,7 +27,7 @@ The GTM teams at **ServiceTitan, AccuLynx, JobNimbus, Brightwheel, Jobber, Bambe
 
 > *Small, local, operator-owned, web-first. Real revenue, real budget, no LinkedIn corporate page, no Apollo record.*
 
-One SDR builds ~10 qualified accounts a day by hand — scrolling directory sites, opening every roofing company's homepage, copying URLs out of Google. **~$300 per account just to FIND them**, before any outreach starts.
+One SDR builds about 10 qualified accounts a day by hand — scrolling directory sites, opening every roofing company's homepage, copying URLs out of Google. That's roughly **$300 per account just to FIND them**, before any outreach starts.
 
 Apollo and ZoomInfo don't help here. Their data was built around the LinkedIn employee graph. For the long tail — local trades, niche manufacturers, family-owned services, franchisees — that graph is empty.
 
@@ -35,7 +37,7 @@ This is the job we automate.
 
 ## Slide 3 — The product
 
-**Type a niche × city query. Get a ranked, cited, evidence-backed list of operators in ~40 seconds.**
+**Type a niche × city query. Get a ranked, cited, evidence-backed list of operators in about 40 seconds.**
 
 Example query: `roofing contractors in Houston`
 
@@ -141,7 +143,7 @@ Browser ── Preact SPA ── Cloudflare Worker (TypeScript)
 
 **Next 30 days:**
 - CRM connectors (HubSpot, Salesforce, Apollo CSV reverse-import)
-- Quality mode: opt-in BD-bridge enrichment that recovers the ~35% of candidates plain-fetch drops
+- Quality mode: opt-in BD-bridge enrichment that recovers the roughly 35% of candidates plain-fetch drops
 - Vertical-tuned prompts (roofing, HVAC, childcare, EMS — different hiring signal weights per market)
 - Bright Data MCP Server integration once it's GA — deprecate our Playwright bridge, call BD directly
 
