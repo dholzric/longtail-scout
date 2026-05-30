@@ -23,5 +23,7 @@
  *   1.7.3 — heat-map density: raise /api/businesses page to 1000 (demand index front-loads dupes; 200→16 distinct, 1000→~199); complete submission docs (feature-guide, 12 tools, 118 tests).
  *   1.8.0 — Niche Recon shows TRUE index depth: each vertical's count comes from the demand probe (e.g. ~16,666 electrical, ~42,873 hvac) instead of the capped "30+" sample. Sample still drives Apollo-thinness % + operators.
  *   1.8.1 — Niche Recon response cache (2h, keyed by description; `fresh:true` bypasses+overwrites): warmed result is reproducible so the scripted demo isn't at the mercy of LLM non-determinism.
+ *   1.8.2 — Niche Recon perf + geography: probes run in parallel w/ 30s timeout + 24h count cache (cold 69s -> ~25s); suggested scout city is now the top-state flagship metro (was the noisy modal city of a 30-row sample, e.g. "septic service in Apple Valley").
+ *   1.8.3 — Niche Recon / demand-probe speed: send count_only=1 to /api/research so the demand server returns just the count (skips ~18s of per-domain registrar+scoring). Pairs with domainsearch api count_only fast path.
  */
-export const VERSION = "1.8.1";
+export const VERSION = "1.8.3";

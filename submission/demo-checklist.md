@@ -90,7 +90,7 @@ curl -s -X POST https://longtailscout.com/api/niche-recon \
   -d '{"product_description":"home services CRM for trades"}' --max-time 30 \
 | python -c "import sys,json; d=json.load(sys.stdin); print('cached:', d.get('cached')); [print(' ',n['niche'],format(n['demand_count'],','),str(int(n['thinness_pct']*100))+'%') for n in d.get('niches',[])]"
 ```
-**Expected:** `cached: True` and the strong set — ideally `electrical 16,666 100% · hvac 42,873 86% · pool service 10,752 76% · plumbing 46,264 53%` (matches deck slide 5). Any set whose **top niche is ≥90% Apollo-thin** is fine; just adapt the narration to name that niche.
+**Expected:** `cached: True` and a strong set led by **electrical · 16,666 · 100% Apollo-thin** (hvac/plumbing usually follow). Each niche now suggests a real metro (e.g. "electrical in Kansas City") — not a random small town. Any set whose **top niche is ≥90% Apollo-thin** is fine; adapt the narration to name that niche. (Re-rolls get faster as you go — the count cache is 24h, so roll 1 ≈ 50s, roll 3 ≈ 20s.)
 
 **⏰ The cache expires after 2 hours** — run this lock-in step within 2h of recording (re-run it if you take a long break before the take).
 

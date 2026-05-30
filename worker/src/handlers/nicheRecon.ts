@@ -25,7 +25,10 @@ interface NicheRow {
    *  the real count is >= demand_count and the UI appends a "+". False whenever we have the true count. */
   saturated: boolean;
   thinness_pct: number;
-  sample_cities: { city: string; count: number }[];
+  /** Top states the niche concentrates in (stable signal; replaces the noisy modal-city). */
+  regions: { state: string; count: number }[];
+  /** Flagship metro of the top state — the geographically sensible place to scout. */
+  suggested_metro: string;
   sample_operators: { name: string; city: string | null; website: string | null }[];
   suggested_query: string;
   score: number;
@@ -176,20 +179,42 @@ async function fetchNicheDemand(niche: string, env: Env): Promise<number> {
   u.searchParams.set("q", niche);
   u.searchParams.set("tlds", "com");
   u.searchParams.set("limit", "1");
+  // count_only skips the demand server's per-domain registrar+scoring work (the ~18s bottleneck) —
+  // we only need the `demand` count here. Ignored by older demand-API builds, so safe to always send.
+  u.searchParams.set("count_only", "1");
   try {
+    // /api/research is the slow endpoint (~18s cold — it does Cloudflare-registrar work for the
+    // count). 15s timed out on cold calls → spurious "30+". 30s absorbs the worst case.
     const r = await fetch(u.toString(), {
       headers: { "user-agent": "longtailscout-niche-recon/1.0" },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(30000)
     });
     if (!r.ok) return 0;
     const j = await r.json() as { query?: string; demand?: number };
     const demand = typeof j.demand === "number" ? j.demand : 0;
-    await env.CACHE.put(cacheKey, JSON.stringify({ query: j.query ?? niche, demand }), { expirationTtl: 600 });
+    // 24h TTL — demand counts only move on batch index scrapes, and this is the expensive call.
+    await env.CACHE.put(cacheKey, JSON.stringify({ query: j.query ?? niche, demand }), { expirationTtl: 86400 });
     return demand;
   } catch {
     return 0;
   }
 }
+
+/** Top US states → a recognizable flagship metro to scout. The 30-row sample's modal *city* is
+ *  noise (operators are scattered nationwide), but the modal *state* is stable — so we suggest the
+ *  niche in that state's flagship metro instead of a random small town ("septic service in Apple
+ *  Valley"). Covers the states that actually dominate local-service demand. */
+const STATE_METRO: Record<string, string> = {
+  TX: "Houston", CA: "Los Angeles", FL: "Tampa", NY: "New York", IL: "Chicago",
+  PA: "Philadelphia", OH: "Columbus", GA: "Atlanta", NC: "Charlotte", MI: "Detroit",
+  NJ: "Newark", VA: "Virginia Beach", WA: "Seattle", AZ: "Phoenix", MA: "Boston",
+  TN: "Nashville", IN: "Indianapolis", MO: "Kansas City", MD: "Baltimore", WI: "Milwaukee",
+  CO: "Denver", MN: "Minneapolis", SC: "Charleston", AL: "Birmingham", LA: "New Orleans",
+  KY: "Louisville", OR: "Portland", OK: "Oklahoma City", CT: "Hartford", UT: "Salt Lake City",
+  NV: "Las Vegas", AR: "Little Rock", MS: "Jackson", KS: "Wichita", NM: "Albuquerque",
+  NE: "Omaha", ID: "Boise", WV: "Charleston", IA: "Des Moines", PR: "San Juan",
+};
+const DEFAULT_METRO = "Houston";
 
 export async function nicheReconHandler(req: Request, env: Env): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -212,7 +237,7 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
   // bad for a scripted demo. Caching makes a warmed result reproducible: pre-warm with
   // `{"fresh":true}` until you get a strong set, then the UI click returns that same cached set.
   // `fresh:true` bypasses the read but still writes, so re-rolls overwrite to the latest result.
-  const respCacheKey = `nicherecon:resp:v1:${desc.toLowerCase()}`;
+  const respCacheKey = `nicherecon:resp:v2:${desc.toLowerCase()}`;
   if (!body?.fresh) {
     const cached = await env.CACHE.get(respCacheKey, "json");
     if (cached) {
@@ -253,30 +278,34 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     return Response.json({ niches: [], note: "LLM returned no candidate niches" });
   }
 
-  // 2. Score each candidate. We batch (concurrency = 3) instead of firing all at once because
-  //    the .29 demand server serializes internally — 8 parallel calls hit ~17-20s each while 3
-  //    parallel calls stay at ~10-12s. Batching keeps total wall-time predictable around 20-30s.
+  // 2. Score each candidate. Concurrency 3 (the demand server handles parallel calls — measured
+  //    ~12s for 3 parallel probes). Each candidate fires its probe + sample in parallel too.
   const SAMPLE_LIMIT = 30;
-  const BATCH = 2;
+  const BATCH = 3;
   async function scoreOne(niche: string): Promise<NicheRow | null> {
-    // SEQUENTIAL, demand probe first: the upstream demand server serializes internally, so firing
-    // the count probe and the 30-row sample at it concurrently makes the lighter probe lose the
-    // race and time out (→ spurious "30+" fallback). The count is cheap (limit=1) and usually
-    // cache-warm, so paying for it first costs little and guarantees the true number.
-    const trueDemand = await fetchNicheDemand(niche, env);
-    const { sample, raw_count, raw_thinness, saturated: sampleSaturated } = await fetchNicheBusinesses(niche, env, SAMPLE_LIMIT);
+    // Probe (true count) and sample run in PARALLEL — the demand server handles concurrent calls,
+    // and the probe's 30s timeout means it no longer loses the race and falls back to "30+".
+    const [trueDemand, biz] = await Promise.all([
+      fetchNicheDemand(niche, env),
+      fetchNicheBusinesses(niche, env, SAMPLE_LIMIT),
+    ]);
+    const { sample, raw_count, raw_thinness, saturated: sampleSaturated } = biz;
     if (sample.length === 0 && raw_count === 0) return null;
 
-    // City distribution from the deduped sample — picks the demo city for the "Scout this" button.
-    const cityCounts = new Map<string, number>();
+    // STATE distribution, not city. The modal *city* of 30 nationally-scattered rows is noise
+    // (e.g. "septic service" → Apple Valley, CA with 1 row); the modal *state* is stable. We scout
+    // the niche in that state's flagship metro instead of a random town.
+    const stateCounts = new Map<string, number>();
     for (const b of sample) {
-      if (!b.city) continue;
-      cityCounts.set(b.city, (cityCounts.get(b.city) ?? 0) + 1);
+      const st = (b.state ?? "").trim().toUpperCase();
+      if (st && st.length <= 3) stateCounts.set(st, (stateCounts.get(st) ?? 0) + 1);
     }
-    const sample_cities = Array.from(cityCounts.entries())
+    const regions = Array.from(stateCounts.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
-      .map(([city, count]) => ({ city, count }));
+      .map(([state, count]) => ({ state, count }));
+    const topState = regions[0]?.state ?? "";
+    const suggested_metro = STATE_METRO[topState] ?? DEFAULT_METRO;
 
     const sample_operators = sample
       .filter(b => typeof b.name === "string" && b.name.trim().length > 0)
@@ -296,14 +325,14 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     const longTailMultiplier = effectiveCount < 10 ? 0.4 : 1.0;
     const score = sizeScore * raw_thinness * longTailMultiplier;
 
-    const topCity = sample_cities[0]?.city ?? "";
-    const suggested_query = topCity ? `${niche} in ${topCity}` : niche;
+    const suggested_query = `${niche} in ${suggested_metro}`;
 
     return {
       niche,
       demand_count: effectiveCount,
       thinness_pct: raw_thinness,
-      sample_cities,
+      regions,
+      suggested_metro,
       sample_operators,
       suggested_query,
       score,

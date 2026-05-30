@@ -243,6 +243,8 @@ export async function demandResearchHandler(req: Request, env: Env): Promise<Res
   upstream.searchParams.set("q", q);
   upstream.searchParams.set("tlds", "com");
   upstream.searchParams.set("limit", "1");
+  // We only need the `demand` count — skip the slow per-domain registrar/scoring work.
+  upstream.searchParams.set("count_only", "1");
   try {
     const r = await fetch(upstream.toString(), { headers: { "user-agent": "longtailscout-worker/1.0" } });
     if (!r.ok) return Response.json({ error: "upstream error" }, { status: 502 });

@@ -5,7 +5,8 @@ interface NicheRow {
   demand_count: number;
   saturated?: boolean;
   thinness_pct: number;
-  sample_cities: { city: string; count: number }[];
+  regions: { state: string; count: number }[];
+  suggested_metro: string;
   sample_operators: { name: string; city: string | null; website: string | null }[];
   suggested_query: string;
   score: number;
@@ -145,9 +146,9 @@ export function NicheRecon({ demoKey, disabled, onPickQuery }: Props) {
                       {Math.round(r.thinness_pct * 100)}% Apollo-thin
                     </span>
                   </div>
-                  {r.sample_cities.length > 0 && (
+                  {r.regions.length > 0 && (
                     <div class="font-mono text-[10px] text-ink-50 mt-1">
-                      top cities: {r.sample_cities.map(c => `${c.city} (${c.count})`).join(" · ")}
+                      concentrated in: {r.regions.map(c => c.state).join(" · ")} → scout <span class="text-ink-70">{r.suggested_metro}</span>
                     </div>
                   )}
                   {r.sample_operators.length > 0 && (
