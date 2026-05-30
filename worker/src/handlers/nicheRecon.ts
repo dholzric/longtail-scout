@@ -241,7 +241,7 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
   // bad for a scripted demo. Caching makes a warmed result reproducible: pre-warm with
   // `{"fresh":true}` until you get a strong set, then the UI click returns that same cached set.
   // `fresh:true` bypasses the read but still writes, so re-rolls overwrite to the latest result.
-  const respCacheKey = `nicherecon:resp:v2:${desc.toLowerCase()}`;
+  const respCacheKey = `nicherecon:resp:v3:${desc.toLowerCase()}`;
   if (!body?.fresh) {
     const cached = await env.CACHE.get(respCacheKey, "json");
     if (cached) {
@@ -356,8 +356,12 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     rows.push(...results);
   }
 
+  // Apollo-thinness floor: a niche where <30% of operators lack an own domain isn't a compelling
+  // "Apollo can't see them" story (e.g. pressure washing at 3%). Drop those rather than padding the
+  // top-5 with weak niches when the LLM's candidate pool was thin. Fewer-but-strong beats five-with-junk.
+  const THINNESS_FLOOR = 0.30;
   const ranked = rows
-    .filter((r): r is NicheRow => r !== null && r.demand_count > 0 && r.score > 0)
+    .filter((r): r is NicheRow => r !== null && r.demand_count > 0 && r.score > 0 && r.thinness_pct >= THINNESS_FLOOR)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
@@ -367,10 +371,11 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     candidate_niches: candidateNiches,
     niches: ranked
   };
-  // Cache non-empty results for 2h so a warmed run is reproducible (incl. after a `fresh` re-roll).
+  // Cache non-empty results for 7 days so a warmed/locked run stays reproducible (the LLM picks a
+  // different niche set each call, so the cache is what makes the same description deterministic).
   // Never cache an empty set — that's usually a transient demand-server hiccup we want to retry.
   if (ranked.length > 0) {
-    await env.CACHE.put(respCacheKey, JSON.stringify(payload), { expirationTtl: 7200 });
+    await env.CACHE.put(respCacheKey, JSON.stringify(payload), { expirationTtl: 604800 });
   }
 
   return Response.json(payload, { headers: { "cache-control": "no-store" } });

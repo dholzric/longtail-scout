@@ -27,5 +27,6 @@
  *   1.8.3 — Niche Recon / demand-probe speed: send count_only=1 to /api/research so the demand server returns just the count (skips ~18s of per-domain registrar+scoring). Pairs with domainsearch api count_only fast path.
  *   1.8.4 — Niche Recon sample now shows Apollo-thin operators (no own-domain) instead of the highest-review big regional chains that contradicted the long-tail pitch. (Pairs with the demand API exact-city fix — "York" no longer pulls in New York/Yorktown on the map.)
  *   1.8.5 — Apollo-thinness accuracy: PLATFORM_HOSTS now covers field-service platforms (Jobber/getjobber, HousecallPro, Workiz, ServiceM8, FieldPulse, Markate, Nextdoor, Alignable) operators front instead of an own domain; bumped nichebiz cache (v4->v5).
+ *   1.8.6 — Niche Recon quality + determinism: drop niches below a 30% Apollo-thinness floor (no more "pressure washing 3%"); response cache 2h->7d so a locked result for a given description stays reproducible (cache bumped v2->v3).
  */
-export const VERSION = "1.8.5";
+export const VERSION = "1.8.6";
