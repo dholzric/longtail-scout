@@ -18,9 +18,11 @@ import { llmCall, envWithByok } from "../llm/client";
 
 interface NicheRow {
   niche: string;
-  /** Deduped sample size from the demand index (capped at SAMPLE_LIMIT). */
+  /** True national count from the demand index (falls back to the capped sample size only if
+   *  the demand probe is unavailable). */
   demand_count: number;
-  /** True when the demand API returned a full page — actual count is >= demand_count. */
+  /** Only true in the fallback case (demand probe failed AND the sample hit its ceiling) — then
+   *  the real count is >= demand_count and the UI appends a "+". False whenever we have the true count. */
   saturated: boolean;
   thinness_pct: number;
   sample_cities: { city: string; count: number }[];
@@ -162,6 +164,33 @@ async function fetchNicheBusinesses(niche: string, env: Env, limit = 50): Promis
   }
 }
 
+/** True national count for a niche from the demand index (the same `/api/research` demand
+ *  signal `/api/demand-research` surfaces). This is the REAL index depth — e.g. ~16,666
+ *  electrical, ~42,873 hvac — not the 30-row display sample fetchNicheBusinesses pulls.
+ *  Shares the `demand-research:` cache key so a probe under the query input warms it too. */
+async function fetchNicheDemand(niche: string, env: Env): Promise<number> {
+  const cacheKey = `demand-research:${niche.toLowerCase()}`;
+  const cached = await env.CACHE.get(cacheKey, "json") as { query: string; demand: number } | null;
+  if (cached) return typeof cached.demand === "number" ? cached.demand : 0;
+  const u = new URL("/api/research", env.DEMAND_API_BASE);
+  u.searchParams.set("q", niche);
+  u.searchParams.set("tlds", "com");
+  u.searchParams.set("limit", "1");
+  try {
+    const r = await fetch(u.toString(), {
+      headers: { "user-agent": "longtailscout-niche-recon/1.0" },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!r.ok) return 0;
+    const j = await r.json() as { query?: string; demand?: number };
+    const demand = typeof j.demand === "number" ? j.demand : 0;
+    await env.CACHE.put(cacheKey, JSON.stringify({ query: j.query ?? niche, demand }), { expirationTtl: 600 });
+    return demand;
+  } catch {
+    return 0;
+  }
+}
+
 export async function nicheReconHandler(req: Request, env: Env): Promise<Response> {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
@@ -172,10 +201,23 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     return new Response("unauthorized", { status: 401 });
   }
 
-  const body = await req.json().catch(() => null) as { product_description?: string } | null;
+  const body = await req.json().catch(() => null) as { product_description?: string; fresh?: boolean } | null;
   const desc = (body?.product_description ?? "").trim();
   if (!desc || desc.length < 10 || desc.length > 800) {
     return Response.json({ error: "product_description required (10-800 chars)" }, { status: 400 });
+  }
+
+  // Response cache keyed by the exact description. The niche SET comes from a (non-deterministic)
+  // LLM call, so without this the same description returns different verticals every click —
+  // bad for a scripted demo. Caching makes a warmed result reproducible: pre-warm with
+  // `{"fresh":true}` until you get a strong set, then the UI click returns that same cached set.
+  // `fresh:true` bypasses the read but still writes, so re-rolls overwrite to the latest result.
+  const respCacheKey = `nicherecon:resp:v1:${desc.toLowerCase()}`;
+  if (!body?.fresh) {
+    const cached = await env.CACHE.get(respCacheKey, "json");
+    if (cached) {
+      return Response.json({ ...(cached as object), cached: true }, { headers: { "cache-control": "no-store" } });
+    }
   }
 
   // 1. LLM expands the product description into candidate verticals.
@@ -217,7 +259,12 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
   const SAMPLE_LIMIT = 30;
   const BATCH = 2;
   async function scoreOne(niche: string): Promise<NicheRow | null> {
-    const { sample, raw_count, raw_thinness, saturated } = await fetchNicheBusinesses(niche, env, SAMPLE_LIMIT);
+    // SEQUENTIAL, demand probe first: the upstream demand server serializes internally, so firing
+    // the count probe and the 30-row sample at it concurrently makes the lighter probe lose the
+    // race and time out (→ spurious "30+" fallback). The count is cheap (limit=1) and usually
+    // cache-warm, so paying for it first costs little and guarantees the true number.
+    const trueDemand = await fetchNicheDemand(niche, env);
+    const { sample, raw_count, raw_thinness, saturated: sampleSaturated } = await fetchNicheBusinesses(niche, env, SAMPLE_LIMIT);
     if (sample.length === 0 && raw_count === 0) return null;
 
     // City distribution from the deduped sample — picks the demo city for the "Scout this" button.
@@ -236,11 +283,16 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
       .slice(0, 3)
       .map(b => ({ name: b.name, city: b.city, website: b.website }));
 
-    // demand_count is the RAW count (every location counts); thinness is on raw rows too.
-    // The deduped sample is just for display.
-    const effectiveCount = Math.max(raw_count, sample.length);
+    // demand_count is the TRUE national count from the demand index (real moat depth — tens of
+    // thousands per niche). Fall back to the raw sample count only if the demand probe is
+    // unavailable. thinness stays measured on the 30-row sample; the deduped sample is display-only.
+    const sampleCount = Math.max(raw_count, sample.length);
+    const effectiveCount = trueDemand > 0 ? trueDemand : sampleCount;
+    // With the true count we no longer show a "30+" ceiling; only fall back to "+" if we had to
+    // use the capped sample (demand probe failed) and that sample saturated.
+    const saturated = trueDemand > 0 ? false : sampleSaturated;
     const sizeScore = Math.log10(effectiveCount + 1);
-    // Long-tail premium: saturated samples (cap+) get full weight; tiny samples (<10) get penalized.
+    // Long-tail premium: real-sized niches get full weight; near-empty ones (<10) get penalized.
     const longTailMultiplier = effectiveCount < 10 ? 0.4 : 1.0;
     const score = sizeScore * raw_thinness * longTailMultiplier;
 
@@ -272,12 +324,17 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  return Response.json({
+  const payload = {
     product_description: desc,
     candidates_considered: candidateNiches.length,
     candidate_niches: candidateNiches,
     niches: ranked
-  }, {
-    headers: { "cache-control": "no-store" }
-  });
+  };
+  // Cache non-empty results for 2h so a warmed run is reproducible (incl. after a `fresh` re-roll).
+  // Never cache an empty set — that's usually a transient demand-server hiccup we want to retry.
+  if (ranked.length > 0) {
+    await env.CACHE.put(respCacheKey, JSON.stringify(payload), { expirationTtl: 7200 });
+  }
+
+  return Response.json(payload, { headers: { "cache-control": "no-store" } });
 }
