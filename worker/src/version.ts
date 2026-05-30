@@ -26,5 +26,6 @@
  *   1.8.2 — Niche Recon perf + geography: probes run in parallel w/ 30s timeout + 24h count cache (cold 69s -> ~25s); suggested scout city is now the top-state flagship metro (was the noisy modal city of a 30-row sample, e.g. "septic service in Apple Valley").
  *   1.8.3 — Niche Recon / demand-probe speed: send count_only=1 to /api/research so the demand server returns just the count (skips ~18s of per-domain registrar+scoring). Pairs with domainsearch api count_only fast path.
  *   1.8.4 — Niche Recon sample now shows Apollo-thin operators (no own-domain) instead of the highest-review big regional chains that contradicted the long-tail pitch. (Pairs with the demand API exact-city fix — "York" no longer pulls in New York/Yorktown on the map.)
+ *   1.8.5 — Apollo-thinness accuracy: PLATFORM_HOSTS now covers field-service platforms (Jobber/getjobber, HousecallPro, Workiz, ServiceM8, FieldPulse, Markate, Nextdoor, Alignable) operators front instead of an own domain; bumped nichebiz cache (v4->v5).
  */
-export const VERSION = "1.8.4";
+export const VERSION = "1.8.5";

@@ -61,7 +61,11 @@ const PLATFORM_HOSTS = new Set([
   "square.site", "squareup.com", "wix.com", "wixsite.com", "weebly.com", "godaddysites.com",
   "shopify.com", "myshopify.com", "tripadvisor.com", "opentable.com", "resy.com",
   "schedulista.com", "setmore.com", "calendly.com", "acuityscheduling.com", "fresha.com",
-  "joinblvd.com", "joinhonk.com"
+  "joinblvd.com", "joinhonk.com",
+  // Field-service / home-service platforms operators front instead of an own domain. Subdomain
+  // forms (clienthub.getjobber.com, book.housecallpro.com) are caught by the sub-strip in isOwnDomain.
+  "getjobber.com", "jobber.com", "housecallpro.com", "workiz.com", "servicem8.com",
+  "fieldpulse.com", "markate.com", "nextdoor.com", "alignable.com"
 ]);
 
 /** Does this URL count as the business's OWN domain (i.e., Apollo can enrich from it)?
@@ -113,7 +117,7 @@ interface NicheBizPayload {
 }
 
 async function fetchNicheBusinesses(niche: string, env: Env, limit = 50): Promise<NicheBizPayload> {
-  const cacheKey = `nichebiz:v4:${niche.toLowerCase()}:${limit}`;
+  const cacheKey = `nichebiz:v5:${niche.toLowerCase()}:${limit}`;
   const cached = await env.CACHE.get(cacheKey, "json") as NicheBizPayload | null;
   if (cached) {
     // Old cache entries may lack raw_count/raw_thinness — backfill from the deduped sample.
