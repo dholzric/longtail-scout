@@ -307,10 +307,14 @@ export async function nicheReconHandler(req: Request, env: Env): Promise<Respons
     const topState = regions[0]?.state ?? "";
     const suggested_metro = STATE_METRO[topState] ?? DEFAULT_METRO;
 
-    const sample_operators = sample
-      .filter(b => typeof b.name === "string" && b.name.trim().length > 0)
-      .slice(0, 3)
-      .map(b => ({ name: b.name, city: b.city, website: b.website }));
+    // Prefer Apollo-thin operators (no own-domain website) for the sample — they ARE the long-tail
+    // this niche is about. The upstream sorts by review_count, which otherwise surfaces big regional
+    // chains (with their own sites + LinkedIn) that directly contradict the "Apollo can't see them" pitch.
+    const namedSample = sample.filter(b => typeof b.name === "string" && b.name.trim().length > 0);
+    const sample_operators = [
+      ...namedSample.filter(b => !isOwnDomain(b.website)),
+      ...namedSample.filter(b => isOwnDomain(b.website)),
+    ].slice(0, 3).map(b => ({ name: b.name, city: b.city, website: b.website }));
 
     // demand_count is the TRUE national count from the demand index (real moat depth — tens of
     // thousands per niche). Fall back to the raw sample count only if the demand probe is
