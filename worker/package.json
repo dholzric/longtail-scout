@@ -1,6 +1,6 @@
 {
   "name": "worker",
-  "version": "1.8.8",
+  "version": "1.8.9",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -18,7 +18,7 @@
     "typescript": "^5",
     "vite": "^8.3.5",
     "vitest": "^4.1.12",
-    "wrangler": "^4.151.3"
+    "wrangler": "^4.152.0"
   },
   "dependencies": {
     "openai": "^4.104.0"
@@ -26,7 +26,8 @@
   "pnpm": {
     "overrides": {
       "form-data@>=4.0.0 <4.0.6": "^4.0.6",
-      "ws@>=8.0.0 <8.21.0": "^8.21.0"
+      "ws@>=8.0.0 <8.21.0": "^8.21.0",
+      "undici": "^7.30.1"
     }
   }
 }
